@@ -100,8 +100,9 @@
 | Profile | Avatar with initial, name, phone, email, menu (Edit Name, My Addresses, Order History, Help & Support), logout |
 | My Addresses | Address cards with label/default badges, edit/delete, Add New Address button |
 | Search Results | Search bar, result count, active filter pills, product grid, empty state |
+| FAQs | Accordion Q&A list, hardcoded for pilot, one-open-at-a-time |
 
-**Total: 21 screens**
+**Total: 22 screens**
 
 ### 3.2 Backend API (`apps/api`)
 

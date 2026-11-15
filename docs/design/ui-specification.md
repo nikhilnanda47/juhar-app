@@ -1,8 +1,8 @@
 # Sajani — UI Design Specification
 
-**Version:** 1.0  
+**Version:** 2.0  
 **Date:** 15 November 2026  
-**Status:** Finalized
+**Status:** Finalized (22 screen designs locked)
 
 ---
 
@@ -394,6 +394,924 @@ Used for: filters, sort options, address selection on larger screens
 | Mobile | < 640px | 2 product columns | Primary target |
 | Tablet | 640–1024px | 3 product columns | Secondary |
 | Desktop | > 1024px | 4 product columns, max-width 1200px centered | Future web |
+
+---
+
+## 13. Screen-by-Screen Designs
+
+### 13.1 Splash (Screen 1)
+
+**Purpose:** Brand moment while app loads. Auto-transitions to Home (returning user) or Welcome (first launch).
+
+```
+┌─────────────────────────────┐
+│                             │
+│                             │
+│                             │
+│                             │
+│          [Sajani Logo]      │  ← Centered, DM Serif Display
+│           ସଜନୀ              │  ← Odia script below, 14px caption
+│                             │
+│                             │
+│                             │
+│                             │
+│                             │
+└─────────────────────────────┘
+```
+
+- Background: `#FAFAF7`
+- "Sajani" wordmark: DM Serif Display, 32px, `#8B3A4A`
+- "ସଜନୀ" subtitle: DM Sans, 14px, `#6B6B6B`
+- Duration: 1.5–2s (or until API health check returns)
+- Animation: Logo fades in (opacity 0→1, 400ms ease-out), cross-fade to next screen
+- No tagline, no illustration, no decorative background
+
+---
+
+### 13.2 Welcome / Onboarding (Screen 2)
+
+**Purpose:** First-time users only. 3 swipeable pages. Skip always visible.
+
+```
+┌─────────────────────────────┐
+│                      Skip → │  ← Ghost button, top-right
+│                             │
+│    ┌───────────────────┐    │
+│    │   Illustration    │    │  ← Simple, flat, minimal color
+│    │   or Product      │    │
+│    │   Photo           │    │
+│    └───────────────────┘    │
+│                             │
+│    Handwoven with care      │  ← DM Serif Display, 24px
+│                             │
+│    Sambalpuri sarees made   │  ← DM Sans, 14px, #6B6B6B
+│    by master weavers from   │     Center-aligned
+│    Western Odisha.          │
+│                             │
+│         ● ○ ○               │  ← Active dot: #8B3A4A
+│                             │
+│  ┌─────────────────────────┐│
+│  │     Start Shopping      ││  ← Page 3 only; Pages 1-2: "Next →"
+│  └─────────────────────────┘│
+└─────────────────────────────┘
+```
+
+**3 Pages:**
+
+| Page | Headline | Subtext |
+|------|----------|---------|
+| 1 | Handwoven with care | Sambalpuri sarees made by master weavers from Western Odisha. |
+| 2 | Direct from the loom | No middlemen. Fair prices for weavers, honest prices for you. |
+| 3 | Delivered to your door | Cash on delivery. Easy returns. 5–7 day shipping. |
+
+- Swipe between pages, dot indicators scale active (1.0→1.3)
+- Pages 1–2: "Next →" ghost button; Page 3: "Start Shopping" primary button
+- "Skip" top-right always visible → goes to Home
+- After completion/skip: `hasOnboarded = true` in AsyncStorage, never shown again
+
+---
+
+### 13.3 No Internet (Screen 3)
+
+**Purpose:** Shown when network unreachable.
+
+```
+┌─────────────────────────────┐
+│                             │
+│                             │
+│         wifi-off            │  ← Lucide, 48px, #999999
+│                             │
+│     No internet connection  │  ← DM Serif Display, 20px
+│                             │
+│     Check your connection   │  ← DM Sans, 14px, #6B6B6B
+│     and try again.          │     Center-aligned
+│                             │
+│     ┌───────────────────┐   │
+│     │      Retry        │   │  ← Secondary button (outline)
+│     └───────────────────┘   │     160px width
+│                             │
+└─────────────────────────────┘
+```
+
+- Auto-detects network restore → dismisses automatically
+- Retry: re-checks, brief spinner inside button
+- No tab bar visible
+- If mid-flow: overlays current screen
+
+---
+
+### 13.4 App Update Required (Screen 4)
+
+**Purpose:** Force-update gate. Non-dismissable.
+
+```
+┌─────────────────────────────┐
+│                             │
+│                             │
+│         download            │  ← Lucide, 48px, #999999
+│                             │
+│       Update available      │  ← DM Serif Display, 20px
+│                             │
+│    A newer version of       │  ← DM Sans, 14px, #6B6B6B
+│    Sajani is available.     │     Center-aligned
+│    Please update to         │
+│    continue.                │
+│                             │
+│  ┌─────────────────────────┐│
+│  │    Update Now            ││  ← Primary button, full-width
+│  └─────────────────────────┘│     Opens Play Store / App Store
+└─────────────────────────────┘
+```
+
+- Non-dismissable: no back, no skip, no tab bar
+- On app resume: re-checks version → dismisses if updated
+- No hardware back (Android)
+
+---
+
+### 13.5 Maintenance (Screen 5)
+
+**Purpose:** API down for maintenance. Informational only.
+
+```
+┌─────────────────────────────┐
+│                             │
+│                             │
+│         wrench              │  ← Lucide, 48px, #999999
+│                             │
+│      We'll be back soon     │  ← DM Serif Display, 20px
+│                             │
+│    We're making some        │  ← DM Sans, 14px, #6B6B6B
+│    improvements. Please     │     Center-aligned
+│    check back in a while.   │
+│                             │
+└─────────────────────────────┘
+```
+
+- No action button — nothing user can do
+- Auto-polls API health every 30s → auto-transitions to Home when healthy
+- No tab bar, no back button
+
+---
+
+### 13.6 Login — Phone (Screen 6)
+
+**Purpose:** Phone number input for OTP auth. Appears on protected actions.
+
+```
+┌─────────────────────────────┐
+│  ←                          │
+│                             │
+│    Log in to Sajani         │  ← DM Serif Display, 24px
+│                             │
+│    Enter your phone number  │  ← DM Sans, 14px, #6B6B6B
+│    to continue.             │
+│                             │
+│    PHONE NUMBER             │  ← Label, 12px, #6B6B6B
+│    ┌──────┬────────────────┐│
+│    │ +91  │ 98765 43210    ││  ← 48px, numeric keyboard
+│    └──────┴────────────────┘│     +91 fixed, non-editable
+│                             │
+│  ┌─────────────────────────┐│
+│  │      Send OTP           ││  ← Disabled until 10 valid digits
+│  └─────────────────────────┘│
+└─────────────────────────────┘
+```
+
+- Validates: exactly 10 digits, starts with 6–9
+- Button disabled (40% opacity) until valid
+- Error: inline below input, 12px `#C44A4A`
+- Input focus: border `#EEEEEE` → `#8B3A4A`
+- Numeric keyboard auto-opens
+
+---
+
+### 13.7 Login — OTP Verify (Screen 7)
+
+**Purpose:** 6-digit OTP input. Auto-submits on completion.
+
+```
+┌─────────────────────────────┐
+│  ←                          │
+│                             │
+│    Verify your number       │  ← DM Serif Display, 24px
+│                             │
+│    OTP sent to              │  ← DM Sans, 14px, #6B6B6B
+│    +91 98765 43210          │  ← DM Sans, 14px bold, #1A1A1A
+│                             │
+│    ┌───┐ ┌───┐ ┌───┐ ┌───┐ ┌───┐ ┌───┐
+│    │ 1 │ │ 2 │ │ 3 │ │ 4 │ │ 5 │ │ 6 │  ← 48×48px, 8px gap
+│    └───┘ └───┘ └───┘ └───┘ └───┘ └───┘
+│                             │
+│    Resend OTP in 0:28       │  ← 14px, #999999
+│    Change number            │  ← Ghost, 14px, #8B3A4A
+│                             │
+└─────────────────────────────┘
+```
+
+- Auto-advance on digit entry, backspace moves back
+- Auto-submit on 6th digit (no button)
+- Error: shake animation, clear all, refocus first, "Invalid OTP" 12px `#C44A4A`
+- Resend timer: 30s countdown → "Resend OTP" tappable ghost `#8B3A4A`
+- Success → Home (existing) or Name Capture (new user)
+- Box border: `#EEEEEE`, focus: `#8B3A4A`
+
+---
+
+### 13.8 Name Capture (Screen 8)
+
+**Purpose:** First-time users only. Collect name after OTP. Shown once.
+
+```
+┌─────────────────────────────┐
+│                             │
+│                             │
+│    Welcome to Sajani        │  ← DM Serif Display, 24px
+│                             │
+│    What should we call you? │  ← DM Sans, 14px, #6B6B6B
+│                             │
+│    YOUR NAME                │  ← Label, 12px
+│    ┌───────────────────────┐│
+│    │ e.g. Priya            ││  ← Placeholder #999999
+│    └───────────────────────┘│
+│                             │
+│  ┌─────────────────────────┐│
+│  │      Continue           ││  ← Disabled until ≥ 2 chars
+│  └─────────────────────────┘│
+│    Skip →                   │  ← Ghost, center, #8B3A4A
+└─────────────────────────────┘
+```
+
+- No back arrow (can't skip auth mid-flow)
+- "Skip" saves user with no name (editable from Profile later)
+- On continue: `PATCH /me` → navigate to Home
+
+---
+
+### 13.9 Home (Screen 9)
+
+**Purpose:** Main landing. Collections + new arrivals.
+
+```
+┌─────────────────────────────┐
+│    Sajani                   │  ← DM Serif Display, 24px, #8B3A4A
+│                             │
+│  ┌─────────────────────────┐│
+│  │     Hero Image          ││  ← Full-width, 16:9, 12px radius
+│  │     (featured saree)    ││     Tappable → Explore filtered
+│  └─────────────────────────┘│
+│                             │
+│    Collections              │  ← DM Serif Display, 18px
+│                             │
+│  ┌──────────┐ ┌──────────┐ │  ← 2×2 grid, 12px gap
+│  │  Silk    │ │  Cotton  │ │     1:1 ratio, 12px radius
+│  └──────────┘ └──────────┘ │     Name: 14px, white, dark gradient
+│  ┌──────────┐ ┌──────────┐ │     Tap → Explore filtered
+│  │  Pasapali│ │  Ikat    │ │
+│  └──────────┘ └──────────┘ │
+│                             │
+│    New Arrivals    See all →│  ← Section title + ghost link
+│                             │
+│  ┌────────┐ ┌────────┐ ┌───│  ← Horizontal scroll, 160px cards
+│  │  img   │ │  img   │ │   │     12px gap, standard product card
+│  │  3:4   │ │  3:4   │ │   │     Latest 8 from API
+│  ├────────┤ ├────────┤ ├───│
+│  │Name    │ │Name    │ │   │
+│  │₹3,500  │ │₹2,800  │ │   │
+│  └────────┘ └────────┘ └───│
+│                             │
+├─────────────────────────────┤
+│ Home  Shop  Cart Orders Acc │
+└─────────────────────────────┘
+```
+
+- Pull-to-refresh with branded spinner
+- Shimmer skeleton on first load
+- Sections separated by 32px whitespace
+- No trust badges, no authenticity section, no footer strip
+
+---
+
+### 13.10 Explore / Shop (Screen 10)
+
+**Purpose:** Full catalog. Category filter, sort, 2-column grid.
+
+```
+┌─────────────────────────────┐
+│    Shop                     │  ← DM Serif Display, 24px
+│                             │
+│  ┌─────────────────────────┐│
+│  │ 🔍 Search sarees...     ││  ← Tappable → Search screen
+│  └─────────────────────────┘│
+│                             │
+│  ┌────┐ ┌──────┐ ┌──────┐  │  ← Horizontal chips
+│  │All │ │Silk  │ │Cotton│  │     Active: #8B3A4A bg, white
+│  └────┘ └──────┘ └──────┘  │     Inactive: #EEEEEE bg
+│                             │
+│  24 sarees         Sort ↓  │  ← Count + sort ghost button
+│                             │
+│  ┌──────────┐ ┌──────────┐ │  ← 2-column, 12px gap
+│  │  img 3:4 │ │  img 3:4 │ │     Standard product card
+│  ├──────────┤ ├──────────┤ │     Cursor pagination
+│  │Name      │ │Name      │ │     Shimmer at bottom while loading
+│  │₹3,500    │ │₹2,800    │ │
+│  └──────────┘ └──────────┘ │
+│         ···                 │
+├─────────────────────────────┤
+│ Home  Shop  Cart Orders Acc │
+└─────────────────────────────┘
+```
+
+**Sort bottom sheet:**
+
+| Option | Default |
+|--------|---------|
+| Newest first | ● (default) |
+| Price: Low to High | ○ |
+| Price: High to Low | ○ |
+| Popular | ○ |
+
+- Radio list, 48px rows, `#8B3A4A` active dot
+- Drag handle, backdrop dim, 16px top radius
+
+**Empty state:** Lucide `search` 48px + "No sarees found" + "Try a different category"
+
+---
+
+### 13.11 Product Detail (Screen 11)
+
+**Purpose:** Full product view. Most important customer screen.
+
+```
+┌─────────────────────────────┐
+│  ←                 ♡    ↗   │  ← Back, Wishlist, Share
+│                             │
+│  ┌─────────────────────────┐│
+│  │     Product Image       ││  ← Full-width, 3:4, swipeable
+│  │     (pinch-to-zoom)     ││
+│  └─────────────────────────┘│
+│         ● ○ ○ ○             │  ← Dot pagination
+│                             │
+│  Pasapali Silk Saree        │  ← DM Serif Display, 20px
+│  ₹3,500  ₹4,500  22% off   │  ← Price / MRP strike / discount
+│  Only 3 left                │  ← 13px, #C44A4A (if stock ≤ 3)
+│  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  │
+│  Colour                     │  ← Variant swatches, 36px circles
+│  (●Red) (○Blue) (○Green)   │     Selected: 2px #8B3A4A border
+│  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  │
+│  Check delivery             │
+│  ┌──────────────────┐ Check │  ← PIN input + check button
+│  │ Enter PIN code   │  →    │
+│  ✓ Delivery in 5–7 days    │  ← Success: #3D8B63
+│  ✓ Cash on delivery         │
+│  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  │
+│  Details                    │
+│  Fabric ········· Silk      │  ← Key-value rows
+│  Weave ·········· Pasapali  │     Alternating bg
+│  Origin ········· Bargarh   │
+│  Length ········· 6.2m      │
+│  Blouse Piece ··· Included  │
+│  Wash Care ······ Dry clean │
+│  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  │
+│  Delivery & Returns         │
+│  📦 5–7 business days       │  ← Lucide icons + 14px text
+│  🔄 7-day returns           │
+│  💵 Cash on delivery        │
+│  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  │
+│  You may also like          │  ← Horizontal scroll, 160px cards
+│  ┌────────┐ ┌────────┐ ┌───│     Same category, max 6
+│  │  img   │ │  img   │ │   │     Excludes current product
+│  └────────┘ └────────┘ └───│
+│                             │
+├─────────────────────────────┤
+│ ┌─────────────────────────┐ │  ← Sticky bar, subtle shadow
+│ │      Add to Bag         │ │     Out of stock: disabled + text
+│ └─────────────────────────┘ │
+├─────────────────────────────┤
+│ Home  Shop  Cart Orders Acc │
+└─────────────────────────────┘
+```
+
+**Header icons:**
+
+| Icon | Position | Size | Default | Active |
+|------|----------|------|---------|--------|
+| Back `←` | Left | 24px | `#1A1A1A` | — |
+| Heart `♡` | Right #1 | 24px | `#1A1A1A` outlined | `#C44A4A` filled |
+| Share `↗` | Right #2 | 24px | `#1A1A1A` | — |
+
+- Wishlist: requires login, scale animation (0.8→1.2→1.0, 200ms)
+- Share: native share sheet (WhatsApp, copy link), no login required
+- PIN check: 6-digit, numeric. Pilot: all PINs valid. Remembers in session.
+- Variant change updates price/stock/images
+- Add to Bag: login check → checkmark animation (500ms) → text restores
+- Shimmer skeleton on load
+
+---
+
+### 13.12 Cart / My Bag (Screen 12)
+
+**Purpose:** View bag, adjust quantities, coupon, checkout.
+
+```
+┌─────────────────────────────┐
+│  ←    My Bag (3)            │
+│                             │
+│  ┌─────────────────────────┐│
+│  │ ┌─────┐                 ││  ← Tap image/name → Product Detail
+│  │ │ img │ Pasapali Silk   ││     Image: 80×106px (3:4)
+│  │ │ 3:4 │ Red             ││
+│  │ │     │ ₹3,500  ₹4,500 ││  ← Price + MRP strikethrough
+│  │ └─────┘                 ││
+│  │  📦 Delivery by 22 Nov  ││  ← Estimated delivery per item
+│  │       ┌───┬───┬───┐     ││
+│  │       │ − │ 1 │ + │     ││  ← Qty stepper, 32px height
+│  │       └───┴───┴───┘     ││
+│  │  ♡ Wishlist        🗑   ││  ← Move to wishlist / Remove
+│  └─────────────────────────┘│
+│                             │
+│  ┌─────────────────────────┐│  ← Out of stock item:
+│  │ ┌─────┐                 ││     50% opacity, no stepper
+│  │ │ img │ Bandha Silk     ││     Red "Out of stock" text
+│  │ │     │ ✕ Out of stock   ││
+│  │  ♡ Wishlist        🗑   ││
+│  └─────────────────────────┘│
+│  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  │
+│  ┌──────────────────┐ Apply │  ← Coupon code input
+│  │ Enter coupon code│  →    │     Uppercase, max 20 chars
+│  └──────────────────┘       │     Success: green pill + savings
+│  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  │     Error: 12px #C44A4A below
+│  Price Details              │
+│  Subtotal (2 items)  ₹6,300│  ← OOS items excluded
+│  Coupon (FIRST100)    −₹100│  ← Green, only if applied
+│  Shipping              ₹99 │  ← or "FREE" in #3D8B63
+│  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  │
+│  Total              ₹6,199 │  ← 16px bold
+│  Free shipping on ₹5,000+  │  ← 12px #3D8B63, if sub < 5000
+├─────────────────────────────┤
+│ ┌─────────────────────────┐ │  ← Sticky bar, subtle shadow
+│ │   Proceed to Checkout   │ │     Blocked if OOS items remain
+│ └─────────────────────────┘ │
+├─────────────────────────────┤
+│ Home  Shop  Cart Orders Acc │
+└─────────────────────────────┘
+```
+
+**Empty state:** Lucide `shopping-bag` 48px + "Your bag is empty" + "Browse our collection and add something you love." + Secondary button "Start Shopping" → Explore
+
+**Item actions:**
+- ♡ Wishlist: Lucide `heart` + text, 13px, `#999999` — moves item to wishlist
+- 🗑 Remove: Lucide `trash-2`, 18px, `#999999` — slide-out-left animation (250ms)
+- Qty stepper: minus disabled at 1, plus disabled at available stock
+- Qty change: number fade + scale animation (150ms)
+
+**Coupon states:**
+- Input: uppercase forced, "Apply" ghost disabled until ≥ 3 chars
+- Applied: input replaced by `#E8F5E9` pill with code + ✕ remove + savings text
+- Only 1 coupon at a time
+- Coupon backend behind feature flag for pilot
+
+---
+
+### 13.13 Checkout — Select Address (Screen 13)
+
+**Purpose:** Pick delivery address from saved list, or add new.
+
+```
+┌─────────────────────────────┐
+│  ←    Delivery Address      │
+│                             │
+│  ┌─────────────────────────┐│
+│  │ ● Home (Default)        ││  ← Radio selected, #8B3A4A
+│  │   Priya Mohanty         ││     Default badge: #E8F5E9, #2E7D32
+│  │   123, Budha Raja Road  ││     Address: 14px, #6B6B6B
+│  │   Sambalpur, Odisha     ││
+│  │   768001                ││
+│  │   +91 98765 43210       ││
+│  └─────────────────────────┘│
+│                             │
+│  ┌─────────────────────────┐│
+│  │ ○ Office                ││  ← Radio unselected
+│  │   ...                   ││
+│  └─────────────────────────┘│
+│                             │
+│  ┌─────────────────────────┐│
+│  │  + Add New Address      ││  ← Secondary button → Add Address
+│  └─────────────────────────┘│
+│                             │
+├─────────────────────────────┤
+│ ┌─────────────────────────┐ │
+│ │   Deliver Here           │ │  ← Primary button → Order Review
+│ └─────────────────────────┘ │     Disabled until address selected
+├─────────────────────────────┤
+```
+
+- Default address auto-selected on load
+- Address cards: hairline border, 12px radius, white bg
+- No tab bar (checkout flow)
+
+---
+
+### 13.14 Checkout — Add Address (Screen 14)
+
+**Purpose:** Full address form. Used from checkout and Profile → My Addresses.
+
+```
+┌─────────────────────────────┐
+│  ←    Add Address           │
+│                             │
+│  Fields (all 48px height):  │
+│  - Full Name (required)     │
+│  - Phone +91 (required)     │
+│  - Address Line 1 (required)│
+│  - Address Line 2 (optional)│
+│  - Landmark (optional)      │
+│  - City + District (2-col)  │
+│  - State + PIN Code (2-col) │
+│  - Label chips: Home/Office/Other
+│  - ☐ Set as default        │
+│                             │
+├─────────────────────────────┤
+│ ┌─────────────────────────┐ │
+│ │    Save Address          │ │  ← Disabled until required valid
+│ └─────────────────────────┘ │
+├─────────────────────────────┤
+```
+
+**Validation:**
+
+| Field | Required | Rule |
+|-------|----------|------|
+| Full name | Yes | Min 2 chars |
+| Phone | Yes | 10 digits, starts 6–9 |
+| Line 1 | Yes | Min 5 chars |
+| Line 2 | No | — |
+| Landmark | No | — |
+| City | Yes | Min 2 chars |
+| District | Yes | Min 2 chars |
+| State | Yes | Default: Odisha |
+| PIN code | Yes | `/^[1-9][0-9]{5}$/` |
+| Label | Yes | Default: Home |
+
+- Errors inline below field, 12px `#C44A4A`
+- Focus: border `#EEEEEE` → `#8B3A4A`
+- Label chips: single select, pill shape, active `#8B3A4A` bg
+- Keyboard-aware scroll
+- No tab bar (checkout flow)
+
+---
+
+### 13.15 Checkout — Order Review (Screen 15)
+
+**Purpose:** Final review before placing order.
+
+```
+┌─────────────────────────────┐
+│  ←    Order Review          │
+│                             │
+│  Delivering to              │
+│  ┌─────────────────────────┐│
+│  │  Priya Mohanty          ││  ← Snapshotted address
+│  │  123, Budha Raja Road   ││
+│  │  Sambalpur, 768001      ││
+│  │                Change → ││  ← Ghost link → Select Address
+│  └─────────────────────────┘│
+│                             │
+│  Items (2)                  │
+│  ┌─────────────────────────┐│
+│  │ ┌─────┐                 ││  ← 60×80px image, read-only
+│  │ │ img │ Pasapali Silk   ││
+│  │ │     │ Red · Qty: 1    ││
+│  │ └─────┘        ₹3,500  ││
+│  │─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─││
+│  │ ┌─────┐                 ││
+│  │ │ img │ Sonepuri Cotton ││
+│  │ │     │ Blue · Qty: 2   ││
+│  │ └─────┘        ₹5,600  ││
+│  └─────────────────────────┘│
+│                             │
+│  Payment                    │
+│  ┌─────────────────────────┐│
+│  │ ● Cash on Delivery      ││  ← Selected, #8B3A4A
+│  │   Pay when you receive  ││
+│  │─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─││
+│  │ ○ UPI                   ││  ← Disabled, 40% opacity
+│  │   Coming soon           ││
+│  └─────────────────────────┘│
+│                             │
+│  Price Details              │
+│  Subtotal (3 items)  ₹9,100│
+│  Coupon (FIRST100)    −₹100│  ← #3D8B63, only if applied
+│  Shipping              FREE│
+│  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  │
+│  Total              ₹9,000 │  ← 16px bold
+│                             │
+│  📦 Estimated delivery      │
+│     22–26 Nov 2026          │
+├─────────────────────────────┤
+│ ┌─────────────────────────┐ │  ← COD: "Place Order"
+│ │     Place Order          │ │     UPI: "Proceed to Payment"
+│ └─────────────────────────┘ │     Generates idempotency key
+├─────────────────────────────┤
+```
+
+- Dynamic CTA: "Place Order" for COD, "Proceed to Payment" for UPI
+- Button shows loading spinner during submission
+- Double-tap safe (idempotency key)
+- No tab bar (checkout flow)
+
+---
+
+### 13.16 Order Success (Screen 16)
+
+**Purpose:** Confirmation after successful order.
+
+```
+┌─────────────────────────────┐
+│                             │
+│                             │
+│            ✓                │  ← Animated checkmark, 64px
+│                             │     #3D8B63, draw-in (500ms)
+│                             │
+│    Order placed!            │  ← DM Serif Display, 24px
+│                             │     Center-aligned
+│    SAJ-00000042             │  ← 16px medium, #8B3A4A
+│                             │     Tappable → copy to clipboard
+│    Estimated delivery       │
+│    22–26 Nov 2026           │  ← 14px, #6B6B6B
+│                             │
+│    We'll send updates to    │
+│    +91 98765 43210          │
+│                             │
+│  ┌─────────────────────────┐│
+│  │     View Order          ││  ← Primary → Order Detail
+│  └─────────────────────────┘│
+│    Continue Shopping →      │  ← Ghost → Home (reset nav)
+└─────────────────────────────┘
+```
+
+- No back button, no tab bar
+- Hardware back (Android) → Home
+- Order number tap → "Copied!" toast
+
+---
+
+### 13.17 Orders List (Screen 17)
+
+**Purpose:** Order history with status badges. Newest first.
+
+```
+┌─────────────────────────────┐
+│  ←    My Orders             │
+│                             │
+│  ┌─────────────────────────┐│
+│  │  SAJ-00000042           ││
+│  │  15 Nov 2026   [Placed] ││  ← Status badge per §9.6
+│  │  ┌─────┐ Pasapali Silk  ││  ← First item image 48×64px
+│  │  │ img │ +1 more item   ││
+│  │  └─────┘                ││
+│  │  ₹9,000            →   ││  ← Tap → Order Detail
+│  └─────────────────────────┘│
+│                             │
+│  ┌─────────────────────────┐│
+│  │  SAJ-00000041           ││
+│  │  12 Nov 2026 [Delivered]││
+│  │  ...                    ││
+│  └─────────────────────────┘│
+├─────────────────────────────┤
+│ Home  Shop  Cart Orders Acc │
+└─────────────────────────────┘
+```
+
+- Paginated, pull-to-refresh
+- Empty state: Lucide `package` + "No orders yet" + "Start Shopping" secondary button
+- Not logged in: Lucide `user` + "Log in to view orders" + "Log In" primary button
+- Shimmer: 3 card placeholders
+
+---
+
+### 13.18 Order Detail (Screen 18)
+
+**Purpose:** Full order info with status timeline, tracking, items, address.
+
+```
+┌─────────────────────────────┐
+│  ←    SAJ-00000042          │
+│                             │
+│  Order Status               │
+│  ┌─────────────────────────┐│
+│  │  ● Placed    15 Nov     ││  ← Completed: #3D8B63 filled
+│  │  │                      ││     Connecting line: #3D8B63
+│  │  ● Confirmed  15 Nov    ││
+│  │  │                      ││
+│  │  ○ Packed               ││  ← Future: #EEEEEE unfilled
+│  │  │                      ││
+│  │  ○ Shipped              ││
+│  │  │                      ││
+│  │  ○ Delivered             ││
+│  └─────────────────────────┘│     Staggered animation (100ms/step)
+│                             │
+│  Tracking                   │  ← Only when status ≥ shipped
+│  ┌─────────────────────────┐│
+│  │  India Post             ││
+│  │  EE123456789IN  Copy →  ││  ← Tap copies, "Copied!" toast
+│  └─────────────────────────┘│
+│                             │
+│  Items (2)                  │  ← Snapshotted from order time
+│  ┌─────────────────────────┐│
+│  │ ┌─────┐ Pasapali Silk   ││
+│  │ │ img │ Red · Qty: 1    ││
+│  │ └─────┘        ₹3,500  ││
+│  └─────────────────────────┘│
+│                             │
+│  Delivery Address           │  ← Snapshotted address
+│  ┌─────────────────────────┐│
+│  │  Priya Mohanty          ││
+│  │  123, Budha Raja Road   ││
+│  │  Sambalpur, 768001      ││
+│  └─────────────────────────┘│
+│                             │
+│  Payment                    │
+│  ┌─────────────────────────┐│
+│  │  Cash on Delivery       ││
+│  │  Subtotal        ₹9,100 ││
+│  │  Shipping          FREE ││
+│  │  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  ││
+│  │  Total           ₹9,000 ││
+│  └─────────────────────────┘│
+│                             │
+│  ┌─────────────────────────┐│
+│  │  💬 Need help?          ││  ← Opens WhatsApp with order #
+│  │  Contact us on WhatsApp ││
+│  │                  Open → ││
+│  └─────────────────────────┘│
+│                             │
+├─────────────────────────────┤
+│ Home  Shop  Cart Orders Acc │
+└─────────────────────────────┘
+```
+
+- No cancel button (removed from scope)
+- WhatsApp: `wa.me/91XXXXXXXXXX?text=Order%20SAJ-00000042`
+
+---
+
+### 13.19 Profile / Account (Screen 19)
+
+**Purpose:** User profile and account menu. Option C layout.
+
+```
+┌─────────────────────────────┐
+│    Account                  │  ← DM Serif Display, 24px
+│                             │
+│  ┌─────────────────────────┐│
+│  │ ┌────┐  Priya Mohanty  ││  ← Avatar 56px left, info right
+│  │ │ PM │  +91 98765 43210││     Initials: #8B3A4A bg, white
+│  │ └────┘                  ││
+│  └─────────────────────────┘│
+│                             │
+│  ┌──────┐ ┌──────┐ ┌──────┐│  ← Quick action tiles
+│  │  📦  │ │  ♡   │ │  📍  ││     56×56px, white bg, hairline
+│  │Orders│ │Saved │ │Addr. ││     12px radius, icon + 11px label
+│  └──────┘ └──────┘ └──────┘│
+│                             │
+│  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  │
+│                             │
+│  👤  Edit Profile        → │  ← Flat rows, 52px height
+│  ❓  FAQs                → │     Lucide icons + labels
+│  💬  Help & Support      → │     Hairline dividers
+│                             │
+│  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  │
+│  🚪  Log Out               │  ← #C44A4A text
+│                             │
+├─────────────────────────────┤
+│ Home  Shop  Cart Orders Acc │
+└─────────────────────────────┘
+```
+
+**Not logged in:** Lucide `user` 48px + "Log in to your account" + "View orders, save addresses, and more." + "Log In" primary button
+
+- Quick tiles: Orders → Screen 17, Saved → Wishlist, Addr → Screen 20
+- Edit Profile → bottom sheet or screen for name/email edit
+- FAQs → Screen 22
+- Help & Support → WhatsApp
+- Log Out: alert confirmation → clears tokens → Home
+- Avatar: initials from name; if no name: Lucide `user` icon
+
+---
+
+### 13.20 My Addresses (Screen 20)
+
+**Purpose:** Manage saved addresses.
+
+```
+┌─────────────────────────────┐
+│  ←    My Addresses          │
+│                             │
+│  ┌─────────────────────────┐│
+│  │  Home         Default   ││  ← Label + default badge
+│  │  Priya Mohanty          ││     Badge: #E8F5E9 bg, #2E7D32
+│  │  123, Budha Raja Road   ││
+│  │  Sambalpur, 768001      ││
+│  │  +91 98765 43210        ││
+│  │  ✏️ Edit    🗑 Delete    ││  ← Edit → prefilled Add Address
+│  └─────────────────────────┘│     Delete → alert confirmation
+│                             │
+│  ┌─────────────────────────┐│
+│  │  Office                 ││
+│  │  ...                    ││
+│  │  ✏️ Edit    🗑 Delete    ││
+│  └─────────────────────────┘│
+│                             │
+│  ┌─────────────────────────┐│
+│  │  + Add New Address      ││  ← Secondary button → Screen 14
+│  └─────────────────────────┘│
+├─────────────────────────────┤
+│ Home  Shop  Cart Orders Acc │
+└─────────────────────────────┘
+```
+
+- Max 10 addresses (API enforced)
+- Default first, then newest
+- Empty state: Lucide `map-pin` + "No saved addresses" + "Add Address" primary button
+- Delete: native alert, not bottom sheet
+
+---
+
+### 13.21 Search Results (Screen 21)
+
+**Purpose:** Text search for products.
+
+```
+┌─────────────────────────────┐
+│  ┌─────────────────────────┐│
+│  │ ← 🔍 pasapali silk  ✕  ││  ← Auto-focused, keyboard open
+│  └─────────────────────────┘│
+│  8 results                  │
+│                             │
+│  ┌──────────┐ ┌──────────┐ │  ← 2-column grid
+│  │  img 3:4 │ │  img 3:4 │ │     Standard product card (§9.1)
+│  ├──────────┤ ├──────────┤ │     Cursor pagination
+│  │Name      │ │Name      │ │
+│  │₹3,500    │ │₹2,200    │ │
+│  └──────────┘ └──────────┘ │
+├─────────────────────────────┤
+│ Home  Shop  Cart Orders Acc │
+└─────────────────────────────┘
+```
+
+**Empty query state:** Recent Searches (max 5, stored in AsyncStorage, removable) + Popular chips (hardcoded for pilot)
+
+**No results:** Lucide `search` + "No results for \"query\"" + "Browse All" secondary button → Explore
+
+- Debounced: 300ms after last keystroke
+- Minimum 2 chars to search
+- ✕ clears text → shows empty query state
+
+---
+
+### 13.22 FAQs (Screen 22)
+
+**Purpose:** Common questions. Accordion list, hardcoded for pilot.
+
+```
+┌─────────────────────────────┐
+│  ←    FAQs                  │
+│                             │
+│  ┌─────────────────────────┐│
+│  │  How do I place an      ││
+│  │  order?               ▼ ││  ← Collapsed: chevron-down
+│  │─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─││
+│  │  ▲ How long does        ││  ← Expanded: chevron-up
+│  │    delivery take?       ││
+│  │                         ││
+│  │  We deliver within 5–7  ││  ← Answer: 14px, #6B6B6B
+│  │  business days across   ││     Slides open (200ms ease-out)
+│  │  India.                 ││
+│  │─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─││
+│  │  What payment methods   ││
+│  │  do you accept?       ▼ ││
+│  │─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─││
+│  │  What is your return    ││
+│  │  policy?              ▼ ││
+│  │─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─││
+│  │  Are these handloom     ││
+│  │  sarees authentic?    ▼ ││
+│  │─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─││
+│  │  How do I contact       ││
+│  │  support?             ▼ ││
+│  └─────────────────────────┘│
+│                             │
+├─────────────────────────────┤
+│ Home  Shop  Cart Orders Acc │
+└─────────────────────────────┘
+```
+
+- Accordion: one open at a time, opening one closes others
+- Chevron rotates 180° (200ms)
+- Question: 14px medium, `#1A1A1A`; Answer: 14px, `#6B6B6B`
+- Row height: 52px collapsed, auto expanded
+- Content hardcoded in app (no CMS for pilot)
 
 ---
 
