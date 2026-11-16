@@ -6,6 +6,7 @@ import {
 import { Check, Truck, MessageSquare, ShieldCheck, ArrowRight, Copy } from 'lucide-react-native';
 import { colors, spacing, borderRadius } from '../theme';
 import { formatPaise } from '../services/api';
+import { BounceIn, FadeInUp } from '../components/AnimatedUI';
 
 interface Props {
   navigation: any;
@@ -26,22 +27,29 @@ export default function OrderSuccessScreen({ navigation, route }: Props) {
 
       <View style={styles.centerContent}>
         {/* Checkmark */}
-        <View style={styles.checkCircle}>
-          <Check size={32} color="#3D8B63" strokeWidth={2.5} />
-        </View>
+        <BounceIn delay={200}>
+          <View style={styles.checkCircle}>
+            <Check size={32} color="#3D8B63" strokeWidth={2.5} />
+          </View>
+        </BounceIn>
 
         {/* Headline */}
-        <Text style={styles.title}>Order placed!</Text>
-        <Text style={styles.subtitle}>Thank you for championing indigenous handloom craft.</Text>
+        <FadeInUp delay={400} duration={500}>
+          <Text style={styles.title}>Order placed!</Text>
+          <Text style={styles.subtitle}>Thank you for championing indigenous handloom craft.</Text>
+        </FadeInUp>
 
         {/* Order Reference */}
+        <FadeInUp delay={600} duration={400}>
         <TouchableOpacity style={styles.refBadge} onPress={handleCopy}>
           <Text style={styles.refLabel}>REF:</Text>
           <Text style={styles.refNumber}>{order.publicNumber}</Text>
           <Copy size={16} color={colors.primary} strokeWidth={2} />
         </TouchableOpacity>
+        </FadeInUp>
 
         {/* Order Preview Card */}
+        <FadeInUp delay={700} duration={500}>
         <View style={styles.previewCard}>
           <View style={styles.previewTop}>
             <View style={styles.previewThumb} />
@@ -73,8 +81,10 @@ export default function OrderSuccessScreen({ navigation, route }: Props) {
             </Text>
           </View>
         </View>
+        </FadeInUp>
 
         {/* Craft Assurance */}
+        <FadeInUp delay={850} duration={400}>
         <View style={styles.assuranceCard}>
           <ShieldCheck size={20} color={colors.accent} strokeWidth={1.5} />
           <View style={{ flex: 1 }}>
@@ -84,8 +94,10 @@ export default function OrderSuccessScreen({ navigation, route }: Props) {
             </Text>
           </View>
         </View>
+        </FadeInUp>
 
         {/* Actions */}
+        <FadeInUp delay={1000} duration={400}>
         <View style={styles.actions}>
           <TouchableOpacity
             style={styles.primaryBtn}
@@ -107,6 +119,7 @@ export default function OrderSuccessScreen({ navigation, route }: Props) {
             <ArrowRight size={18} color={colors.primary} strokeWidth={2} />
           </TouchableOpacity>
         </View>
+        </FadeInUp>
       </View>
     </ScrollView>
   );

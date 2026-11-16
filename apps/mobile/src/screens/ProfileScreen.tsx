@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
-  ActivityIndicator, ScrollView, Alert,
+  ActivityIndicator, ScrollView, Alert, Platform,
 } from 'react-native';
 import {
   User, MapPin, Heart, Package, HelpCircle, MessageCircle,
@@ -13,6 +13,7 @@ import {
   getProfile, updateProfile, type UserProfile,
 } from '../services/api';
 import { useNavigation } from '@react-navigation/native';
+import { FadeInUp, ScalePress } from '../components/AnimatedUI';
 
 type Screen = 'loading' | 'login' | 'otp' | 'profile' | 'editName';
 
@@ -94,20 +95,23 @@ export default function ProfileScreen() {
     }
   };
 
+  const doLogout = async () => {
+    await clearTokens();
+    setProfile(null);
+    setPhone('');
+    setOtp('');
+    setScreen('login');
+  };
+
   const handleLogout = () => {
-    Alert.alert('Log out', 'Are you sure you want to log out?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Log Out', style: 'destructive',
-        onPress: async () => {
-          await clearTokens();
-          setProfile(null);
-          setPhone('');
-          setOtp('');
-          setScreen('login');
-        },
-      },
-    ]);
+    if (Platform.OS === 'web') {
+      if (window.confirm('Are you sure you want to log out?')) doLogout();
+    } else {
+      Alert.alert('Log out', 'Are you sure you want to log out?', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Log Out', style: 'destructive', onPress: doLogout },
+      ]);
+    }
   };
 
   if (screen === 'loading') {
@@ -247,6 +251,7 @@ export default function ProfileScreen() {
   return (
     <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContent}>
       {/* Profile Card */}
+      <FadeInUp delay={0} duration={500}>
       <View style={styles.profileCard}>
         <View style={styles.profileLeft}>
           <View style={styles.avatar}>
@@ -268,8 +273,10 @@ export default function ProfileScreen() {
           <Settings size={18} color={colors.textSecondary} strokeWidth={1.5} />
         </TouchableOpacity>
       </View>
+      </FadeInUp>
 
       {/* Quick Action Tiles — 3 column grid */}
+      <FadeInUp delay={120} duration={500}>
       <View style={styles.tilesRow}>
         <TouchableOpacity style={styles.tile} onPress={() => navigation.navigate('Orders')} activeOpacity={0.7}>
           <View style={styles.tileIconWrap}>
@@ -285,7 +292,7 @@ export default function ProfileScreen() {
           <Text style={styles.tileLabel}>Saved</Text>
           <Text style={styles.tileSub}>4 items</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.tile} activeOpacity={0.7}>
+        <TouchableOpacity style={styles.tile} activeOpacity={0.7} onPress={() => navigation.navigate('Cart', { screen: 'SelectAddress' })}>
           <View style={styles.tileIconWrap}>
             <MapPin size={22} color={colors.textPrimary} strokeWidth={1.5} />
           </View>
@@ -293,8 +300,10 @@ export default function ProfileScreen() {
           <Text style={styles.tileSub}>2 saved</Text>
         </TouchableOpacity>
       </View>
+      </FadeInUp>
 
       {/* Menu List Card */}
+      <FadeInUp delay={240} duration={500}>
       <View style={styles.menuCard}>
         {/* Edit Profile */}
         <TouchableOpacity
@@ -347,17 +356,22 @@ export default function ProfileScreen() {
           <ChevronRight size={18} color="rgba(135,114,116,0.6)" strokeWidth={2} />
         </TouchableOpacity>
       </View>
+      </FadeInUp>
 
       {/* Log Out Button */}
+      <FadeInUp delay={360} duration={500}>
       <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.7}>
         <LogOut size={20} color="#C44A4A" strokeWidth={1.5} />
         <Text style={styles.logoutText}>Log Out</Text>
       </TouchableOpacity>
+      </FadeInUp>
 
       {/* App Version */}
+      <FadeInUp delay={420} duration={400}>
       <View style={styles.versionWrap}>
         <Text style={styles.versionText}>Sajani v2.0.4</Text>
       </View>
+      </FadeInUp>
     </ScrollView>
   );
 }

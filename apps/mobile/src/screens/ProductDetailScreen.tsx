@@ -8,6 +8,7 @@ import {
   Package, RefreshCw, Banknote, ShoppingBag, Zap,
 } from 'lucide-react-native';
 import { colors, spacing, borderRadius, elevation } from '../theme';
+import { FadeInUp } from '../components/AnimatedUI';
 import {
   getProductBySlug, getProducts, formatPaise, getTotalStock, addToCart, isLoggedIn,
   type Product, type ProductVariant,
@@ -133,6 +134,7 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
         </View>
 
         {/* Title & Price */}
+        <FadeInUp delay={100} duration={500}>
         <View style={styles.infoSection}>
           <View style={styles.titleRow}>
             <View style={{ flex: 1 }}>
@@ -165,6 +167,7 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
           )}
           <Text style={styles.taxNote}>Inclusive of all taxes and handloom cess</Text>
         </View>
+        </FadeInUp>
 
         <View style={styles.divider} />
 

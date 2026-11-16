@@ -9,6 +9,7 @@ import {
   getCategories, getProducts, formatPaise,
   type Category, type Product,
 } from '../services/api';
+import { FadeInUp, ScalePress } from '../components/AnimatedUI';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - spacing.margin * 2 - spacing.gutter) / 2;
@@ -131,12 +132,13 @@ export default function ExploreScreen({ navigation, route }: Props) {
 
       {/* Product Grid */}
       <View style={styles.grid}>
-        {products.map((product: any) => (
-          <ProductCard
-            key={product.id}
-            product={product}
-            onPress={() => navigation.navigate('ProductDetail', { slug: product.slug })}
-          />
+        {products.map((product: any, idx: number) => (
+          <FadeInUp key={product.id} delay={idx * 80} duration={400} distance={12}>
+            <ProductCard
+              product={product}
+              onPress={() => navigation.navigate('ProductDetail', { slug: product.slug })}
+            />
+          </FadeInUp>
         ))}
       </View>
 

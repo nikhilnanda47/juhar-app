@@ -280,9 +280,9 @@ function CartItemCard({
           <TouchableOpacity
             style={styles.stepBtn}
             onPress={onDecrement}
-            disabled={updating || item.quantity <= 1}
+            disabled={updating}
           >
-            <Minus size={14} color={item.quantity <= 1 ? colors.textTertiary : colors.textPrimary} strokeWidth={2} />
+            <Minus size={14} color={colors.textPrimary} strokeWidth={2} />
           </TouchableOpacity>
           <Text style={styles.stepQty}>{updating ? '…' : item.quantity}</Text>
           <TouchableOpacity style={styles.stepBtn} onPress={onIncrement} disabled={updating}>

@@ -6,6 +6,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { colors, spacing, borderRadius, elevation } from '../theme';
 import { getProducts, getCategories, formatPaise, type Product } from '../services/api';
+import { FadeInUp, ScalePress } from '../components/AnimatedUI';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - spacing.margin * 2 - spacing.gutter) / 2;
@@ -44,31 +45,34 @@ export default function HomeScreen() {
       }
     >
       {/* Brand Sub-header */}
-      <View style={styles.subHeader}>
-        <View style={styles.brandRow}>
-          <Text style={styles.brandName}>Sajani</Text>
-          <Text style={styles.odiaScript}>ସଜନୀ</Text>
+      <FadeInUp delay={0} duration={600}>
+        <View style={styles.subHeader}>
+          <View style={styles.brandRow}>
+            <Text style={styles.brandName}>Sajani</Text>
+            <Text style={styles.odiaScript}>ସଜନୀ</Text>
+          </View>
+          <Text style={styles.originLabel}>WESTERN ODISHA</Text>
         </View>
-        <Text style={styles.originLabel}>WESTERN ODISHA</Text>
-      </View>
+      </FadeInUp>
 
       {/* Hero Banner — 16:9 */}
-      <TouchableOpacity
-        style={styles.heroWrap}
-        activeOpacity={0.9}
-        onPress={() => navigation.navigate('Shop')}
-      >
-        <View style={styles.hero}>
-          <View style={styles.heroPlaceholder} />
-          {/* Gradient overlay with text */}
-          <View style={styles.heroOverlay}>
-            <Text style={styles.heroLabel}>HANDWOVEN ARCHIVE</Text>
-            <Text style={styles.heroTitle}>Sambalpuri Baandha Silk</Text>
+      <FadeInUp delay={150} duration={700}>
+        <ScalePress onPress={() => navigation.navigate('Shop')} scale={0.98}>
+          <View style={styles.heroWrap}>
+            <View style={styles.hero}>
+              <View style={styles.heroPlaceholder} />
+              {/* Gradient overlay with text */}
+              <View style={styles.heroOverlay}>
+                <Text style={styles.heroLabel}>HANDWOVEN ARCHIVE</Text>
+                <Text style={styles.heroTitle}>Sambalpuri Baandha Silk</Text>
+              </View>
+            </View>
           </View>
-        </View>
-      </TouchableOpacity>
+        </ScalePress>
+      </FadeInUp>
 
       {/* Collections */}
+      <FadeInUp delay={300} duration={600}>
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Collections</Text>
@@ -93,8 +97,10 @@ export default function HomeScreen() {
           ))}
         </View>
       </View>
+      </FadeInUp>
 
       {/* New Arrivals */}
+      <FadeInUp delay={450} duration={600}>
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>New Arrivals</Text>
@@ -149,6 +155,7 @@ export default function HomeScreen() {
           </View>
         )}
       </View>
+      </FadeInUp>
 
       <View style={{ height: spacing.lg }} />
     </ScrollView>
