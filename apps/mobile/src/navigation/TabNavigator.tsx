@@ -2,8 +2,8 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { Ionicons } from '@expo/vector-icons';
-import { colors, elevation } from '../theme';
+import { Home, Search, ShoppingBag, Package, User } from 'lucide-react-native';
+import { colors, spacing, elevation } from '../theme';
 import HomeScreen from '../screens/HomeScreen';
 import ExploreScreen from '../screens/ExploreScreen';
 import ProductDetailScreen from '../screens/ProductDetailScreen';
@@ -22,18 +22,25 @@ const CartStack = createNativeStackNavigator();
 const OrdersStack = createNativeStackNavigator();
 
 const stackHeaderStyle = {
-  headerStyle: { backgroundColor: colors.surface },
-  headerTintColor: colors.primary,
-  headerTitleStyle: { fontWeight: '600', fontSize: 16 },
+  headerStyle: {
+    backgroundColor: colors.background,
+  },
+  headerTintColor: colors.textPrimary,
+  headerTitleStyle: {
+    fontFamily: 'DMSans-Medium',
+    fontWeight: '500',
+    fontSize: 16,
+    color: colors.textPrimary,
+  },
   headerShadowVisible: false,
-  headerBackTitle: 'Back',
+  headerBackTitle: '',
 };
 
 function ExploreStackScreen() {
   return (
     <ExploreStack.Navigator screenOptions={stackHeaderStyle}>
       <ExploreStack.Screen name="ExploreList" component={ExploreScreen} options={{ headerShown: false }} />
-      <ExploreStack.Screen name="ProductDetail" component={ProductDetailScreen} options={{ headerTitle: 'Product Details' }} />
+      <ExploreStack.Screen name="ProductDetail" component={ProductDetailScreen} options={{ headerShown: false }} />
     </ExploreStack.Navigator>
   );
 }
@@ -44,7 +51,7 @@ function CartStackScreen() {
       <CartStack.Screen name="CartView" component={CartScreen} options={{ headerShown: false }} />
       <CartStack.Screen name="SelectAddress" component={SelectAddressScreen} options={{ headerTitle: 'Delivery Address' }} />
       <CartStack.Screen name="AddAddress" component={AddAddressScreen} options={{ headerTitle: 'Add Address' }} />
-      <CartStack.Screen name="OrderReview" component={OrderReviewScreen} options={{ headerTitle: 'Review Order' }} />
+      <CartStack.Screen name="OrderReview" component={OrderReviewScreen} options={{ headerTitle: 'Order Review' }} />
       <CartStack.Screen name="OrderSuccess" component={OrderSuccessScreen} options={{ headerShown: false }} />
     </CartStack.Navigator>
   );
@@ -64,47 +71,39 @@ export default function TabNavigator() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         tabBarIcon: ({ focused, size }) => {
-          let iconName: keyof typeof Ionicons.glyphMap = 'home';
-          if (route.name === 'Home') iconName = focused ? 'home' : 'home-outline';
-          else if (route.name === 'Explore') iconName = focused ? 'compass' : 'compass-outline';
-          else if (route.name === 'Cart') iconName = focused ? 'bag' : 'bag-outline';
-          else if (route.name === 'Orders') iconName = focused ? 'receipt' : 'receipt-outline';
-          else if (route.name === 'Profile') iconName = focused ? 'person' : 'person-outline';
-          return <Ionicons name={iconName} size={22} color={focused ? colors.primary : colors.neutral} />;
+          const color = focused ? colors.primary : colors.textTertiary;
+          const iconSize = 22;
+          const sw = focused ? 2.5 : 1.5;
+          if (route.name === 'Home') return <Home size={iconSize} color={color} strokeWidth={sw} />;
+          if (route.name === 'Shop') return <Search size={iconSize} color={color} strokeWidth={sw} />;
+          if (route.name === 'Cart') return <ShoppingBag size={iconSize} color={color} strokeWidth={sw} />;
+          if (route.name === 'Orders') return <Package size={iconSize} color={color} strokeWidth={sw} />;
+          if (route.name === 'Account') return <User size={iconSize} color={color} strokeWidth={sw} />;
+          return null;
         },
         tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.neutral,
+        tabBarInactiveTintColor: colors.textTertiary,
         tabBarStyle: {
-          backgroundColor: colors.surface,
-          ...elevation.nav,
+          backgroundColor: colors.white,
+          borderTopWidth: 1,
+          borderTopColor: colors.border,
           height: 80,
-          paddingBottom: 16,
-          paddingTop: 8,
+          paddingBottom: 12,
+          paddingTop: 10,
         },
         tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '600' as const,
-          letterSpacing: 0.5,
+          fontFamily: 'DMSans-Medium',
+          fontSize: 10,
+          fontWeight: '500',
         },
-        headerStyle: {
-          backgroundColor: colors.surface,
-          elevation: 0,
-          shadowOpacity: 0,
-          borderBottomWidth: 1,
-          borderBottomColor: colors.border,
-        },
-        headerTitleStyle: {
-          color: colors.primary,
-          fontWeight: '600' as const,
-          fontSize: 18,
-        },
+        headerShown: false,
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} options={{ headerTitle: 'Sajani' }} />
-      <Tab.Screen name="Explore" component={ExploreStackScreen} options={{ headerShown: false }} />
-      <Tab.Screen name="Cart" component={CartStackScreen} options={{ headerShown: false, headerTitle: 'Shopping Bag' }} />
-      <Tab.Screen name="Orders" component={OrdersStackScreen} options={{ headerShown: false, headerTitle: 'My Orders' }} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen name="Shop" component={ExploreStackScreen} />
+      <Tab.Screen name="Cart" component={CartStackScreen} />
+      <Tab.Screen name="Orders" component={OrdersStackScreen} />
+      <Tab.Screen name="Account" component={ProfileScreen} />
     </Tab.Navigator>
   );
 }

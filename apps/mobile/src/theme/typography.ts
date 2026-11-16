@@ -2,131 +2,162 @@ import { StyleSheet, Platform } from 'react-native';
 import { colors } from './colors';
 
 /**
- * Typography system from Stitch "Heritage Handloom Luxury" design.
+ * Typography — UI Specification v2.0
  *
- * Headings: Playfair Display (literary high-contrast serif)
- * Body/Labels: Plus Jakarta Sans (clear geometric sans)
- *
- * Note: Custom fonts loaded via expo-font in App.tsx.
- * Falls back to system fonts until loaded.
+ * Two fonts: Noto Serif (headlines) + DM Sans (everything else).
+ * Custom fonts loaded via expo-font in App.tsx.
  */
 
 const headlineFamily = Platform.select({
-  web: '"Playfair Display", Georgia, serif',
-  default: 'PlayfairDisplay',
+  web: '"Noto Serif", Georgia, serif',
+  default: 'NotoSerif-Regular',
 });
 
 const bodyFamily = Platform.select({
-  web: '"Plus Jakarta Sans", -apple-system, sans-serif',
-  default: 'PlusJakartaSans',
+  web: '"DM Sans", -apple-system, sans-serif',
+  default: 'DMSans-Regular',
+});
+
+const bodyMedium = Platform.select({
+  web: '"DM Sans", -apple-system, sans-serif',
+  default: 'DMSans-Medium',
+});
+
+const bodySemiBold = Platform.select({
+  web: '"DM Sans", -apple-system, sans-serif',
+  default: 'DMSans-SemiBold',
+});
+
+const bodyBold = Platform.select({
+  web: '"DM Sans", -apple-system, sans-serif',
+  default: 'DMSans-Bold',
 });
 
 export const typography = StyleSheet.create({
-  // ── Headlines (Playfair Display) ──
-  headlineXl: {
+  // ── Headlines (DM Serif Display) ──
+  pageTitle: {
     fontFamily: headlineFamily,
-    fontSize: 30,
-    fontWeight: '600',
-    lineHeight: 36,
-    letterSpacing: -0.3,
-    color: colors.onSurface,
-  },
-  headlineLg: {
-    fontFamily: headlineFamily,
-    fontSize: 26,
-    fontWeight: '500',
+    fontSize: 24,
+    fontWeight: '400',
     lineHeight: 32,
-    letterSpacing: -0.26,
-    color: colors.onSurface,
+    color: colors.textPrimary,
   },
-  headlineMd: {
+  sectionTitle: {
     fontFamily: headlineFamily,
-    fontSize: 20,
-    fontWeight: '500',
-    lineHeight: 26,
-    color: colors.onSurface,
-  },
-
-  // ── Body (Plus Jakarta Sans) ──
-  bodyLg: {
-    fontFamily: bodyFamily,
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '400',
     lineHeight: 26,
-    letterSpacing: 0.16,
-    color: colors.onSurface,
+    color: colors.textPrimary,
   },
-  bodyMd: {
+  screenHeadline: {
+    fontFamily: headlineFamily,
+    fontSize: 20,
+    fontWeight: '400',
+    lineHeight: 28,
+    color: colors.textPrimary,
+  },
+
+  // ── Body (DM Sans) ──
+  productTitle: {
+    fontFamily: bodyMedium,
+    fontSize: 16,
+    fontWeight: '500',
+    lineHeight: 22,
+    color: colors.textPrimary,
+  },
+  body: {
     fontFamily: bodyFamily,
     fontSize: 14,
     fontWeight: '400',
     lineHeight: 22,
-    letterSpacing: 0.14,
-    color: colors.onSurface,
+    color: colors.textPrimary,
   },
-  bodySm: {
+  bodySecondary: {
+    fontFamily: bodyFamily,
+    fontSize: 14,
+    fontWeight: '400',
+    lineHeight: 22,
+    color: colors.textSecondary,
+  },
+  caption: {
     fontFamily: bodyFamily,
     fontSize: 12,
     fontWeight: '400',
     lineHeight: 18,
-    letterSpacing: 0.24,
-    color: colors.onSurfaceVariant,
+    color: colors.textSecondary,
   },
-
-  // ── Labels (Plus Jakarta Sans, uppercase tracking) ──
-  labelLg: {
+  captionTertiary: {
     fontFamily: bodyFamily,
-    fontSize: 13,
-    fontWeight: '600',
-    lineHeight: 18,
-    letterSpacing: 1.04, // 0.08em
-    textTransform: 'uppercase',
-    color: colors.onSurface,
-  },
-  labelMd: {
-    fontFamily: bodyFamily,
-    fontSize: 11,
-    fontWeight: '600',
-    lineHeight: 16,
-    letterSpacing: 1.32, // 0.12em
-    textTransform: 'uppercase',
-    color: colors.onSurfaceVariant,
-  },
-  labelSm: {
-    fontFamily: bodyFamily,
-    fontSize: 9,
-    fontWeight: '700',
-    lineHeight: 12,
-    letterSpacing: 1.26, // 0.14em
-    textTransform: 'uppercase',
-    color: colors.onSurfaceVariant,
-  },
-
-  // ── Currency (Plus Jakarta Sans, tabular) ──
-  currencyMd: {
-    fontFamily: bodyFamily,
-    fontSize: 15,
-    fontWeight: '600',
-    lineHeight: 20,
-    letterSpacing: -0.15,
-    color: colors.primary,
-  },
-  currencyStrike: {
-    fontFamily: bodyFamily,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '400',
     lineHeight: 18,
-    color: colors.neutral,
-    textDecorationLine: 'line-through',
+    color: colors.textTertiary,
   },
 
-  // ── Button ──
-  button: {
+  // ── Prices (DM Sans) ──
+  price: {
+    fontFamily: bodyBold,
+    fontSize: 18,
+    fontWeight: '700',
+    lineHeight: 24,
+    color: colors.textPrimary,
+  },
+  priceStrike: {
     fontFamily: bodyFamily,
-    fontSize: 13,
+    fontSize: 14,
+    fontWeight: '400',
+    lineHeight: 20,
+    color: colors.textTertiary,
+    textDecorationLine: 'line-through',
+  },
+  priceSmall: {
+    fontFamily: bodyBold,
+    fontSize: 16,
+    fontWeight: '700',
+    lineHeight: 22,
+    color: colors.textPrimary,
+  },
+
+  // ── Buttons (DM Sans) ──
+  button: {
+    fontFamily: bodySemiBold,
+    fontSize: 14,
     fontWeight: '600',
-    lineHeight: 18,
-    letterSpacing: 1.04,
+    lineHeight: 20,
+  },
+
+  // ── Badges (DM Sans) ──
+  badge: {
+    fontFamily: bodySemiBold,
+    fontSize: 11,
+    fontWeight: '600',
+    lineHeight: 14,
     textTransform: 'uppercase',
+  },
+
+  // ── Tab Bar (DM Sans) ──
+  tabLabel: {
+    fontFamily: bodyMedium,
+    fontSize: 10,
+    fontWeight: '500',
+    lineHeight: 14,
+  },
+
+  // ── Navigation Header ──
+  navTitle: {
+    fontFamily: bodyMedium,
+    fontSize: 16,
+    fontWeight: '500',
+    lineHeight: 22,
+    color: colors.textPrimary,
+  },
+
+  // ── Input Label ──
+  inputLabel: {
+    fontFamily: bodyFamily,
+    fontSize: 12,
+    fontWeight: '400',
+    lineHeight: 18,
+    color: colors.textSecondary,
   },
 });

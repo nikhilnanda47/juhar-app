@@ -1,58 +1,43 @@
 /**
- * Sajani color palette — derived from Stitch "Heritage Handloom Luxury" design system.
- * Colors sourced from natural organic dyes and temple architecture of Odisha:
- * madder root maroon, pattachitra terracotta, raw tussar ivory, ritual metallic gold.
+ * Sajani color palette — UI Specification v2.0
+ * Soft Burgundy + Warm Bronze, clean/minimal design system.
  */
 export const colors = {
-  // ── Primary ──
-  primary: '#6B1D2A',         // Deep maroon — CTAs, active nav, brand anchors
-  primaryDark: '#4D0516',     // Darker maroon
-  primaryContainer: '#6B1D2A',
-  onPrimary: '#FFFFFF',
-  onPrimaryContainer: '#EF848F',
+  // ── Brand ──
+  primary: '#8B3A4A',         // Soft Burgundy — CTAs, active states (max 2 per screen)
+  primaryDark: '#6B1D2A',     // Deep Burgundy — pressed/hover states
+  accent: '#B5956B',          // Warm Bronze — prices, highlights, subtle badges
 
-  // ── Secondary (Gold) ──
-  secondary: '#C4A265',       // Heirloom gold — certifications, luxury highlights
-  secondaryLight: '#D4B87A',
-  secondaryContainer: '#FED896',
-  onSecondary: '#FFFFFF',
-
-  // ── Tertiary (Terracotta) ──
-  tertiary: '#C67B4B',        // Terracotta — stock alerts, artisan callouts
-  tertiaryContainer: '#602A00',
-  onTertiary: '#FFFFFF',
-
-  // ── Surfaces ──
-  surface: '#FFF8F4',         // Warm ivory canvas (NOT pure white)
-  surfaceDim: '#E1D9D2',
-  surfaceContainerLowest: '#FFFFFF',
-  surfaceContainerLow: '#FBF2EB',
-  surfaceContainer: '#F5ECE6',
-  surfaceContainerHigh: '#EFE7E0',
-  surfaceContainerHighest: '#E9E1DA',
-  background: '#FFF8F4',
-
-  // ── On Surface ──
-  onSurface: '#1E1B17',       // Primary text
-  onSurfaceVariant: '#554243', // Secondary text, captions
-  inverseSurface: '#34302B',
-  inverseOnSurface: '#F8EFE8',
-
-  // ── Outline ──
-  outline: '#877273',
-  outlineVariant: '#DAC0C1',
-  border: '#E6DFD5',          // Hairline borders
+  // ── Neutrals ──
+  background: '#FAFAF7',      // App background — warm off-white
+  surface: '#FFFFFF',         // Cards, inputs, modals
+  textPrimary: '#1A1A1A',    // Headings, product names
+  textSecondary: '#6B6B6B',  // Descriptions, metadata
+  textTertiary: '#999999',   // Timestamps, hints, placeholders
+  border: '#EEEEEE',         // Hairline dividers, card borders
 
   // ── Functional ──
-  success: '#2D6A4F',         // Forest green — "In Stock", authenticity
-  warning: '#FF9500',
-  error: '#BA1A1A',
-  onError: '#FFFFFF',
-  errorContainer: '#FFDAD6',
+  success: '#3D8B63',         // Muted green — in stock, delivered, confirmed
+  warning: '#D4923A',         // Muted amber — low stock, pending
+  error: '#C44A4A',           // Muted red — out of stock, errors, cancelled
+
+  // ── Status Badge Backgrounds ──
+  statusPlacedBg: '#E3F2FD',
+  statusPlacedText: '#1565C0',
+  statusConfirmedBg: '#FFF8E1',
+  statusConfirmedText: '#F57F17',
+  statusPackedBg: '#FFF3E0',
+  statusPackedText: '#E65100',
+  statusShippedBg: '#FFF3E0',
+  statusShippedText: '#E65100',
+  statusDeliveredBg: '#E8F5E9',
+  statusDeliveredText: '#2E7D32',
+  statusCancelledBg: '#FCE4EC',
+  statusCancelledText: '#C62828',
 
   // ── Special ──
-  whatsapp: '#25D366',        // WhatsApp concierge
-  neutral: '#5A5550',         // Softened slate — captions, specs
+  whatsapp: '#25D366',
+  wishlistActive: '#C44A4A',  // Filled heart color
 
   // ── Convenience ──
   white: '#FFFFFF',

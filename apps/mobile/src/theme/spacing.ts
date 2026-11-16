@@ -1,43 +1,38 @@
 /**
- * Spacing and border radius from Stitch design system.
- * Layout optimized for 375px mobile viewport with 4-column fluid grid.
+ * Spacing, border radius, and elevation — UI Specification v2.0
  */
 export const spacing = {
-  xs: 4,    // space-xs: 0.25rem
-  sm: 8,    // space-sm: 0.5rem
-  md: 16,   // space-md: 1rem
-  lg: 24,   // space-lg: 1.5rem
-  xl: 40,   // space-xl: 2.5rem
-  gutter: 12, // gutter: 0.75rem (card gaps)
-  margin: 16,  // canvas margin: 1rem
+  xs: 4,       // Tight gaps — badge padding, inline icon spacing
+  sm: 8,       // Small gaps — icon + text, label above input
+  md: 16,      // Standard — screen margins, gap between elements
+  lg: 24,      // Section padding, card internal padding
+  xl: 32,      // Gap between sections
+  xxl: 48,     // Major section breaks
+  gutter: 12,  // Product grid gap between cards
+  margin: 16,  // Screen margins (both sides)
 } as const;
 
 export const borderRadius = {
-  sm: 4,     // 0.25rem
-  DEFAULT: 8,  // 0.5rem — buttons, badges, inputs
-  md: 12,    // 0.75rem
-  lg: 16,    // 1rem — cards, modals
-  xl: 24,    // 1.5rem — photography containers
-  full: 9999,  // pills, tags, cart counters
+  sm: 6,       // Inputs, small buttons
+  md: 12,      // Cards, modals, product images
+  lg: 16,      // Bottom sheets, large containers
+  full: 9999,  // Pills, badges, avatars, stepper buttons, color swatches
 } as const;
 
 export const elevation = {
-  /** Flat tier — hairline border, no shadow */
-  flat: {
+  /** Default for cards, list items, inputs */
+  hairline: {
     borderWidth: 1,
-    borderColor: '#E6DFD5',
+    borderColor: '#EEEEEE',
   },
-  /** Raised tier — warm diffused shadow tinted with primary */
-  raised: {
-    shadowColor: '#6B1D2A',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.08,
-    shadowRadius: 30,
-    elevation: 4,
+  /** Floating elements: sticky bars, bottom sheets */
+  subtle: {
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  /** Bottom nav — translucent backdrop */
-  nav: {
-    borderTopWidth: 1,
-    borderTopColor: '#E6DFD5',
-  },
+  /** No border, no shadow */
+  none: {},
 } as const;

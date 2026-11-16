@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, Dimensions, RefreshControl,
+  ActivityIndicator, Dimensions, RefreshControl, TextInput,
 } from 'react-native';
-import { colors, typography, spacing, borderRadius, elevation } from '../theme';
+import { Search as SearchIcon, SlidersHorizontal, Heart, ChevronDown } from 'lucide-react-native';
+import { colors, spacing, borderRadius, elevation } from '../theme';
 import {
-  getCategories, getProducts, formatPaise, getLowestPrice, getComparePrice, getTotalStock,
+  getCategories, getProducts, formatPaise,
   type Category, type Product,
 } from '../services/api';
 
@@ -14,9 +15,10 @@ const CARD_WIDTH = (width - spacing.margin * 2 - spacing.gutter) / 2;
 
 interface Props {
   navigation: any;
+  route?: any;
 }
 
-export default function ExploreScreen({ navigation }: Props) {
+export default function ExploreScreen({ navigation, route }: Props) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -31,7 +33,7 @@ export default function ExploreScreen({ navigation }: Props) {
         getCategories(),
         getProducts(categoryId ? { categoryId } : undefined),
       ]);
-      setCategories(cats);
+      setCategories(cats.filter((c: any) => c.active !== false));
       setProducts(prods.items || []);
     } catch (err: any) {
       setError(err.message || 'Failed to load catalog');
@@ -41,9 +43,7 @@ export default function ExploreScreen({ navigation }: Props) {
     }
   }, []);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  useEffect(() => { loadData(); }, [loadData]);
 
   const selectCategory = (catId: string | null) => {
     setSelectedCategory(catId);
@@ -64,33 +64,31 @@ export default function ExploreScreen({ navigation }: Props) {
     );
   }
 
-  if (error) {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryBtn} onPress={() => { setLoading(true); loadData(selectedCategory); }}>
-          <Text style={styles.retryText}>RETRY</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
   return (
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
     >
-      {/* Curator Header */}
-      <View style={styles.curatorHeader}>
-        <View style={styles.curatorRow}>
-          <Text style={styles.curatorLabel}>THE LOOM LEDGER</Text>
-          <Text style={styles.curatorOrigin}>Bargarh • Sonepur Weaves</Text>
-        </View>
-        <View style={styles.curatorRow}>
-          <Text style={styles.curatorTitle}>Artisanal Catalog</Text>
-          <Text style={styles.curatorCount}>{products.length} Pieces</Text>
-        </View>
+      {/* Title Row */}
+      <View style={styles.titleRow}>
+        <Text style={styles.pageTitle}>Shop</Text>
+        <Text style={styles.originLabel}>HANDCRAFTED IN ODISHA</Text>
+      </View>
+      <Text style={styles.subtitle}>Quiet luxury woven on authentic family pit-looms.</Text>
+
+      {/* Search Bar */}
+      <View style={styles.searchBar}>
+        <SearchIcon size={20} color={colors.textTertiary} strokeWidth={1.5} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search handwoven sarees, weaves..."
+          placeholderTextColor={colors.textTertiary}
+          editable={false}
+        />
+        <TouchableOpacity>
+          <SlidersHorizontal size={18} color={colors.textTertiary} strokeWidth={1.5} />
+        </TouchableOpacity>
       </View>
 
       {/* Category Chips */}
@@ -104,8 +102,7 @@ export default function ExploreScreen({ navigation }: Props) {
           style={[styles.chip, !selectedCategory && styles.chipActive]}
           onPress={() => selectCategory(null)}
         >
-          <Text style={[styles.chipText, !selectedCategory && styles.chipTextActive]}>All Weaves</Text>
-          {!selectedCategory && <View style={styles.chipDot} />}
+          <Text style={[styles.chipText, !selectedCategory && styles.chipTextActive]}>All</Text>
         </TouchableOpacity>
         {categories.map((cat) => (
           <TouchableOpacity
@@ -120,9 +117,21 @@ export default function ExploreScreen({ navigation }: Props) {
         ))}
       </ScrollView>
 
+      {/* Count & Sort Bar */}
+      <View style={styles.countSortRow}>
+        <View style={styles.countRow}>
+          <View style={styles.countDot} />
+          <Text style={styles.countText}>{products.length} sarees</Text>
+        </View>
+        <TouchableOpacity style={styles.sortBtn}>
+          <Text style={styles.sortBtnText}>Featured</Text>
+          <ChevronDown size={14} color={colors.textTertiary} strokeWidth={2} />
+        </TouchableOpacity>
+      </View>
+
       {/* Product Grid */}
       <View style={styles.grid}>
-        {products.map((product) => (
+        {products.map((product: any) => (
           <ProductCard
             key={product.id}
             product={product}
@@ -131,70 +140,74 @@ export default function ExploreScreen({ navigation }: Props) {
         ))}
       </View>
 
-      {products.length === 0 && (
+      {products.length === 0 && !loading && (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>No sarees in this collection yet</Text>
+          <SearchIcon size={48} color={colors.textTertiary} strokeWidth={1.5} />
+          <Text style={styles.emptyTitle}>No sarees found</Text>
+          <Text style={styles.emptySubtext}>Try a different category</Text>
         </View>
       )}
+
+      <View style={{ height: spacing.lg }} />
     </ScrollView>
   );
 }
 
-// ── Product Card Component ──
 function ProductCard({ product, onPress }: { product: any; onPress: () => void }) {
-  const variants = product.variants || [];
-  const price = (product as any).startingPricePaise ?? getLowestPrice(variants);
-  const comparePrice = (product as any).compareAtPaise ?? getComparePrice(variants);
-  const stock = (product as any).isAvailable !== undefined
-    ? ((product as any).isAvailable ? 1 : 0)
-    : getTotalStock(variants);
-  const variant = variants[0];
+  const price = product.startingPricePaise ?? 0;
+  const compare = product.compareAtPaise ?? null;
+  const lowStock = product.totalStock !== undefined && product.totalStock > 0 && product.totalStock <= 3;
+  const [wishlisted, setWishlisted] = useState(false);
 
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.85}>
-      {/* Image Placeholder */}
-      <View style={styles.cardImage}>
-        <View style={styles.cardImageInner}>
-          <Text style={styles.cardImageEmoji}>🧶</Text>
-          <Text style={styles.cardImageLabel}>{product.fabric || 'Handloom'}</Text>
-        </View>
+    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.9}>
+      {/* Image */}
+      <View style={styles.cardImageWrap}>
+        <View style={styles.cardImage} />
 
-        {/* Technique Badge */}
-        <View style={styles.techniqueBadge}>
-          <Text style={styles.techniqueBadgeText}>
-            {product.weaveMethod || 'HANDLOOM'}
-          </Text>
-        </View>
+        {/* Wishlist Button */}
+        <TouchableOpacity
+          style={styles.wishlistBtn}
+          onPress={(e) => { e.stopPropagation?.(); setWishlisted(!wishlisted); }}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Heart
+            size={16}
+            color={wishlisted ? colors.primary : colors.textTertiary}
+            fill={wishlisted ? colors.primary : 'none'}
+            strokeWidth={2}
+          />
+        </TouchableOpacity>
 
-        {/* Stock Overlay */}
-        <View style={styles.stockOverlay}>
-          <View style={styles.stockRow}>
-            <View style={[styles.stockDot, { backgroundColor: stock > 0 ? '#4ade80' : colors.error }]} />
-            <Text style={styles.stockText}>
-              {stock > 0 ? 'In Stock' : 'Sold Out'}
-            </Text>
+        {/* Origin Badge */}
+        {product.origin && (
+          <View style={styles.originBadge}>
+            <Text style={styles.originBadgeText}>{product.origin.split(',')[0]}</Text>
           </View>
-          {product.origin && (
-            <Text style={styles.originText}>{product.origin.split(',')[0]}</Text>
-          )}
-        </View>
+        )}
       </View>
 
-      {/* Metadata */}
+      {/* Info */}
       <View style={styles.cardMeta}>
-        <Text style={styles.cardCategory} numberOfLines={1}>
-          {(product.category?.name || product.categorySlug || 'COLLECTION').toUpperCase()}
-        </Text>
         <Text style={styles.cardTitle} numberOfLines={1}>{product.title}</Text>
-        <Text style={styles.cardVariant} numberOfLines={1}>
-          {[variant?.color, product.fabric].filter(Boolean).join(' • ') || product.fabric || ''}
+        <Text style={styles.cardSubtitle} numberOfLines={1}>
+          {product.fabric || product.weaveMethod || 'Handloom'}
         </Text>
 
-        {/* Price Row */}
-        <View style={styles.priceRow}>
-          <Text style={styles.priceText}>{formatPaise(price)}</Text>
-          {comparePrice && comparePrice > price && (
-            <Text style={styles.comparePriceText}>{formatPaise(comparePrice)}</Text>
+        <View style={styles.cardPriceSection}>
+          <View style={styles.cardPriceRow}>
+            <Text style={styles.cardPrice}>{formatPaise(price)}</Text>
+            {compare && compare > price && (
+              <Text style={styles.cardCompare}>{formatPaise(compare)}</Text>
+            )}
+          </View>
+          {lowStock ? (
+            <View style={styles.stockRow}>
+              <View style={styles.stockDot} />
+              <Text style={styles.stockTextError}>Only {product.totalStock} left</Text>
+            </View>
+          ) : (
+            <Text style={styles.stockTextSecondary}>Ready to ship</Text>
           )}
         </View>
       </View>
@@ -203,120 +216,282 @@ function ProductCard({ product, onPress }: { product: any; onPress: () => void }
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.surface },
+  container: { flex: 1, backgroundColor: colors.background },
   content: { paddingBottom: 100 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.surface },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
 
-  // Error
-  errorText: { ...typography.bodyMd, color: colors.error, marginBottom: 12 },
-  retryBtn: {
-    paddingHorizontal: 24, paddingVertical: 10,
-    backgroundColor: colors.primary, borderRadius: borderRadius.full,
-  },
-  retryText: { ...typography.labelLg, color: colors.onPrimary },
-
-  // Curator Header
-  curatorHeader: { paddingHorizontal: spacing.margin, paddingTop: spacing.md },
-  curatorRow: {
+  // Title
+  titleRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline',
-    marginBottom: 2,
+    paddingHorizontal: spacing.margin, paddingTop: 56,
   },
-  curatorLabel: { ...typography.labelSm, color: colors.secondary, fontWeight: '700' },
-  curatorOrigin: { ...typography.labelSm, color: colors.onSurfaceVariant },
-  curatorTitle: { ...typography.headlineLg, color: colors.primary },
-  curatorCount: { ...typography.labelMd, color: colors.secondary },
+  pageTitle: {
+    fontFamily: 'NotoSerif-Regular',
+    fontSize: 22,
+    lineHeight: 28,
+    color: colors.textPrimary,
+    letterSpacing: -0.2,
+  },
+  originLabel: {
+    fontFamily: 'DMSans-SemiBold',
+    fontSize: 11,
+    color: colors.accent,
+    letterSpacing: 2,
+  },
+  subtitle: {
+    fontFamily: 'DMSans-Regular',
+    fontSize: 12,
+    color: colors.textSecondary,
+    paddingHorizontal: spacing.margin,
+    marginTop: 2,
+  },
 
-  // Category Chips
-  chipScroll: { marginTop: spacing.md },
+  // Search Bar
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: spacing.margin,
+    marginTop: spacing.sm,
+    height: 48,
+    backgroundColor: colors.surface,
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    gap: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  searchInput: {
+    flex: 1,
+    fontFamily: 'DMSans-Regular',
+    fontSize: 14,
+    color: colors.textPrimary,
+    height: '100%',
+  },
+
+  // Chips
+  chipScroll: { marginTop: 10 },
   chipContent: { paddingHorizontal: spacing.margin, gap: 8 },
   chip: {
-    paddingHorizontal: 16, paddingVertical: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.surfaceContainer,
-    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: '#E8E8E5',
   },
   chipActive: {
     backgroundColor: colors.primary,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
   },
-  chipText: { ...typography.labelMd, color: colors.onSurface },
-  chipTextActive: { color: colors.onPrimary },
-  chipDot: {
-    width: 6, height: 6, borderRadius: 3,
-    backgroundColor: colors.secondaryContainer,
+  chipText: {
+    fontFamily: 'DMSans-Medium',
+    fontSize: 13,
+    letterSpacing: 0.3,
+    color: '#544244',
+  },
+  chipTextActive: {
+    color: colors.white,
   },
 
-  // Product Grid
-  grid: {
-    flexDirection: 'row', flexWrap: 'wrap',
+  // Count & Sort
+  countSortRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: spacing.margin,
-    marginTop: spacing.md,
+    marginTop: 10,
+    marginBottom: 12,
+  },
+  countRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  countDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.accent,
+  },
+  countText: {
+    fontFamily: 'DMSans-Medium',
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  sortBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: borderRadius.full,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  sortBtnText: {
+    fontFamily: 'DMSans-Medium',
+    fontSize: 13,
+    color: colors.textPrimary,
+    letterSpacing: 0.3,
+  },
+
+  // Grid
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: spacing.margin,
     gap: spacing.gutter,
   },
 
   // Product Card
   card: {
     width: CARD_WIDTH,
-    backgroundColor: colors.surfaceContainerLowest,
-    borderRadius: borderRadius.lg,
-    padding: 8,
-    ...elevation.raised,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.md,
+    padding: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
   },
-  cardImage: {
+  cardImageWrap: {
     width: '100%',
     aspectRatio: 3 / 4,
-    borderRadius: borderRadius.DEFAULT,
-    backgroundColor: colors.surfaceContainer,
+    borderRadius: 10,
     overflow: 'hidden',
+    backgroundColor: '#EEEEE9',
     position: 'relative',
+    marginBottom: 10,
   },
-  cardImageInner: {
-    flex: 1, justifyContent: 'center', alignItems: 'center',
+  cardImage: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#E0DDD8',
   },
-  cardImageEmoji: { fontSize: 32, marginBottom: 4 },
-  cardImageLabel: { ...typography.labelSm, color: colors.onSurfaceVariant },
 
-  // Technique Badge
-  techniqueBadge: {
-    position: 'absolute', top: 8, left: 8,
-    paddingHorizontal: 8, paddingVertical: 3,
-    borderRadius: borderRadius.full,
+  // Wishlist
+  wishlistBtn: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  // Origin Badge
+  originBadge: {
+    position: 'absolute',
+    bottom: 8,
+    left: 8,
     backgroundColor: 'rgba(255,255,255,0.9)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
-  techniqueBadgeText: { ...typography.labelSm, color: colors.primary, letterSpacing: 1.5 },
-
-  // Stock Overlay
-  stockOverlay: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
-    paddingHorizontal: 8, paddingVertical: 6,
-    backgroundColor: 'rgba(77, 5, 22, 0.75)',
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+  originBadgeText: {
+    fontFamily: 'DMSans-SemiBold',
+    fontSize: 10,
+    color: colors.accent,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
   },
-  stockRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  stockDot: { width: 6, height: 6, borderRadius: 3 },
-  stockText: { ...typography.labelSm, color: colors.surfaceContainerLowest, fontWeight: '600' },
-  originText: { ...typography.labelSm, color: colors.secondaryContainer },
 
-  // Card Metadata
-  cardMeta: { marginTop: 10, paddingHorizontal: 2 },
-  cardCategory: { ...typography.labelSm, color: colors.secondary, marginBottom: 2 },
-  cardTitle: { ...typography.headlineMd, fontSize: 15, color: colors.primary, lineHeight: 20 },
-  cardVariant: { ...typography.bodySm, color: colors.onSurfaceVariant, marginTop: 2 },
-
-  // Price
-  priceRow: {
-    marginTop: 8, paddingTop: 8,
-    backgroundColor: colors.surfaceContainerLow,
-    paddingHorizontal: 8, paddingVertical: 6,
-    borderRadius: borderRadius.DEFAULT,
-    flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between',
+  // Card Meta
+  cardMeta: {
+    flex: 1,
+    justifyContent: 'space-between',
   },
-  priceText: { ...typography.currencyMd, color: colors.primary, fontWeight: '700' },
-  comparePriceText: { ...typography.currencyStrike },
+  cardTitle: {
+    fontFamily: 'DMSans-SemiBold',
+    fontSize: 15,
+    lineHeight: 20,
+    color: colors.textPrimary,
+    letterSpacing: -0.2,
+  },
+  cardSubtitle: {
+    fontFamily: 'DMSans-Regular',
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+
+  // Price Section
+  cardPriceSection: {
+    marginTop: 10,
+    paddingTop: 8,
+    gap: 4,
+  },
+  cardPriceRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 6,
+  },
+  cardPrice: {
+    fontFamily: 'DMSans-SemiBold',
+    fontSize: 16,
+    color: colors.textPrimary,
+    letterSpacing: -0.3,
+  },
+  cardCompare: {
+    fontFamily: 'DMSans-Regular',
+    fontSize: 12,
+    color: colors.textTertiary,
+    textDecorationLine: 'line-through',
+  },
+
+  // Stock
+  stockRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  stockDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.error,
+  },
+  stockTextError: {
+    fontFamily: 'DMSans-SemiBold',
+    fontSize: 11,
+    color: colors.error,
+    letterSpacing: 0.3,
+  },
+  stockTextSecondary: {
+    fontFamily: 'DMSans-SemiBold',
+    fontSize: 11,
+    color: colors.accent,
+    letterSpacing: 0.3,
+  },
 
   // Empty State
   emptyState: {
-    paddingVertical: spacing.xl * 2,
     alignItems: 'center',
+    paddingVertical: 60,
+    gap: 8,
   },
-  emptyText: { ...typography.bodyMd, color: colors.onSurfaceVariant },
+  emptyTitle: {
+    fontFamily: 'NotoSerif-Regular',
+    fontSize: 20,
+    color: colors.textPrimary,
+    marginTop: 8,
+  },
+  emptySubtext: {
+    fontFamily: 'DMSans-Regular',
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
 });

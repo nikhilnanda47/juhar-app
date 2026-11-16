@@ -1,116 +1,99 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, RefreshControl,
+  ActivityIndicator, RefreshControl, TextInput,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { colors, typography, spacing, borderRadius, elevation } from '../theme';
+import {
+  ShoppingBag, Trash2, Heart, Minus, Plus, Package,
+  ChevronLeft, Truck, ArrowRight, X, BadgeCheck, Leaf,
+} from 'lucide-react-native';
+import { colors, spacing, borderRadius, elevation } from '../theme';
 import {
   isLoggedIn, loadToken, getCart, updateCartItem, removeCartItem, formatPaise,
   type CartResponse, type CartItemResponse,
 } from '../services/api';
+
+const FREE_SHIPPING_THRESHOLD = 500000; // 5000 paise = ₹5,000
 
 export default function CartScreen() {
   const navigation = useNavigation<any>();
   const [cart, setCart] = useState<CartResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [updating, setUpdating] = useState<string | null>(null); // item ID being updated
+  const [updating, setUpdating] = useState<string | null>(null);
   const [loggedIn, setLoggedIn] = useState(false);
+  const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
 
-  // Reload cart every time this tab gets focus
-  useFocusEffect(
-    useCallback(() => {
-      checkAndLoad();
-    }, []),
-  );
+  useFocusEffect(useCallback(() => { checkAndLoad(); }, []));
 
   const checkAndLoad = async () => {
     const hasToken = await loadToken();
     setLoggedIn(hasToken);
-    if (hasToken) {
-      await loadCart();
-    } else {
-      setLoading(false);
-    }
+    if (hasToken) await loadCart();
+    else setLoading(false);
   };
 
   const loadCart = async () => {
-    try {
-      const data = await getCart();
-      setCart(data);
-    } catch {
-      setCart({ items: [], subtotalPaise: 0, itemCount: 0 });
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+    try { setCart(await getCart()); } catch { setCart({ items: [], subtotalPaise: 0, itemCount: 0 }); }
+    finally { setLoading(false); setRefreshing(false); }
   };
 
   const handleUpdateQty = async (itemId: string, newQty: number) => {
     setUpdating(itemId);
     try {
-      if (newQty <= 0) {
-        const data = await removeCartItem(itemId);
-        setCart(data);
-      } else {
-        const data = await updateCartItem(itemId, newQty);
-        setCart(data);
-      }
+      const data = newQty <= 0 ? await removeCartItem(itemId) : await updateCartItem(itemId, newQty);
+      setCart(data);
     } catch {}
     setUpdating(null);
   };
 
   const handleRemove = async (itemId: string) => {
     setUpdating(itemId);
-    try {
-      const data = await removeCartItem(itemId);
-      setCart(data);
-    } catch {}
+    try { setCart(await removeCartItem(itemId)); } catch {}
     setUpdating(null);
   };
 
   if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
+    return <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>;
   }
 
-  // Not logged in
   if (!loggedIn) {
     return (
       <View style={styles.center}>
-        <Text style={{ fontSize: 40, marginBottom: 12 }}>🛍️</Text>
+        <ShoppingBag size={48} color={colors.textTertiary} strokeWidth={1.5} />
         <Text style={styles.emptyTitle}>Your bag is empty</Text>
-        <Text style={styles.emptySubtitle}>Login to start adding handwoven sarees to your bag.</Text>
-        <TouchableOpacity
-          style={styles.loginBtn}
-          onPress={() => navigation.navigate('Profile')}
-        >
-          <Text style={styles.loginBtnText}>LOGIN</Text>
+        <Text style={styles.emptySubtext}>Log in to start adding sarees.</Text>
+        <TouchableOpacity style={styles.outlineBtn} onPress={() => navigation.navigate('Account')}>
+          <Text style={styles.outlineBtnText}>Log In</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
-  // Empty cart
   if (!cart || cart.items.length === 0) {
     return (
       <View style={styles.center}>
-        <Text style={{ fontSize: 40, marginBottom: 12 }}>🛍️</Text>
+        <ShoppingBag size={48} color={colors.textTertiary} strokeWidth={1.5} />
         <Text style={styles.emptyTitle}>Your bag is empty</Text>
-        <Text style={styles.emptySubtitle}>Explore our curated collection of handwoven Sambalpuri sarees.</Text>
-        <TouchableOpacity
-          style={styles.loginBtn}
-          onPress={() => navigation.navigate('Explore')}
-        >
-          <Text style={styles.loginBtnText}>EXPLORE</Text>
+        <Text style={styles.emptySubtext}>Browse our collection and add something you love.</Text>
+        <TouchableOpacity style={styles.outlineBtn} onPress={() => navigation.navigate('Shop')}>
+          <Text style={styles.outlineBtnText}>Start Shopping</Text>
         </TouchableOpacity>
       </View>
     );
   }
+
+  const shippingPaise = cart.subtotalPaise >= FREE_SHIPPING_THRESHOLD ? 0 : 9900;
+  const couponDiscount = appliedCoupon ? 10000 : 0; // ₹100 mock
+  const totalPaise = cart.subtotalPaise - couponDiscount + shippingPaise;
+  const freeShippingMet = cart.subtotalPaise >= FREE_SHIPPING_THRESHOLD;
+  const shippingProgress = Math.min(100, (cart.subtotalPaise / FREE_SHIPPING_THRESHOLD) * 100);
+  const totalSavings = cart.items.reduce((sum, item) => {
+    const compare = item.variant.compareAtPaise || item.variant.pricePaise;
+    return sum + (compare - item.variant.pricePaise) * item.quantity;
+  }, 0) + couponDiscount + (shippingPaise === 0 ? 9900 : 0);
 
   return (
     <View style={styles.container}>
@@ -120,17 +103,30 @@ export default function CartScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <View style={styles.headerIcon}>
-            <Text style={{ fontSize: 16 }}>⏱️</Text>
+          <View style={styles.headerLeft}>
+            <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+              <ChevronLeft size={20} color={colors.textPrimary} strokeWidth={2} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>My Bag ({cart.itemCount})</Text>
           </View>
-          <View style={{ flex: 1 }}>
-            <View style={styles.headerRow}>
-              <Text style={styles.headerTitle}>Shopping Bag</Text>
-              <View style={styles.countBadge}>
-                <Text style={styles.countText}>{cart.itemCount} {cart.itemCount === 1 ? 'item' : 'items'}</Text>
-              </View>
+        </View>
+
+        {/* Free Shipping Meter */}
+        <View style={styles.shippingMeter}>
+          <View style={styles.shippingRow}>
+            <View style={styles.shippingLeft}>
+              <Truck size={16} color={colors.accent} strokeWidth={2} />
+              <Text style={styles.shippingText}>
+                {freeShippingMet
+                  ? 'Free delivery unlocked!'
+                  : `₹${((FREE_SHIPPING_THRESHOLD - cart.subtotalPaise) / 100).toLocaleString('en-IN')} more for free shipping`
+                }
+              </Text>
             </View>
-            <Text style={styles.headerSub}>Handloom items reserved for you</Text>
+            {freeShippingMet && <Text style={styles.shippingGoal}>₹5,000 met</Text>}
+          </View>
+          <View style={styles.progressBar}>
+            <View style={[styles.progressFill, { width: `${shippingProgress}%` }]} />
           </View>
         </View>
 
@@ -143,264 +139,310 @@ export default function CartScreen() {
             onIncrement={() => handleUpdateQty(item.id, item.quantity + 1)}
             onDecrement={() => handleUpdateQty(item.id, item.quantity - 1)}
             onRemove={() => handleRemove(item.id)}
-            onPress={() => navigation.navigate('Explore', {
-              screen: 'ProductDetail',
-              params: { slug: item.variant.productSlug },
-            })}
           />
         ))}
 
-        {/* Certification */}
-        <View style={styles.certBox}>
-          <Text style={{ fontSize: 18 }}>🏅</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.certTitle}>ODISHA HERITAGE CERTIFICATION</Text>
-            <Text style={styles.certSub}>Every weave carries an authentic Silk Mark & Handloom Tag.</Text>
+        {/* Coupon Section */}
+        <View style={styles.couponSection}>
+          <View style={styles.couponHeader}>
+            <Text style={styles.couponTitle}>Offers & Coupons</Text>
+          </View>
+          {appliedCoupon && (
+            <View style={styles.appliedCoupon}>
+              <BadgeCheck size={20} color={colors.accent} strokeWidth={2} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.appliedCode}>{appliedCoupon} applied (−₹100)</Text>
+                <Text style={styles.appliedDesc}>First purchase discount</Text>
+              </View>
+              <TouchableOpacity onPress={() => setAppliedCoupon(null)}>
+                <X size={16} color={colors.textSecondary} strokeWidth={2} />
+              </TouchableOpacity>
+            </View>
+          )}
+          <View style={styles.couponInputRow}>
+            <TextInput
+              style={styles.couponInput}
+              value={couponCode}
+              onChangeText={(t) => setCouponCode(t.toUpperCase())}
+              placeholder="Enter coupon code"
+              placeholderTextColor={colors.textTertiary}
+              autoCapitalize="characters"
+            />
+            <TouchableOpacity
+              style={styles.couponApplyBtn}
+              onPress={() => { if (couponCode.length >= 3) { setAppliedCoupon(couponCode); setCouponCode(''); } }}
+            >
+              <Text style={styles.couponApplyText}>Apply</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
-        {/* Bill Details */}
-        <View style={styles.billCard}>
-          <Text style={styles.billTitle}>Bill Details</Text>
-          <View style={styles.billRow}>
-            <Text style={styles.billLabel}>Subtotal ({cart.itemCount} items)</Text>
-            <Text style={styles.billValue}>{formatPaise(cart.subtotalPaise)}</Text>
+        {/* Price Details */}
+        <View style={styles.priceCard}>
+          <Text style={styles.priceCardTitle}>Price Details ({cart.itemCount} Items)</Text>
+          <PriceRow label={`Subtotal (${cart.itemCount} items)`} value={formatPaise(cart.subtotalPaise)} />
+          {appliedCoupon && (
+            <PriceRow label={`Coupon (${appliedCoupon})`} value={`−${formatPaise(couponDiscount)}`} valueColor={colors.accent} />
+          )}
+          <PriceRow
+            label="Shipping"
+            value={shippingPaise === 0 ? 'FREE' : formatPaise(shippingPaise)}
+            valueColor={shippingPaise === 0 ? colors.accent : undefined}
+          />
+          <View style={styles.priceDivider} />
+          <View style={styles.totalRow}>
+            <View>
+              <Text style={styles.totalLabel}>Total Amount</Text>
+              <Text style={styles.totalTaxNote}>Inclusive of all taxes</Text>
+            </View>
+            <Text style={styles.totalValue}>{formatPaise(totalPaise)}</Text>
           </View>
-          <View style={styles.billRow}>
-            <Text style={styles.billLabel}>Shipping</Text>
-            <Text style={styles.billFree}>Calculated at checkout</Text>
-          </View>
-          <View style={styles.billRow}>
-            <Text style={styles.billLabel}>Taxes (GST 5%)</Text>
-            <Text style={styles.billIncluded}>Included</Text>
-          </View>
-          <View style={styles.billDivider} />
-          <View style={styles.billRow}>
-            <Text style={styles.billTotalLabel}>Total Amount</Text>
-            <Text style={styles.billTotal}>{formatPaise(cart.subtotalPaise)}</Text>
-          </View>
+          {freeShippingMet && (
+            <View style={styles.freeShipNote}>
+              <Leaf size={16} color={colors.accent} strokeWidth={2} />
+              <Text style={styles.freeShipText}>Free shipping applied on orders above ₹5,000</Text>
+            </View>
+          )}
         </View>
+
+        <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* Sticky Checkout Bar */}
-      <View style={styles.checkoutBar}>
-        <TouchableOpacity style={styles.checkoutBtn} activeOpacity={0.85} onPress={() => navigation.navigate('SelectAddress')}>
-          <Text style={styles.checkoutBtnText}>PROCEED TO CHECKOUT</Text>
-          <Text style={styles.checkoutPrice}>{formatPaise(cart.subtotalPaise)} →</Text>
-        </TouchableOpacity>
-        <View style={styles.secureRow}>
-          <Text style={styles.secureText}>🔒 100% Secure Checkout • 256-Bit Encrypted</Text>
+      {/* Sticky Bottom Bar */}
+      <View style={styles.stickyBar}>
+        <View style={styles.stickyLeft}>
+          <Text style={styles.stickyLabel}>PAYABLE TOTAL</Text>
+          <View style={styles.stickyPriceRow}>
+            <Text style={styles.stickyPrice}>{formatPaise(totalPaise)}</Text>
+            {totalSavings > 0 && (
+              <Text style={styles.stickySaved}>Saved {formatPaise(totalSavings)}</Text>
+            )}
+          </View>
         </View>
+        <TouchableOpacity
+          style={styles.checkoutBtn}
+          activeOpacity={0.85}
+          onPress={() => navigation.navigate('SelectAddress')}
+        >
+          <Text style={styles.checkoutBtnText}>Proceed to Checkout</Text>
+          <ArrowRight size={18} color={colors.white} strokeWidth={2} />
+        </TouchableOpacity>
       </View>
     </View>
   );
 }
 
-// ── Cart Item Card ──
 function CartItemCard({
-  item, updating, onIncrement, onDecrement, onRemove, onPress,
+  item, updating, onIncrement, onDecrement, onRemove,
 }: {
-  item: CartItemResponse;
-  updating: boolean;
-  onIncrement: () => void;
-  onDecrement: () => void;
-  onRemove: () => void;
-  onPress: () => void;
+  item: CartItemResponse; updating: boolean;
+  onIncrement: () => void; onDecrement: () => void; onRemove: () => void;
 }) {
+  const discount = item.variant.compareAtPaise && item.variant.compareAtPaise > item.variant.pricePaise
+    ? Math.round((1 - item.variant.pricePaise / item.variant.compareAtPaise) * 100) : null;
+
   return (
-    <TouchableOpacity style={styles.itemCard} onPress={onPress} activeOpacity={0.9}>
+    <View style={styles.itemCard}>
       <View style={styles.itemRow}>
-        {/* Thumbnail placeholder */}
+        {/* Thumbnail */}
         <View style={styles.itemThumb}>
-          <Text style={{ fontSize: 24 }}>🧶</Text>
+          <View style={styles.thumbPlaceholder} />
         </View>
 
+        {/* Details */}
         <View style={styles.itemDetails}>
           <View style={styles.itemTitleRow}>
             <Text style={styles.itemTitle} numberOfLines={1}>{item.variant.productTitle}</Text>
             <TouchableOpacity onPress={onRemove} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Text style={styles.removeIcon}>🗑️</Text>
+              <Trash2 size={18} color={colors.textTertiary} strokeWidth={1.5} />
             </TouchableOpacity>
           </View>
-          <Text style={styles.itemVariant} numberOfLines={1}>
-            {[item.variant.color, item.variant.name].filter(Boolean).join(' • ')}
+          <Text style={styles.itemVariant}>
+            {[item.variant.color ? `Color: ${item.variant.color}` : null, item.variant.name].filter(Boolean).join(' • ')}
           </Text>
-
-          {item.availabilityWarning && (
-            <View style={styles.warningBadge}>
-              <Text style={styles.warningText}>{item.availabilityWarning}</Text>
-            </View>
-          )}
-
-          <View style={styles.itemBottom}>
-            <View style={styles.priceCol}>
-              <Text style={styles.itemPrice}>{formatPaise(item.variant.pricePaise)}</Text>
-              {item.variant.compareAtPaise && item.variant.compareAtPaise > item.variant.pricePaise && (
-                <Text style={styles.itemCompare}>{formatPaise(item.variant.compareAtPaise)}</Text>
-              )}
-            </View>
-
-            {/* Qty Stepper */}
-            <View style={styles.stepper}>
-              <TouchableOpacity
-                style={styles.stepBtn}
-                onPress={onDecrement}
-                disabled={updating}
-              >
-                <Text style={styles.stepBtnText}>−</Text>
-              </TouchableOpacity>
-              <Text style={styles.stepQty}>
-                {updating ? '...' : item.quantity}
-              </Text>
-              <TouchableOpacity
-                style={styles.stepBtn}
-                onPress={onIncrement}
-                disabled={updating || item.quantity >= 10}
-              >
-                <Text style={styles.stepBtnText}>+</Text>
-              </TouchableOpacity>
-            </View>
+          <View style={styles.itemPriceRow}>
+            <Text style={styles.itemPrice}>{formatPaise(item.variant.pricePaise)}</Text>
+            {item.variant.compareAtPaise && item.variant.compareAtPaise > item.variant.pricePaise && (
+              <Text style={styles.itemCompare}>{formatPaise(item.variant.compareAtPaise)}</Text>
+            )}
+            {discount && <Text style={styles.itemDiscount}>{discount}% off</Text>}
+          </View>
+          <View style={styles.deliveryRow}>
+            <Package size={14} color={colors.accent} strokeWidth={2} />
+            <Text style={styles.deliveryText}>Delivery by 5–7 days</Text>
           </View>
         </View>
       </View>
-      <Text style={styles.lineTotal}>Line total: {formatPaise(item.lineTotalPaise)}</Text>
-    </TouchableOpacity>
+
+      {/* Action Row */}
+      <View style={styles.actionRow}>
+        <View style={styles.stepper}>
+          <TouchableOpacity
+            style={styles.stepBtn}
+            onPress={onDecrement}
+            disabled={updating || item.quantity <= 1}
+          >
+            <Minus size={14} color={item.quantity <= 1 ? colors.textTertiary : colors.textPrimary} strokeWidth={2} />
+          </TouchableOpacity>
+          <Text style={styles.stepQty}>{updating ? '…' : item.quantity}</Text>
+          <TouchableOpacity style={styles.stepBtn} onPress={onIncrement} disabled={updating}>
+            <Plus size={14} color={colors.textPrimary} strokeWidth={2} />
+          </TouchableOpacity>
+        </View>
+        <TouchableOpacity style={styles.wishlistLink}>
+          <Heart size={16} color={colors.textTertiary} strokeWidth={1.5} />
+          <Text style={styles.wishlistText}>Save to Wishlist</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
+function PriceRow({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) {
+  return (
+    <View style={styles.priceRow}>
+      <Text style={styles.priceLabel}>{label}</Text>
+      <Text style={[styles.priceValue, valueColor ? { color: valueColor, fontFamily: 'DMSans-SemiBold' } : {}]}>{value}</Text>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.surface },
-  scrollContent: { padding: spacing.margin, paddingBottom: 160 },
+  container: { flex: 1, backgroundColor: colors.background },
+  scrollContent: { paddingHorizontal: spacing.margin, paddingBottom: 140 },
   center: {
     flex: 1, justifyContent: 'center', alignItems: 'center',
-    backgroundColor: colors.surface, paddingHorizontal: spacing.xl,
+    backgroundColor: colors.background, paddingHorizontal: spacing.xl, gap: 8,
   },
-  emptyTitle: { ...typography.headlineMd, marginBottom: spacing.sm },
-  emptySubtitle: { ...typography.bodySm, textAlign: 'center', marginBottom: spacing.lg },
-  loginBtn: {
-    backgroundColor: colors.primary, paddingVertical: 12, paddingHorizontal: 32,
-    borderRadius: borderRadius.DEFAULT,
+  emptyTitle: { fontFamily: 'NotoSerif-Regular', fontSize: 20, color: colors.textPrimary, marginTop: spacing.md },
+  emptySubtext: { fontFamily: 'DMSans-Regular', fontSize: 14, color: colors.textSecondary },
+  outlineBtn: {
+    marginTop: spacing.md, borderWidth: 1, borderColor: colors.primary,
+    borderRadius: 6, paddingVertical: 12, paddingHorizontal: 32,
   },
-  loginBtnText: { ...typography.labelLg, color: colors.onPrimary },
+  outlineBtnText: { fontFamily: 'DMSans-SemiBold', fontSize: 14, color: colors.primary },
 
   // Header
   header: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: colors.surfaceContainerLow, borderRadius: borderRadius.lg,
-    padding: spacing.md, marginBottom: spacing.md,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingTop: 48, paddingBottom: spacing.sm,
   },
-  headerIcon: {
-    width: 32, height: 32, borderRadius: 16,
-    backgroundColor: colors.secondaryContainer,
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  backBtn: {
+    width: 36, height: 36, borderRadius: 18, backgroundColor: '#EEEEEB',
     justifyContent: 'center', alignItems: 'center',
   },
-  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  headerTitle: { ...typography.headlineMd, color: colors.primary },
-  countBadge: {
-    backgroundColor: colors.surfaceContainer, paddingHorizontal: 8, paddingVertical: 2,
-    borderRadius: borderRadius.full,
+  headerTitle: { fontFamily: 'DMSans-SemiBold', fontSize: 16, color: colors.textPrimary, letterSpacing: -0.2 },
+
+  // Free Shipping Meter
+  shippingMeter: {
+    backgroundColor: colors.surface, padding: spacing.md, borderRadius: borderRadius.md,
+    marginBottom: spacing.md,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
   },
-  countText: { ...typography.labelSm, color: colors.secondary },
-  headerSub: { ...typography.bodySm, color: colors.onSurfaceVariant },
+  shippingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  shippingLeft: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 },
+  shippingText: { fontFamily: 'DMSans-Medium', fontSize: 12, color: colors.accent },
+  shippingGoal: { fontFamily: 'DMSans-Medium', fontSize: 12, color: colors.accent },
+  progressBar: { width: '100%', height: 6, backgroundColor: '#E8E8E5', borderRadius: 3, overflow: 'hidden' },
+  progressFill: { height: '100%', backgroundColor: colors.accent, borderRadius: 3 },
 
   // Item Card
   itemCard: {
-    backgroundColor: colors.surfaceContainerLowest, borderRadius: borderRadius.lg,
-    padding: spacing.md, marginBottom: spacing.sm, ...elevation.flat,
+    backgroundColor: colors.surface, borderRadius: borderRadius.md, padding: spacing.md,
+    marginBottom: spacing.gutter,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
   },
-  itemRow: { flexDirection: 'row', gap: spacing.md },
-  itemThumb: {
-    width: 80, height: 100, borderRadius: borderRadius.DEFAULT,
-    backgroundColor: colors.surfaceContainer,
-    justifyContent: 'center', alignItems: 'center',
-  },
+  itemRow: { flexDirection: 'row', gap: 12 },
+  itemThumb: { width: 80, height: 106, borderRadius: 6, overflow: 'hidden', backgroundColor: '#E0DDD8' },
+  thumbPlaceholder: { flex: 1, backgroundColor: '#D5CFC9' },
   itemDetails: { flex: 1 },
-  itemTitleRow: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
-  },
-  itemTitle: { ...typography.headlineMd, fontSize: 15, color: colors.onSurface, flex: 1 },
-  removeIcon: { fontSize: 16 },
-  itemVariant: { ...typography.bodySm, color: colors.onSurfaceVariant, marginTop: 2 },
+  itemTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 4 },
+  itemTitle: { fontFamily: 'DMSans-SemiBold', fontSize: 15, color: colors.textPrimary, flex: 1, letterSpacing: -0.2 },
+  itemVariant: { fontFamily: 'DMSans-Regular', fontSize: 13, color: colors.textSecondary, marginTop: 2 },
+  itemPriceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 4, marginTop: 4 },
+  itemPrice: { fontFamily: 'DMSans-Bold', fontSize: 16, color: colors.textPrimary, letterSpacing: -0.3 },
+  itemCompare: { fontFamily: 'DMSans-Regular', fontSize: 12, color: colors.textTertiary, textDecorationLine: 'line-through' },
+  itemDiscount: { fontFamily: 'DMSans-SemiBold', fontSize: 11, color: colors.primary, marginLeft: 4 },
+  deliveryRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },
+  deliveryText: { fontFamily: 'DMSans-Regular', fontSize: 12, color: colors.textSecondary },
 
-  warningBadge: {
-    marginTop: 6, alignSelf: 'flex-start',
-    backgroundColor: '#fce4ec', paddingHorizontal: 8, paddingVertical: 3,
-    borderRadius: borderRadius.full,
-  },
-  warningText: { ...typography.labelSm, color: colors.error, fontWeight: '700' },
-
-  itemBottom: {
+  // Action Row
+  actionRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    marginTop: 10,
+    marginTop: 10, paddingTop: 8, paddingHorizontal: 8, paddingVertical: 6,
+    backgroundColor: 'rgba(244,244,241,0.5)', borderRadius: 8,
   },
-  priceCol: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
-  itemPrice: { ...typography.currencyMd, color: colors.primary, fontWeight: '600' },
-  itemCompare: { ...typography.currencyStrike },
-
-  // Stepper
   stepper: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: colors.surfaceContainerHigh, borderRadius: borderRadius.full,
-    padding: 2,
+    flexDirection: 'row', alignItems: 'center', height: 32,
+    backgroundColor: colors.surface, borderRadius: 6, paddingHorizontal: 4,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 2, elevation: 1,
   },
-  stepBtn: {
-    width: 28, height: 28, borderRadius: 14,
-    backgroundColor: colors.surfaceContainerLowest,
+  stepBtn: { width: 28, height: 28, justifyContent: 'center', alignItems: 'center' },
+  stepQty: { fontFamily: 'DMSans-SemiBold', fontSize: 13, color: colors.textPrimary, width: 32, textAlign: 'center' },
+  wishlistLink: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 8, paddingVertical: 4 },
+  wishlistText: { fontFamily: 'DMSans-Medium', fontSize: 13, color: colors.textTertiary, letterSpacing: 0.2 },
+
+  // Coupon
+  couponSection: { marginTop: spacing.md, marginBottom: spacing.md },
+  couponHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  couponTitle: { fontFamily: 'DMSans-SemiBold', fontSize: 16, color: colors.textPrimary, letterSpacing: -0.2 },
+  appliedCoupon: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: 'rgba(255,218,171,0.3)', padding: 10, borderRadius: 8, marginBottom: 8,
+  },
+  appliedCode: { fontFamily: 'DMSans-SemiBold', fontSize: 13, color: colors.textPrimary, letterSpacing: 0.5 },
+  appliedDesc: { fontFamily: 'DMSans-Regular', fontSize: 11, color: colors.textSecondary },
+  couponInputRow: { flexDirection: 'row', gap: 8 },
+  couponInput: {
+    flex: 1, height: 48, backgroundColor: colors.surface, borderRadius: 6,
+    paddingHorizontal: 14, fontFamily: 'DMSans-Regular', fontSize: 14, color: colors.textPrimary,
+    letterSpacing: 1,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 2, elevation: 1,
+  },
+  couponApplyBtn: {
+    height: 48, paddingHorizontal: 20, backgroundColor: '#EEEEEB', borderRadius: 6,
     justifyContent: 'center', alignItems: 'center',
   },
-  stepBtnText: { fontSize: 16, fontWeight: '600', color: colors.onSurface },
-  stepQty: { ...typography.labelMd, paddingHorizontal: 10, color: colors.onSurface, fontWeight: '600' },
+  couponApplyText: { fontFamily: 'DMSans-Medium', fontSize: 13, color: colors.textPrimary },
 
-  lineTotal: {
-    ...typography.bodySm, color: colors.onSurfaceVariant,
-    textAlign: 'right', marginTop: 8,
+  // Price Card
+  priceCard: {
+    backgroundColor: colors.surface, padding: spacing.md, borderRadius: borderRadius.md,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
   },
+  priceCardTitle: { fontFamily: 'DMSans-SemiBold', fontSize: 16, color: colors.textPrimary, marginBottom: 10, letterSpacing: -0.2 },
+  priceRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  priceLabel: { fontFamily: 'DMSans-Regular', fontSize: 14, color: colors.textSecondary },
+  priceValue: { fontFamily: 'DMSans-Medium', fontSize: 14, color: colors.textPrimary },
+  priceDivider: { height: 1, backgroundColor: '#E8E8E5', marginVertical: 8 },
+  totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingTop: 4 },
+  totalLabel: { fontFamily: 'DMSans-Bold', fontSize: 16, color: colors.textPrimary },
+  totalTaxNote: { fontFamily: 'DMSans-Regular', fontSize: 11, color: colors.textTertiary, marginTop: 2 },
+  totalValue: { fontFamily: 'NotoSerif-Regular', fontSize: 20, color: colors.textPrimary },
+  freeShipNote: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: '#F4F4F1', padding: 10, borderRadius: 8, marginTop: 10,
+  },
+  freeShipText: { fontFamily: 'DMSans-Medium', fontSize: 12, color: colors.accent },
 
-  // Certification
-  certBox: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: 10,
-    backgroundColor: 'rgba(254, 216, 150, 0.2)', borderRadius: borderRadius.lg,
-    padding: spacing.md, marginTop: spacing.sm,
-  },
-  certTitle: { ...typography.labelMd, color: colors.secondary, fontWeight: '700' },
-  certSub: { ...typography.bodySm, color: colors.onSurfaceVariant, marginTop: 2 },
-
-  // Bill Card
-  billCard: {
-    backgroundColor: colors.surfaceContainerLowest, borderRadius: borderRadius.lg,
-    padding: spacing.md, marginTop: spacing.md, ...elevation.flat,
-  },
-  billTitle: { ...typography.headlineMd, color: colors.onSurface, marginBottom: 12 },
-  billRow: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    marginBottom: 8,
-  },
-  billLabel: { ...typography.bodyMd, color: colors.onSurfaceVariant },
-  billValue: { ...typography.currencyMd, color: colors.onSurface, fontWeight: '500' },
-  billFree: { ...typography.bodySm, color: colors.secondary },
-  billIncluded: { ...typography.bodySm, color: colors.outline },
-  billDivider: {
-    height: 1, backgroundColor: colors.surfaceContainerHighest,
-    marginVertical: 8,
-  },
-  billTotalLabel: { ...typography.headlineMd, fontSize: 16, color: colors.onSurface, fontWeight: '600' },
-  billTotal: { ...typography.headlineMd, color: colors.primary, fontWeight: '700' },
-
-  // Checkout Bar
-  checkoutBar: {
+  // Sticky Bar
+  stickyBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: colors.surface,
-    borderTopWidth: 1, borderTopColor: colors.border,
-    paddingHorizontal: spacing.margin, paddingTop: 12, paddingBottom: 28,
+    backgroundColor: 'rgba(249,249,246,0.95)',
+    paddingHorizontal: spacing.margin, paddingVertical: 12, paddingBottom: 28,
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.06, shadowRadius: 16, elevation: 5,
   },
+  stickyLeft: { flexShrink: 0 },
+  stickyLabel: { fontFamily: 'DMSans-SemiBold', fontSize: 10, color: colors.textTertiary, letterSpacing: 1.5 },
+  stickyPriceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
+  stickyPrice: { fontFamily: 'NotoSerif-Regular', fontSize: 20, color: colors.textPrimary },
+  stickySaved: { fontFamily: 'DMSans-SemiBold', fontSize: 11, color: colors.accent },
   checkoutBtn: {
-    backgroundColor: colors.primary, borderRadius: borderRadius.DEFAULT,
-    paddingVertical: 14, paddingHorizontal: spacing.md,
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    ...elevation.raised,
+    flex: 1, height: 48, borderRadius: 6, backgroundColor: colors.primary,
+    flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
   },
-  checkoutBtnText: { ...typography.labelLg, color: colors.onPrimary, fontWeight: '700' },
-  checkoutPrice: { ...typography.currencyMd, color: colors.secondaryContainer },
-  secureRow: { alignItems: 'center', marginTop: 8 },
-  secureText: { ...typography.bodySm, color: colors.outline, letterSpacing: 0.5 },
+  checkoutBtnText: { fontFamily: 'DMSans-SemiBold', fontSize: 16, color: colors.white, letterSpacing: -0.2 },
 });

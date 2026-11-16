@@ -1,6 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { colors, typography, spacing, borderRadius } from '../theme';
+import {
+  View, Text, StyleSheet, TouchableOpacity, ScrollView,
+  Alert,
+} from 'react-native';
+import { Check, Truck, MessageSquare, ShieldCheck, ArrowRight, Copy } from 'lucide-react-native';
+import { colors, spacing, borderRadius } from '../theme';
 import { formatPaise } from '../services/api';
 
 interface Props {
@@ -10,102 +14,187 @@ interface Props {
 
 export default function OrderSuccessScreen({ navigation, route }: Props) {
   const { order } = route.params;
+  const firstItem = order.items?.[0];
+
+  const handleCopy = () => {
+    Alert.alert('Order Number', order.publicNumber);
+  };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.content}>
-        {/* Success Icon */}
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <View style={{ height: 40 }} />
+
+      <View style={styles.centerContent}>
+        {/* Checkmark */}
         <View style={styles.checkCircle}>
-          <Text style={styles.checkMark}>✓</Text>
+          <Check size={32} color="#3D8B63" strokeWidth={2.5} />
         </View>
 
-        <Text style={styles.title}>Order Placed Successfully!</Text>
+        {/* Headline */}
+        <Text style={styles.title}>Order placed!</Text>
+        <Text style={styles.subtitle}>Thank you for championing indigenous handloom craft.</Text>
 
-        {/* Order Number */}
-        <View style={styles.orderCard}>
-          <Text style={styles.orderLabel}>ORDER NUMBER</Text>
-          <Text style={styles.orderNumber}>{order.publicNumber}</Text>
+        {/* Order Reference */}
+        <TouchableOpacity style={styles.refBadge} onPress={handleCopy}>
+          <Text style={styles.refLabel}>REF:</Text>
+          <Text style={styles.refNumber}>{order.publicNumber}</Text>
+          <Copy size={16} color={colors.primary} strokeWidth={2} />
+        </TouchableOpacity>
+
+        {/* Order Preview Card */}
+        <View style={styles.previewCard}>
+          <View style={styles.previewTop}>
+            <View style={styles.previewThumb} />
+            <View style={styles.previewInfo}>
+              <Text style={styles.previewLabel}>MASTERPIECE RESERVED</Text>
+              <Text style={styles.previewName} numberOfLines={1}>
+                {firstItem?.productTitle || 'Handloom Saree'}
+              </Text>
+              <Text style={styles.previewMeta}>
+                {firstItem?.variantName || 'Sambalpuri Cluster'}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.previewDivider} />
+
+          <View style={styles.deliveryInfo}>
+            <View>
+              <Text style={styles.deliveryLabel}>Estimated delivery</Text>
+              <Text style={styles.deliveryDate}>22–26 Nov 2026</Text>
+            </View>
+            <Truck size={20} color={colors.accent} strokeWidth={1.5} />
+          </View>
+
+          <View style={styles.smsRow}>
+            <MessageSquare size={16} color={colors.textSecondary} strokeWidth={1.5} />
+            <Text style={styles.smsText}>
+              Updates sent to <Text style={styles.smsPhone}>{order.addressSnapshot?.recipientPhone || '+91 XXXXXXXXXX'}</Text>
+            </Text>
+          </View>
         </View>
 
-        <Text style={styles.delivery}>📦 Estimated delivery: {order.estimatedDelivery || '5–7 business days'}</Text>
-
-        {/* Summary */}
-        <View style={styles.summaryCard}>
-          <Text style={styles.summaryText}>
-            {order.items?.length || 0} item(s) • {formatPaise(order.totalPaise)}
-          </Text>
-          <Text style={styles.summaryMode}>
-            Payment: {order.paymentMode === 'cod' ? 'Cash on Delivery' : 'UPI'}
-          </Text>
+        {/* Craft Assurance */}
+        <View style={styles.assuranceCard}>
+          <ShieldCheck size={20} color={colors.accent} strokeWidth={1.5} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.assuranceTitle}>Sacred Care & Authenticity</Text>
+            <Text style={styles.assuranceSub}>
+              Handpacked in unbleached kora cloth with GI weaver provenance certificate.
+            </Text>
+          </View>
         </View>
 
         {/* Actions */}
-        <TouchableOpacity
-          style={styles.viewBtn}
-          onPress={() => {
-            navigation.navigate('Orders', {
-              screen: 'OrderDetail',
-              params: { orderId: order.id },
-            });
-          }}
-        >
-          <Text style={styles.viewBtnText}>VIEW ORDER DETAILS</Text>
-        </TouchableOpacity>
+        <View style={styles.actions}>
+          <TouchableOpacity
+            style={styles.primaryBtn}
+            onPress={() => {
+              navigation.navigate('Orders', {
+                screen: 'OrderDetail',
+                params: { orderId: order.id },
+              });
+            }}
+          >
+            <Text style={styles.primaryBtnText}>View Order</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.shopBtn}
-          onPress={() => navigation.navigate('Home')}
-        >
-          <Text style={styles.shopBtnText}>CONTINUE SHOPPING</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.ghostBtn}
+            onPress={() => navigation.navigate('Home')}
+          >
+            <Text style={styles.ghostBtnText}>Continue Shopping</Text>
+            <ArrowRight size={18} color={colors.primary} strokeWidth={2} />
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.surface, justifyContent: 'center' },
-  content: { alignItems: 'center', paddingHorizontal: spacing.lg },
+  container: { flex: 1, backgroundColor: colors.background },
+  content: { paddingHorizontal: spacing.margin, paddingBottom: spacing.xl },
+  centerContent: { alignItems: 'center', maxWidth: 400, alignSelf: 'center', width: '100%' },
 
+  // Checkmark
   checkCircle: {
-    width: 80, height: 80, borderRadius: 40,
-    backgroundColor: colors.success, justifyContent: 'center', alignItems: 'center',
-    marginBottom: 20,
-  },
-  checkMark: { fontSize: 36, color: colors.white, fontWeight: '700' },
-
-  title: { ...typography.headlineLg, color: colors.primary, textAlign: 'center', marginBottom: 20 },
-
-  orderCard: {
-    backgroundColor: colors.surfaceContainerLow, borderRadius: borderRadius.lg,
-    paddingHorizontal: 24, paddingVertical: 16, alignItems: 'center',
-    marginBottom: 16, width: '100%',
-  },
-  orderLabel: { ...typography.labelMd, color: colors.secondary, marginBottom: 4 },
-  orderNumber: {
-    fontSize: 22, fontWeight: '700', color: colors.onSurface,
-    fontFamily: 'monospace', letterSpacing: 1,
+    width: 64, height: 64, borderRadius: 32,
+    backgroundColor: 'rgba(61,139,99,0.1)',
+    justifyContent: 'center', alignItems: 'center',
+    marginBottom: spacing.md,
   },
 
-  delivery: { ...typography.bodyMd, color: colors.onSurfaceVariant, marginBottom: 16 },
-
-  summaryCard: {
-    backgroundColor: colors.surfaceContainerLowest, borderRadius: borderRadius.lg,
-    padding: 16, width: '100%', alignItems: 'center',
-    borderWidth: 1, borderColor: colors.border, marginBottom: 24,
+  // Text
+  title: {
+    fontFamily: 'NotoSerif-Regular', fontSize: 22, lineHeight: 28,
+    color: colors.textPrimary, marginBottom: spacing.xs,
   },
-  summaryText: { ...typography.bodyMd, color: colors.onSurface, fontWeight: '500' },
-  summaryMode: { ...typography.bodySm, color: colors.onSurfaceVariant, marginTop: 4 },
-
-  viewBtn: {
-    backgroundColor: colors.primary, borderRadius: borderRadius.DEFAULT,
-    paddingVertical: 14, width: '100%', alignItems: 'center', marginBottom: 10,
+  subtitle: {
+    fontFamily: 'DMSans-Regular', fontSize: 14, color: colors.textSecondary,
+    textAlign: 'center', marginBottom: spacing.md,
   },
-  viewBtnText: { ...typography.labelLg, color: colors.onPrimary, fontWeight: '700' },
 
-  shopBtn: {
-    borderWidth: 1, borderColor: colors.primary, borderRadius: borderRadius.DEFAULT,
-    paddingVertical: 14, width: '100%', alignItems: 'center',
+  // Order Ref
+  refBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: '#EEEEEB', paddingHorizontal: 14, paddingVertical: 6,
+    borderRadius: borderRadius.full, marginBottom: spacing.xl,
   },
-  shopBtnText: { ...typography.labelLg, color: colors.primary },
+  refLabel: {
+    fontFamily: 'DMSans-SemiBold', fontSize: 11, color: colors.textSecondary,
+    letterSpacing: 1.5, textTransform: 'uppercase',
+  },
+  refNumber: {
+    fontFamily: 'DMSans-SemiBold', fontSize: 16, color: colors.primary,
+    letterSpacing: -0.2,
+  },
+
+  // Preview Card
+  previewCard: {
+    width: '100%', backgroundColor: colors.surface, borderRadius: borderRadius.md,
+    padding: spacing.md, marginBottom: spacing.md,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
+  },
+  previewTop: { flexDirection: 'row', gap: 12, marginBottom: spacing.md },
+  previewThumb: { width: 56, height: 72, borderRadius: 8, backgroundColor: '#E0DDD8' },
+  previewInfo: { flex: 1, justifyContent: 'center' },
+  previewLabel: {
+    fontFamily: 'DMSans-SemiBold', fontSize: 11, color: colors.accent,
+    letterSpacing: 2, textTransform: 'uppercase',
+  },
+  previewName: { fontFamily: 'DMSans-Medium', fontSize: 14, color: colors.textPrimary, marginTop: 2 },
+  previewMeta: { fontFamily: 'DMSans-Regular', fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  previewDivider: { height: 1, backgroundColor: '#EEEEEB', marginBottom: spacing.md },
+  deliveryInfo: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
+  },
+  deliveryLabel: { fontFamily: 'DMSans-Regular', fontSize: 12, color: colors.textSecondary },
+  deliveryDate: { fontFamily: 'DMSans-SemiBold', fontSize: 16, color: colors.textPrimary, letterSpacing: -0.2 },
+  smsRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
+  smsText: { fontFamily: 'DMSans-Regular', fontSize: 12, color: colors.textSecondary },
+  smsPhone: { fontFamily: 'DMSans-Medium', fontSize: 12, color: colors.textPrimary },
+
+  // Assurance
+  assuranceCard: {
+    width: '100%', flexDirection: 'row', gap: 10,
+    backgroundColor: '#F4F4F1', borderRadius: borderRadius.md,
+    padding: spacing.md, marginBottom: spacing.xl,
+  },
+  assuranceTitle: { fontFamily: 'DMSans-Medium', fontSize: 13, color: colors.textPrimary, letterSpacing: 0.2 },
+  assuranceSub: { fontFamily: 'DMSans-Regular', fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+
+  // Actions
+  actions: { width: '100%', gap: spacing.md },
+  primaryBtn: {
+    width: '100%', height: 48, borderRadius: 8,
+    backgroundColor: '#6E2334', justifyContent: 'center', alignItems: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
+  },
+  primaryBtnText: { fontFamily: 'DMSans-SemiBold', fontSize: 14, color: colors.white },
+  ghostBtn: {
+    width: '100%', paddingVertical: 10,
+    flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 4,
+  },
+  ghostBtnText: { fontFamily: 'DMSans-SemiBold', fontSize: 14, color: colors.primary },
 });

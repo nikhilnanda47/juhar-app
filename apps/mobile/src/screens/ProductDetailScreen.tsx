@@ -1,11 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, Dimensions, Alert,
+  ActivityIndicator, Dimensions, Alert, TextInput,
 } from 'react-native';
-import { colors, typography, spacing, borderRadius, elevation } from '../theme';
 import {
-  getProductBySlug, formatPaise, getTotalStock, addToCart, isLoggedIn,
+  ChevronLeft, Heart, Share as ShareIcon, Check, CheckCircle,
+  Package, RefreshCw, Banknote, ShoppingBag, Zap,
+} from 'lucide-react-native';
+import { colors, spacing, borderRadius, elevation } from '../theme';
+import {
+  getProductBySlug, getProducts, formatPaise, getTotalStock, addToCart, isLoggedIn,
   type Product, type ProductVariant,
 } from '../services/api';
 
@@ -23,19 +27,24 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [addingToCart, setAddingToCart] = useState(false);
+  const [addedToCart, setAddedToCart] = useState(false);
+  const [wishlisted, setWishlisted] = useState(false);
+  const [pinCode, setPinCode] = useState('');
+  const [pinChecked, setPinChecked] = useState(false);
+  const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
 
-  useEffect(() => {
-    loadProduct();
-  }, [slug]);
+  useEffect(() => { loadProduct(); }, [slug]);
 
   const loadProduct = async () => {
     try {
       setError('');
       const data = await getProductBySlug(slug);
       setProduct(data);
-      if (data.variants.length > 0) {
-        setSelectedVariant(data.variants[0]);
-      }
+      if (data.variants.length > 0) setSelectedVariant(data.variants[0]);
+      try {
+        const related = await getProducts({ limit: '6' });
+        setRelatedProducts((related.items || []).filter((p: any) => p.slug !== slug).slice(0, 6));
+      } catch {}
     } catch (err: any) {
       setError(err.message || 'Product not found');
     } finally {
@@ -44,219 +53,271 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
   };
 
   if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
+    return <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>;
   }
 
   if (error || !product) {
     return (
       <View style={styles.center}>
         <Text style={styles.errorText}>{error || 'Product not found'}</Text>
-        <TouchableOpacity style={styles.retryBtn} onPress={() => navigation.goBack()}>
-          <Text style={styles.retryText}>GO BACK</Text>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Text style={styles.ghostLink}>Go Back</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
   const stock = selectedVariant?.available ?? 0;
-  const totalStock = getTotalStock(product.variants);
   const discount = selectedVariant?.compareAtPaise && selectedVariant.compareAtPaise > selectedVariant.pricePaise
     ? Math.round((1 - selectedVariant.pricePaise / selectedVariant.compareAtPaise) * 100)
     : null;
 
+  const handleAddToCart = async () => {
+    if (!isLoggedIn()) {
+      Alert.alert('Login Required', 'Please log in to add items to your bag.');
+      return;
+    }
+    if (!selectedVariant) return;
+    setAddingToCart(true);
+    try {
+      await addToCart(selectedVariant.id, 1);
+      setAddedToCart(true);
+      setTimeout(() => setAddedToCart(false), 2000);
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Failed to add to cart');
+    } finally {
+      setAddingToCart(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Hero Image Placeholder */}
-        <View style={styles.heroImage}>
-          <View style={styles.heroInner}>
-            <Text style={styles.heroEmoji}>🧵</Text>
-            <Text style={styles.heroLabel}>{product.fabric || 'Handloom Saree'}</Text>
-          </View>
-
-          {/* Certification Badge */}
-          <View style={styles.certBadge}>
-            <View style={styles.certDot} />
-            <Text style={styles.certText}>✓ AUTHENTIC {product.weaveMethod?.toUpperCase() || 'HANDLOOM'}</Text>
+        {/* Top Action Bar */}
+        <View style={styles.topBar}>
+          <TouchableOpacity style={styles.circleBtn} onPress={() => navigation.goBack()}>
+            <ChevronLeft size={20} color={colors.textPrimary} strokeWidth={2} />
+          </TouchableOpacity>
+          <View style={styles.topBarRight}>
+            <TouchableOpacity style={styles.circleBtn} onPress={() => setWishlisted(!wishlisted)}>
+              <Heart
+                size={20}
+                color={wishlisted ? colors.primary : colors.textPrimary}
+                fill={wishlisted ? colors.primary : 'none'}
+                strokeWidth={2}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.circleBtn}>
+              <ShareIcon size={20} color={colors.textPrimary} strokeWidth={2} />
+            </TouchableOpacity>
           </View>
         </View>
 
-        {/* Title & Pricing */}
+        {/* Hero Image */}
+        <View style={styles.heroWrap}>
+          <View style={styles.heroImage}>
+            <View style={styles.heroPlaceholder} />
+            {/* GI Badge */}
+            <View style={styles.giBadge}>
+              <View style={styles.giDot} />
+              <Text style={styles.giText}>GI CERTIFIED LOOM</Text>
+            </View>
+          </View>
+          {/* Dot Pagination */}
+          <View style={styles.dotRow}>
+            <View style={[styles.dot, styles.dotActive]} />
+            <View style={styles.dot} />
+            <View style={styles.dot} />
+            <View style={styles.dot} />
+          </View>
+        </View>
+
+        {/* Title & Price */}
         <View style={styles.infoSection}>
-          <View style={styles.tagRow}>
-            <Text style={styles.tagLabel}>
-              {product.category?.name?.toUpperCase() || 'COLLECTION'}
-              {product.origin ? ` • ${product.origin}` : ''}
-            </Text>
-            {totalStock <= 5 && totalStock > 0 && (
+          <View style={styles.titleRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.clusterLabel}>
+                {(product.origin || 'HANDCRAFT').toUpperCase()}
+              </Text>
+              <Text style={styles.productTitle}>{product.title}</Text>
+            </View>
+            {stock > 0 && stock <= 3 && (
               <View style={styles.scarcityBadge}>
-                <View style={styles.scarcityDot} />
-                <Text style={styles.scarcityText}>Only {totalStock} left</Text>
+                <Zap size={12} color={colors.error} strokeWidth={2} />
+                <Text style={styles.scarcityText}>Only {stock} left</Text>
               </View>
             )}
           </View>
 
-          <Text style={styles.productTitle}>{product.title}</Text>
-
-          {product.weaveMethod && (
-            <View style={styles.weaverRow}>
-              <Text style={styles.weaverText}>🏅 {product.weaveMethod} Craft</Text>
-            </View>
-          )}
-
-          {/* Pricing */}
+          {/* Price */}
           {selectedVariant && (
-            <View style={styles.priceBlock}>
+            <View style={styles.priceRow}>
               <Text style={styles.mainPrice}>{formatPaise(selectedVariant.pricePaise)}</Text>
               {selectedVariant.compareAtPaise && selectedVariant.compareAtPaise > selectedVariant.pricePaise && (
                 <Text style={styles.comparePrice}>{formatPaise(selectedVariant.compareAtPaise)}</Text>
               )}
               {discount && (
-                <View style={styles.discountBadge}>
-                  <Text style={styles.discountText}>{discount}% OFF</Text>
+                <View style={styles.discountPill}>
+                  <Text style={styles.discountText}>{discount}% off</Text>
                 </View>
               )}
             </View>
           )}
-          <Text style={styles.taxNote}>Includes all local handloom cesses & taxes</Text>
+          <Text style={styles.taxNote}>Inclusive of all taxes and handloom cess</Text>
         </View>
 
-        {/* Variant Selector */}
+        <View style={styles.divider} />
+
+        {/* Colour Variant Swatches */}
         {product.variants.length > 1 && (
-          <View style={styles.variantSection}>
-            <View style={styles.variantHeader}>
-              <Text style={styles.variantLabel}>SELECT VARIANT</Text>
-              <Text style={styles.variantSelected}>
-                {selectedVariant?.name || selectedVariant?.color || 'Default'}
-              </Text>
-            </View>
-            <View style={styles.variantList}>
-              {product.variants.map((v) => (
-                <TouchableOpacity
-                  key={v.id}
-                  style={[styles.variantChip, selectedVariant?.id === v.id && styles.variantChipActive]}
-                  onPress={() => setSelectedVariant(v)}
-                >
-                  <Text style={[
-                    styles.variantChipText,
-                    selectedVariant?.id === v.id && styles.variantChipTextActive,
-                  ]}>
-                    {v.color || v.name || v.sku}
-                  </Text>
-                  <Text style={[
-                    styles.variantChipPrice,
-                    selectedVariant?.id === v.id && styles.variantChipPriceActive,
-                  ]}>
-                    {formatPaise(v.pricePaise)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        )}
-
-        {/* Certification Ribbon */}
-        <View style={styles.certRibbon}>
-          <View style={styles.certRibbonIcon}>
-            <Text style={{ fontSize: 20 }}>🛡️</Text>
-          </View>
-          <View style={styles.certRibbonText}>
-            <Text style={styles.certRibbonTitle}>Handloom Certified</Text>
-            <Text style={styles.certRibbonSub}>100% Silk Mark Authenticated</Text>
-          </View>
-        </View>
-
-        {/* Specifications Grid */}
-        <View style={styles.specsSection}>
-          <Text style={styles.specsSectionTitle}>Textile Provenance</Text>
-          <View style={styles.specsGrid}>
-            {product.fabric && (
-              <SpecCard icon="🧶" label="FABRIC" value={product.fabric} sub="Premium Handloom" />
-            )}
-            {product.length && (
-              <SpecCard icon="📏" label="LENGTH" value={product.length} sub={product.blousePiece || ''} />
-            )}
-            {product.origin && (
-              <SpecCard icon="📍" label="ORIGIN" value={product.origin.split(',')[0]} sub="Western Odisha" />
-            )}
-            {product.careInstructions && (
-              <SpecCard icon="🧼" label="CARE" value={product.careInstructions} sub="Preserve Sheen" />
-            )}
-            {product.width && (
-              <SpecCard icon="↔️" label="WIDTH" value={product.width} sub="" />
-            )}
-            {product.weight && (
-              <SpecCard icon="⚖️" label="WEIGHT" value={product.weight} sub="" />
-            )}
-          </View>
-        </View>
-
-        {/* Description */}
-        {product.description && (
-          <View style={styles.storySection}>
-            <Text style={styles.storyLabel}>📖 STORY OF THE LOOM</Text>
-            <Text style={styles.storyBody}>{product.description}</Text>
-          </View>
-        )}
-
-        {/* Delivery & Assurance */}
-        <View style={styles.assuranceSection}>
-          <AssuranceRow icon="🚚" title="Delivers in 5–7 business days" sub="Direct from weaver artisan hub" />
-          <AssuranceRow icon="💵" title="Cash on Delivery Available" sub="Pay safely upon unboxing" />
-          <AssuranceRow icon="🔄" title="7-Day Hassle-Free Returns" sub="Doorstep pickup guaranteed" />
-        </View>
-
-        {/* Tags */}
-        {product.tags && product.tags.length > 0 && (
-          <View style={styles.tagsSection}>
-            {product.tags.map((tag, i) => (
-              <View key={i} style={styles.tagPill}>
-                <Text style={styles.tagPillText}>{tag}</Text>
+          <>
+            <View style={styles.section}>
+              <View style={styles.sectionHeaderRow}>
+                <Text style={styles.sectionTitle}>Colour</Text>
+                <Text style={styles.sectionMeta}>
+                  {selectedVariant?.color || selectedVariant?.name || 'Default'} (Selected)
+                </Text>
               </View>
-            ))}
-          </View>
+              <View style={styles.swatchRow}>
+                {product.variants.map((v) => {
+                  const isSelected = selectedVariant?.id === v.id;
+                  return (
+                    <TouchableOpacity
+                      key={v.id}
+                      style={[styles.swatch, isSelected && styles.swatchActive]}
+                      onPress={() => setSelectedVariant(v)}
+                    >
+                      <View style={[styles.swatchInner, { backgroundColor: getColorHex(v.color || '') }]} />
+                      {isSelected && (
+                        <View style={styles.swatchCheck}>
+                          <Check size={12} color={colors.white} strokeWidth={3} />
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+            <View style={styles.divider} />
+          </>
         )}
-      </ScrollView>
 
-      {/* Sticky Bottom CTA */}
-      <View style={styles.bottomBar}>
-        <View style={styles.bottomPriceCol}>
-          {selectedVariant && (
-            <>
-              <Text style={styles.bottomPrice}>{formatPaise(selectedVariant.pricePaise)}</Text>
-              {selectedVariant.compareAtPaise && selectedVariant.compareAtPaise > selectedVariant.pricePaise && (
-                <Text style={styles.bottomCompare}>{formatPaise(selectedVariant.compareAtPaise)}</Text>
-              )}
-            </>
+        {/* Check Delivery */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Check delivery</Text>
+          <View style={styles.pinRow}>
+            <TextInput
+              style={styles.pinInput}
+              value={pinCode}
+              onChangeText={(t) => { setPinCode(t.replace(/[^0-9]/g, '')); setPinChecked(false); }}
+              placeholder="Enter PIN code"
+              placeholderTextColor={colors.textTertiary}
+              keyboardType="number-pad"
+              maxLength={6}
+            />
+            <TouchableOpacity
+              style={[styles.pinCheckBtn, pinCode.length < 6 && { opacity: 0.4 }]}
+              onPress={() => pinCode.length === 6 && setPinChecked(true)}
+              disabled={pinCode.length < 6}
+            >
+              <Text style={styles.pinCheckText}>Check</Text>
+            </TouchableOpacity>
+          </View>
+          {pinChecked && (
+            <View style={styles.pinResults}>
+              <View style={styles.pinResultRow}>
+                <CheckCircle size={16} color="#3D8B63" strokeWidth={2} />
+                <Text style={styles.pinResultText}>Delivery in 5–7 days</Text>
+              </View>
+              <View style={styles.pinResultRow}>
+                <CheckCircle size={16} color="#3D8B63" strokeWidth={2} />
+                <Text style={styles.pinResultText}>Cash on delivery available</Text>
+              </View>
+            </View>
           )}
         </View>
+
+        <View style={styles.divider} />
+
+        {/* Details Table */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Details</Text>
+          <View style={styles.detailsTable}>
+            {product.fabric && <DetailRow label="Fabric" value={product.fabric} even={false} />}
+            {product.weaveMethod && <DetailRow label="Weave" value={product.weaveMethod} even={true} />}
+            {product.origin && <DetailRow label="Origin" value={product.origin} even={false} />}
+            {product.length && <DetailRow label="Length" value={product.length} even={true} />}
+            {product.blousePiece && <DetailRow label="Blouse Piece" value={product.blousePiece} even={false} />}
+            {product.careInstructions && <DetailRow label="Wash Care" value={product.careInstructions} even={true} />}
+          </View>
+        </View>
+
+        <View style={styles.divider} />
+
+        {/* Delivery & Returns */}
+        <View style={styles.section}>
+          <View style={styles.deliveryItems}>
+            <DeliveryItem icon={<Package size={18} color={colors.textPrimary} strokeWidth={1.5} />} title="5–7 business days" sub="Hand-packed securely in reusable muslin" />
+            <DeliveryItem icon={<RefreshCw size={18} color={colors.textPrimary} strokeWidth={1.5} />} title="7-day hassle-free returns" sub="No questions asked pick-up" />
+            <DeliveryItem icon={<Banknote size={18} color={colors.textPrimary} strokeWidth={1.5} />} title="Cash on delivery" sub="Inspect before payment" />
+          </View>
+        </View>
+
+        <View style={styles.divider} />
+
+        {/* You May Also Like */}
+        {relatedProducts.length > 0 && (
+          <View style={styles.relatedSection}>
+            <View style={styles.relatedHeader}>
+              <Text style={styles.relatedTitle}>You may also like</Text>
+              <Text style={styles.relatedMeta}>RELATED WEAVES</Text>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.relatedScroll}>
+              {relatedProducts.map((p: any) => (
+                <TouchableOpacity
+                  key={p.id}
+                  style={styles.relatedCard}
+                  activeOpacity={0.85}
+                  onPress={() => navigation.push('ProductDetail', { slug: p.slug })}
+                >
+                  <View style={styles.relatedImage} />
+                  <View style={styles.relatedMeta2}>
+                    <Text style={styles.relatedOrigin}>
+                      {(p.origin || 'Odisha').split(',')[0].toUpperCase()}
+                    </Text>
+                    <Text style={styles.relatedName} numberOfLines={1}>{p.title}</Text>
+                    <Text style={styles.relatedPrice}>{formatPaise(p.startingPricePaise ?? 0)}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        <View style={{ height: 100 }} />
+      </ScrollView>
+
+      {/* Sticky Bottom Bar */}
+      <View style={styles.stickyBar}>
+        <View style={styles.stickyPriceCol}>
+          <Text style={styles.stickyPriceLabel}>PRICE</Text>
+          <Text style={styles.stickyPrice}>
+            {selectedVariant ? formatPaise(selectedVariant.pricePaise) : ''}
+          </Text>
+        </View>
         <TouchableOpacity
-          style={[styles.addToCartBtn, (stock <= 0 || addingToCart) && styles.addToCartDisabled]}
+          style={[
+            styles.addToCartBtn,
+            addedToCart && styles.addToCartSuccess,
+            (stock <= 0 || addingToCart) && !addedToCart && styles.addToCartDisabled,
+          ]}
           disabled={stock <= 0 || addingToCart}
           activeOpacity={0.85}
-          onPress={async () => {
-            if (!isLoggedIn()) {
-              Alert.alert('Login Required', 'Please login from the Profile tab to add items to your bag.');
-              return;
-            }
-            if (!selectedVariant) return;
-            setAddingToCart(true);
-            try {
-              await addToCart(selectedVariant.id, 1);
-              Alert.alert('Added to Bag', `${product.title} has been added to your shopping bag.`);
-            } catch (err: any) {
-              Alert.alert('Error', err.message || 'Failed to add to cart');
-            } finally {
-              setAddingToCart(false);
-            }
-          }}
+          onPress={handleAddToCart}
         >
+          <ShoppingBag size={18} color={colors.white} strokeWidth={2} />
           <Text style={styles.addToCartText}>
-            {addingToCart ? 'ADDING...' : stock > 0 ? 'ADD TO BAG' : 'SOLD OUT'}
+            {addedToCart ? 'Added to Bag ✓' : addingToCart ? 'Adding...' : stock > 0 ? 'Add to Bag' : 'Out of Stock'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -264,207 +325,212 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
   );
 }
 
-// ── Sub-components ──
-
-function SpecCard({ icon, label, value, sub }: { icon: string; label: string; value: string; sub: string }) {
+function DetailRow({ label, value, even }: { label: string; value: string; even: boolean }) {
   return (
-    <View style={styles.specCard}>
-      <View style={styles.specCardHeader}>
-        <Text style={{ fontSize: 14 }}>{icon}</Text>
-        <Text style={styles.specCardLabel}>{label}</Text>
-      </View>
-      <Text style={styles.specCardValue}>{value}</Text>
-      {sub ? <Text style={styles.specCardSub}>{sub}</Text> : null}
+    <View style={[styles.detailRow, even && styles.detailRowEven]}>
+      <Text style={styles.detailLabel}>{label}</Text>
+      <Text style={styles.detailValue}>{value}</Text>
     </View>
   );
 }
 
-function AssuranceRow({ icon, title, sub }: { icon: string; title: string; sub: string }) {
+function DeliveryItem({ icon, title, sub }: { icon: React.ReactNode; title: string; sub: string }) {
   return (
-    <View style={styles.assuranceRow}>
-      <View style={styles.assuranceIcon}>
-        <Text style={{ fontSize: 18 }}>{icon}</Text>
-      </View>
+    <View style={styles.deliveryItem}>
+      <View style={styles.deliveryIcon}>{icon}</View>
       <View style={{ flex: 1 }}>
-        <Text style={styles.assuranceTitle}>{title}</Text>
-        <Text style={styles.assuranceSub}>{sub}</Text>
+        <Text style={styles.deliveryTitle}>{title}</Text>
+        <Text style={styles.deliverySub}>{sub}</Text>
       </View>
     </View>
   );
+}
+
+function getColorHex(colorName: string): string {
+  const map: Record<string, string> = {
+    red: '#C0392B', blue: '#2E86C1', green: '#27AE60', black: '#1A1A1A',
+    white: '#F5F5F5', maroon: '#6E2334', gold: '#B5956B', yellow: '#F1C40F',
+    pink: '#E91E63', orange: '#E67E22', purple: '#8E44AD',
+    'deep maroon': '#6E2334', 'peacock blue': '#1B4965', 'forest green': '#283618',
+  };
+  return map[colorName.toLowerCase()] || '#CCCCCC';
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.surface },
-  scrollContent: { paddingBottom: 120 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.surface },
-  errorText: { ...typography.bodyMd, color: colors.error, marginBottom: 12 },
-  retryBtn: {
-    paddingHorizontal: 24, paddingVertical: 10,
-    backgroundColor: colors.primary, borderRadius: borderRadius.full,
+  container: { flex: 1, backgroundColor: colors.background },
+  scrollContent: {},
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
+  errorText: { fontFamily: 'DMSans-Regular', fontSize: 14, color: colors.error, marginBottom: 12 },
+  ghostLink: { fontFamily: 'DMSans-SemiBold', fontSize: 14, color: colors.primary },
+
+  // Top Bar
+  topBar: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: spacing.margin, paddingTop: 48, paddingBottom: spacing.sm,
   },
-  retryText: { ...typography.labelLg, color: colors.onPrimary },
+  topBarRight: { flexDirection: 'row', gap: 8 },
+  circleBtn: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: '#F4F4F1', justifyContent: 'center', alignItems: 'center',
+  },
 
   // Hero
+  heroWrap: { paddingHorizontal: spacing.margin, paddingBottom: spacing.sm },
   heroImage: {
-    width: '100%', aspectRatio: 3 / 4,
-    backgroundColor: colors.surfaceContainerLow,
-    borderBottomLeftRadius: 32, borderBottomRightRadius: 32,
-    overflow: 'hidden', position: 'relative',
+    width: '100%', aspectRatio: 3 / 4, borderRadius: borderRadius.md,
+    overflow: 'hidden', backgroundColor: '#E0DDD8', position: 'relative',
   },
-  heroInner: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  heroEmoji: { fontSize: 48, marginBottom: 8 },
-  heroLabel: { ...typography.labelLg, color: colors.onSurfaceVariant },
-  certBadge: {
-    position: 'absolute', bottom: 20, left: 16,
+  heroPlaceholder: { ...StyleSheet.absoluteFillObject, backgroundColor: '#D5CFC9' },
+  giBadge: {
+    position: 'absolute', bottom: 12, left: 12,
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: 'rgba(255,255,255,0.95)', paddingHorizontal: 12, paddingVertical: 6,
+    backgroundColor: 'rgba(249,249,246,0.9)', paddingHorizontal: 10, paddingVertical: 4,
     borderRadius: borderRadius.full,
-    ...elevation.raised,
   },
-  certDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.secondary },
-  certText: { ...typography.labelMd, color: colors.primary, fontWeight: '700' },
+  giDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#3D8B63' },
+  giText: { fontFamily: 'DMSans-SemiBold', fontSize: 11, color: colors.textPrimary, letterSpacing: 1 },
 
-  // Info Section
-  infoSection: { paddingHorizontal: spacing.margin, paddingTop: spacing.lg },
-  tagRow: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    marginBottom: 4,
+  dotRow: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: 12 },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#E2E3E0' },
+  dotActive: { backgroundColor: colors.primary, transform: [{ scale: 1.25 }] },
+
+  // Info
+  infoSection: { paddingHorizontal: spacing.margin, paddingTop: spacing.sm, paddingBottom: spacing.md },
+  titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 },
+  clusterLabel: {
+    fontFamily: 'DMSans-SemiBold', fontSize: 11, color: colors.accent,
+    letterSpacing: 2, marginBottom: 4,
   },
-  tagLabel: { ...typography.labelSm, color: colors.secondary, fontWeight: '700' },
+  productTitle: {
+    fontFamily: 'NotoSerif-Regular', fontSize: 20, lineHeight: 26,
+    color: colors.textPrimary,
+  },
   scarcityBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: colors.tertiaryContainer, paddingHorizontal: 8, paddingVertical: 4,
+    backgroundColor: '#FFDAD6', paddingHorizontal: 10, paddingVertical: 4,
+    borderRadius: borderRadius.full, flexShrink: 0,
+  },
+  scarcityText: { fontFamily: 'DMSans-SemiBold', fontSize: 11, color: colors.error },
+
+  priceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginTop: 10 },
+  mainPrice: { fontFamily: 'DMSans-SemiBold', fontSize: 20, color: colors.textPrimary, letterSpacing: -0.4 },
+  comparePrice: {
+    fontFamily: 'DMSans-Regular', fontSize: 14, color: colors.textTertiary,
+    textDecorationLine: 'line-through',
+  },
+  discountPill: {
+    backgroundColor: '#FFDAAB', paddingHorizontal: 8, paddingVertical: 2,
     borderRadius: borderRadius.full,
   },
-  scarcityDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.white },
-  scarcityText: { ...typography.labelSm, color: colors.onError, fontWeight: '700' },
-  productTitle: { ...typography.headlineLg, color: colors.primary, marginBottom: 4 },
-  weaverRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
-  weaverText: { ...typography.bodySm, color: colors.onSurfaceVariant },
+  discountText: { fontFamily: 'DMSans-SemiBold', fontSize: 11, color: '#795E38' },
+  taxNote: { fontFamily: 'DMSans-Regular', fontSize: 12, color: colors.textSecondary, marginTop: 6 },
 
-  // Pricing
-  priceBlock: { flexDirection: 'row', alignItems: 'baseline', gap: 12, marginTop: 12 },
-  mainPrice: { ...typography.headlineXl, color: colors.onSurface, fontWeight: '600' },
-  comparePrice: { ...typography.currencyStrike, fontSize: 16 },
-  discountBadge: {
-    backgroundColor: '#ffdadb', paddingHorizontal: 8, paddingVertical: 2,
-    borderRadius: borderRadius.sm,
+  // Shared
+  divider: { height: 1, backgroundColor: '#E2E3E0' },
+  section: { paddingHorizontal: spacing.margin, paddingVertical: spacing.md },
+  sectionHeaderRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12,
   },
-  discountText: { ...typography.labelMd, color: colors.primary, fontWeight: '700' },
-  taxNote: { ...typography.bodySm, color: colors.onSurfaceVariant, marginTop: 4 },
+  sectionTitle: { fontFamily: 'DMSans-SemiBold', fontSize: 16, color: colors.textPrimary, letterSpacing: -0.2 },
+  sectionMeta: { fontFamily: 'DMSans-Medium', fontSize: 12, color: colors.textSecondary },
 
-  // Variant Selector
-  variantSection: {
-    marginTop: spacing.lg, marginHorizontal: spacing.margin,
-    backgroundColor: colors.surfaceContainerLow, borderRadius: borderRadius.lg,
-    padding: 16,
-    ...elevation.flat,
+  // Swatches
+  swatchRow: { flexDirection: 'row', gap: 12 },
+  swatch: {
+    width: 36, height: 36, borderRadius: 18, padding: 2,
+    justifyContent: 'center', alignItems: 'center',
   },
-  variantHeader: {
+  swatchActive: { backgroundColor: colors.primary },
+  swatchInner: { width: '100%', height: '100%', borderRadius: 16 },
+  swatchCheck: {
+    position: 'absolute', justifyContent: 'center', alignItems: 'center',
+  },
+
+  // PIN
+  pinRow: { flexDirection: 'row', gap: 8 },
+  pinInput: {
+    flex: 1, height: 48, paddingHorizontal: 14,
+    borderRadius: 8, backgroundColor: colors.surface,
+    fontFamily: 'DMSans-Regular', fontSize: 14, color: colors.textPrimary,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
+  },
+  pinCheckBtn: {
+    height: 48, paddingHorizontal: 16, justifyContent: 'center', alignItems: 'center',
+    borderRadius: 8, backgroundColor: '#E8E8E5',
+  },
+  pinCheckText: { fontFamily: 'DMSans-Medium', fontSize: 13, color: colors.textPrimary },
+  pinResults: {
+    marginTop: 12, padding: 12, borderRadius: 8, backgroundColor: '#F4F4F1', gap: 6,
+  },
+  pinResultRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  pinResultText: { fontFamily: 'DMSans-Medium', fontSize: 12, color: '#3D8B63' },
+
+  // Details Table
+  detailsTable: {
+    borderRadius: 8, overflow: 'hidden', backgroundColor: colors.surface,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
+  },
+  detailRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    marginBottom: 12,
+    paddingHorizontal: 14, paddingVertical: 10,
   },
-  variantLabel: { ...typography.labelLg, color: colors.onSurface },
-  variantSelected: { ...typography.bodySm, color: colors.secondary, fontWeight: '500' },
-  variantList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  variantChip: {
-    paddingHorizontal: 14, paddingVertical: 8,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.surfaceContainer,
-    alignItems: 'center',
-  },
-  variantChipActive: {
-    backgroundColor: colors.primary,
-  },
-  variantChipText: { ...typography.labelMd, color: colors.onSurface },
-  variantChipTextActive: { color: colors.onPrimary },
-  variantChipPrice: { ...typography.bodySm, color: colors.onSurfaceVariant, marginTop: 2 },
-  variantChipPriceActive: { color: colors.surfaceContainerLow },
+  detailRowEven: { backgroundColor: 'rgba(244,244,241,0.5)' },
+  detailLabel: { fontFamily: 'DMSans-Regular', fontSize: 12, color: colors.textSecondary },
+  detailValue: { fontFamily: 'DMSans-Medium', fontSize: 12, color: colors.textPrimary },
 
-  // Certification Ribbon
-  certRibbon: {
-    marginTop: spacing.md, marginHorizontal: spacing.margin,
-    backgroundColor: colors.secondaryContainer, borderRadius: borderRadius.lg,
-    padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12,
-  },
-  certRibbonIcon: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.8)',
+  // Delivery
+  deliveryItems: { gap: 12 },
+  deliveryItem: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  deliveryIcon: {
+    width: 36, height: 36, borderRadius: 18, backgroundColor: '#F4F4F1',
     justifyContent: 'center', alignItems: 'center',
   },
-  certRibbonText: { flex: 1 },
-  certRibbonTitle: { ...typography.labelLg, color: colors.onSurface, fontWeight: '700', letterSpacing: 0.5 },
-  certRibbonSub: { ...typography.bodySm, color: colors.onSurfaceVariant, marginTop: 2 },
+  deliveryTitle: { fontFamily: 'DMSans-Medium', fontSize: 14, color: colors.textPrimary },
+  deliverySub: { fontFamily: 'DMSans-Regular', fontSize: 12, color: colors.textSecondary },
 
-  // Specifications
-  specsSection: { marginTop: spacing.lg, paddingHorizontal: spacing.margin },
-  specsSectionTitle: { ...typography.headlineMd, color: colors.primary, marginBottom: 12 },
-  specsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  specCard: {
-    width: (width - spacing.margin * 2 - 10) / 2,
-    backgroundColor: colors.surfaceContainer, borderRadius: borderRadius.lg,
-    padding: 14,
+  // Related
+  relatedSection: { paddingVertical: spacing.md },
+  relatedHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: spacing.margin, marginBottom: 12,
   },
-  specCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
-  specCardLabel: { ...typography.labelSm, color: colors.secondary },
-  specCardValue: { ...typography.bodyMd, color: colors.onSurface, fontWeight: '500' },
-  specCardSub: { ...typography.bodySm, color: colors.onSurfaceVariant, marginTop: 2 },
+  relatedTitle: { fontFamily: 'NotoSerif-Regular', fontSize: 17, color: colors.textPrimary },
+  relatedMeta: { fontFamily: 'DMSans-SemiBold', fontSize: 11, color: colors.accent, letterSpacing: 1.5 },
+  relatedScroll: { paddingHorizontal: spacing.margin, gap: 12 },
+  relatedCard: {
+    width: 160, backgroundColor: colors.surface, borderRadius: borderRadius.md,
+    overflow: 'hidden',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 1,
+  },
+  relatedImage: { width: '100%', aspectRatio: 3 / 4, backgroundColor: '#E0DDD8' },
+  relatedMeta2: { padding: 10 },
+  relatedOrigin: {
+    fontFamily: 'DMSans-SemiBold', fontSize: 10, color: colors.textSecondary,
+    letterSpacing: 1, textTransform: 'uppercase',
+  },
+  relatedName: { fontFamily: 'DMSans-Regular', fontSize: 14, color: colors.textPrimary, marginTop: 2 },
+  relatedPrice: { fontFamily: 'DMSans-SemiBold', fontSize: 16, color: colors.accent, marginTop: 4, letterSpacing: -0.3 },
 
-  // Story
-  storySection: {
-    marginTop: spacing.lg, marginHorizontal: spacing.margin,
-    backgroundColor: colors.surfaceContainerLow, borderRadius: borderRadius.lg,
-    padding: 16,
-  },
-  storyLabel: { ...typography.labelLg, color: colors.primary, fontWeight: '700', marginBottom: 8 },
-  storyBody: { ...typography.bodyMd, color: colors.onSurfaceVariant, lineHeight: 22 },
-
-  // Assurance
-  assuranceSection: {
-    marginTop: spacing.lg, marginHorizontal: spacing.margin,
-    backgroundColor: colors.surfaceContainer, borderRadius: borderRadius.lg,
-    padding: 16, gap: 12,
-  },
-  assuranceRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  assuranceIcon: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: colors.surfaceContainerHighest,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  assuranceTitle: { ...typography.bodyMd, color: colors.onSurface, fontWeight: '500' },
-  assuranceSub: { ...typography.bodySm, color: colors.onSurfaceVariant },
-
-  // Tags
-  tagsSection: {
-    marginTop: spacing.md, paddingHorizontal: spacing.margin,
-    flexDirection: 'row', flexWrap: 'wrap', gap: 6,
-  },
-  tagPill: {
-    paddingHorizontal: 10, paddingVertical: 4,
-    backgroundColor: colors.surfaceContainerHigh, borderRadius: borderRadius.full,
-  },
-  tagPillText: { ...typography.labelSm, color: colors.onSurfaceVariant },
-
-  // Bottom CTA
-  bottomBar: {
+  // Sticky Bar
+  stickyBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: colors.surface,
-    borderTopWidth: 1, borderTopColor: colors.border,
-    paddingHorizontal: spacing.margin, paddingVertical: 12,
-    paddingBottom: 28, // safe area
-    flexDirection: 'row', alignItems: 'center', gap: 16,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    paddingHorizontal: spacing.margin, paddingVertical: 12, paddingBottom: 28,
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 5,
   },
-  bottomPriceCol: { flex: 1 },
-  bottomPrice: { ...typography.headlineMd, color: colors.onSurface, fontWeight: '600' },
-  bottomCompare: { ...typography.currencyStrike },
+  stickyPriceCol: { paddingRight: 8 },
+  stickyPriceLabel: {
+    fontFamily: 'DMSans-SemiBold', fontSize: 10, color: colors.textTertiary,
+    letterSpacing: 1.5, textTransform: 'uppercase',
+  },
+  stickyPrice: { fontFamily: 'DMSans-SemiBold', fontSize: 20, color: colors.textPrimary, letterSpacing: -0.4 },
   addToCartBtn: {
-    flex: 1.5,
-    backgroundColor: colors.primary,
-    paddingVertical: 14,
-    borderRadius: borderRadius.DEFAULT,
-    alignItems: 'center',
-    ...elevation.raised,
+    flex: 1, height: 48, borderRadius: 6,
+    backgroundColor: '#6E2334', flexDirection: 'row',
+    justifyContent: 'center', alignItems: 'center', gap: 8,
   },
-  addToCartDisabled: { backgroundColor: colors.surfaceContainerHigh },
-  addToCartText: { ...typography.labelLg, color: colors.onPrimary, fontWeight: '700' },
+  addToCartSuccess: { backgroundColor: '#3D8B63' },
+  addToCartDisabled: { opacity: 0.4 },
+  addToCartText: { fontFamily: 'DMSans-SemiBold', fontSize: 16, color: colors.white, letterSpacing: -0.2 },
 });
