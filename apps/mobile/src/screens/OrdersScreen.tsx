@@ -6,6 +6,7 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { Package, User, ArrowRight } from 'lucide-react-native';
 import { colors, spacing, borderRadius } from '../theme';
+import RefreshButton from '../components/RefreshButton';
 import { loadToken, formatPaise } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -86,6 +87,7 @@ export default function OrdersScreen({ navigation }: Props) {
       {/* Page Title */}
       <View style={styles.header}>
         <Text style={styles.pageTitle}>My Orders</Text>
+        <RefreshButton onRefresh={() => { setRefreshing(true); checkAndLoad(); }} />
       </View>
 
       {/* Summary Banner */}
@@ -191,7 +193,7 @@ const styles = StyleSheet.create({
   outlineBtnText: { fontFamily: 'DMSans-SemiBold', fontSize: 14, color: colors.primary },
 
   // Header
-  header: { paddingTop: 56, marginBottom: spacing.md },
+  header: { paddingTop: 56, marginBottom: spacing.md, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   pageTitle: { fontFamily: 'NotoSerif-Regular', fontSize: 22, color: colors.textPrimary, letterSpacing: -0.2 },
 
   // Summary Banner

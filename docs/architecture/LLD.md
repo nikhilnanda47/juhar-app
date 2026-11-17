@@ -1777,7 +1777,7 @@ Note: Circular dependencies between Orders ↔ Payments resolved using `forwardR
 
 ## 6. Mobile App Screen Architecture
 
-**Total: 21 screens** organized into 5 groups.
+**Total: 13 screens implemented** (9 deferred: No Internet, App Update, Maintenance, standalone My Addresses, Search Results, FAQs). Auth screens are inline in Profile.
 
 ### 6.1 Onboarding & System States
 

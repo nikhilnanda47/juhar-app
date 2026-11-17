@@ -9,10 +9,15 @@ import {
   ChevronLeft, Truck, ArrowRight, X, BadgeCheck, Leaf,
 } from 'lucide-react-native';
 import { colors, spacing, borderRadius, elevation } from '../theme';
+import RefreshButton from '../components/RefreshButton';
 import {
   isLoggedIn, loadToken, getCart, updateCartItem, removeCartItem, formatPaise,
   type CartResponse, type CartItemResponse,
 } from '../services/api';
+import {
+  getLocalCart, updateLocalCartItem, removeLocalCartItem,
+  localCartToResponse,
+} from '../services/localCart';
 
 const FREE_SHIPPING_THRESHOLD = 500000; // 5000 paise = ₹5,000
 
@@ -31,45 +36,57 @@ export default function CartScreen() {
   const checkAndLoad = async () => {
     const hasToken = await loadToken();
     setLoggedIn(hasToken);
-    if (hasToken) await loadCart();
-    else setLoading(false);
+    await loadCart(hasToken);
   };
 
-  const loadCart = async () => {
-    try { setCart(await getCart()); } catch { setCart({ items: [], subtotalPaise: 0, itemCount: 0 }); }
+  const loadCart = async (authenticated?: boolean) => {
+    const isAuth = authenticated ?? loggedIn;
+    try {
+      if (isAuth) {
+        setCart(await getCart());
+      } else {
+        // Load local guest cart
+        const localItems = await getLocalCart();
+        setCart(localCartToResponse(localItems));
+      }
+    } catch { setCart({ items: [], subtotalPaise: 0, itemCount: 0 }); }
     finally { setLoading(false); setRefreshing(false); }
   };
 
   const handleUpdateQty = async (itemId: string, newQty: number) => {
     setUpdating(itemId);
     try {
-      const data = newQty <= 0 ? await removeCartItem(itemId) : await updateCartItem(itemId, newQty);
-      setCart(data);
+      if (loggedIn) {
+        const data = newQty <= 0 ? await removeCartItem(itemId) : await updateCartItem(itemId, newQty);
+        setCart(data);
+      } else {
+        // Local cart: itemId is "local-{variantId}"
+        const variantId = itemId.replace('local-', '');
+        const items = newQty <= 0
+          ? await removeLocalCartItem(variantId)
+          : await updateLocalCartItem(variantId, newQty);
+        setCart(localCartToResponse(items));
+      }
     } catch {}
     setUpdating(null);
   };
 
   const handleRemove = async (itemId: string) => {
     setUpdating(itemId);
-    try { setCart(await removeCartItem(itemId)); } catch {}
+    try {
+      if (loggedIn) {
+        setCart(await removeCartItem(itemId));
+      } else {
+        const variantId = itemId.replace('local-', '');
+        const items = await removeLocalCartItem(variantId);
+        setCart(localCartToResponse(items));
+      }
+    } catch {}
     setUpdating(null);
   };
 
   if (loading) {
     return <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>;
-  }
-
-  if (!loggedIn) {
-    return (
-      <View style={styles.center}>
-        <ShoppingBag size={48} color={colors.textTertiary} strokeWidth={1.5} />
-        <Text style={styles.emptyTitle}>Your bag is empty</Text>
-        <Text style={styles.emptySubtext}>Log in to start adding sarees.</Text>
-        <TouchableOpacity style={styles.outlineBtn} onPress={() => navigation.navigate('Account')}>
-          <Text style={styles.outlineBtnText}>Log In</Text>
-        </TouchableOpacity>
-      </View>
-    );
   }
 
   if (!cart || cart.items.length === 0) {
@@ -109,6 +126,7 @@ export default function CartScreen() {
             </TouchableOpacity>
             <Text style={styles.headerTitle}>My Bag ({cart.itemCount})</Text>
           </View>
+          <RefreshButton onRefresh={loadCart} />
         </View>
 
         {/* Free Shipping Meter */}
@@ -222,7 +240,13 @@ export default function CartScreen() {
         <TouchableOpacity
           style={styles.checkoutBtn}
           activeOpacity={0.85}
-          onPress={() => navigation.navigate('SelectAddress')}
+          onPress={() => {
+            if (!loggedIn) {
+              navigation.navigate('Account');
+              return;
+            }
+            navigation.navigate('SelectAddress');
+          }}
         >
           <Text style={styles.checkoutBtnText}>Proceed to Checkout</Text>
           <ArrowRight size={18} color={colors.white} strokeWidth={2} />
@@ -316,6 +340,11 @@ const styles = StyleSheet.create({
   },
   emptyTitle: { fontFamily: 'NotoSerif-Regular', fontSize: 20, color: colors.textPrimary, marginTop: spacing.md },
   emptySubtext: { fontFamily: 'DMSans-Regular', fontSize: 14, color: colors.textSecondary },
+  primaryBtn: {
+    marginTop: spacing.md, backgroundColor: colors.primary,
+    borderRadius: 6, paddingVertical: 12, paddingHorizontal: 32,
+  },
+  primaryBtnText: { fontFamily: 'DMSans-SemiBold', fontSize: 14, color: colors.white },
   outlineBtn: {
     marginTop: spacing.md, borderWidth: 1, borderColor: colors.primary,
     borderRadius: 6, paddingVertical: 12, paddingHorizontal: 32,

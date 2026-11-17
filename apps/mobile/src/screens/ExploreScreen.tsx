@@ -10,6 +10,7 @@ import {
   type Category, type Product,
 } from '../services/api';
 import { FadeInUp, ScalePress } from '../components/AnimatedUI';
+import RefreshButton from '../components/RefreshButton';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - spacing.margin * 2 - spacing.gutter) / 2;
@@ -74,7 +75,10 @@ export default function ExploreScreen({ navigation, route }: Props) {
       {/* Title Row */}
       <View style={styles.titleRow}>
         <Text style={styles.pageTitle}>Shop</Text>
-        <Text style={styles.originLabel}>HANDCRAFTED IN ODISHA</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Text style={styles.originLabel}>HANDCRAFTED IN ODISHA</Text>
+          <RefreshButton onRefresh={onRefresh} />
+        </View>
       </View>
       <Text style={styles.subtitle}>Quiet luxury woven on authentic family pit-looms.</Text>
 

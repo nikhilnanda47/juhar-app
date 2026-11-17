@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
-  ActivityIndicator, ScrollView, Alert, Platform,
+  ActivityIndicator, ScrollView, Alert, Platform, RefreshControl,
 } from 'react-native';
 import {
   User, MapPin, Heart, Package, HelpCircle, MessageCircle,
@@ -10,10 +10,15 @@ import {
 import { colors, spacing, borderRadius } from '../theme';
 import {
   isLoggedIn, loadToken, requestOtp, verifyOtp, clearTokens,
-  getProfile, updateProfile, type UserProfile,
+  getProfile, updateProfile, getAddresses, type UserProfile,
 } from '../services/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const API_BASE = __DEV__ ? 'http://localhost:3000' : 'https://api.sajani.in';
 import { useNavigation } from '@react-navigation/native';
 import { FadeInUp, ScalePress } from '../components/AnimatedUI';
+import RefreshButton from '../components/RefreshButton';
+import { syncLocalCartToServer } from '../services/localCart';
 
 type Screen = 'loading' | 'login' | 'otp' | 'profile' | 'editName';
 
@@ -26,6 +31,10 @@ export default function ProfileScreen() {
   const [editName, setEditName] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+  const [orderCount, setOrderCount] = useState(0);
+  const [addressCount, setAddressCount] = useState(0);
+  const [savedCount] = useState(0); // wishlist not implemented yet
 
   useEffect(() => { checkAuth(); }, []);
 
@@ -36,6 +45,8 @@ export default function ProfileScreen() {
         const p = await getProfile();
         setProfile(p);
         setScreen('profile');
+        // Fetch counts
+        fetchCounts();
       } catch {
         await clearTokens();
         setScreen('login');
@@ -43,6 +54,19 @@ export default function ProfileScreen() {
     } else {
       setScreen('login');
     }
+  };
+
+  const fetchCounts = async () => {
+    try {
+      const token = await AsyncStorage.getItem('sajani_token');
+      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+      const [ordersRes, addrs] = await Promise.all([
+        fetch(`${API_BASE}/api/v1/orders`, { headers }).then(r => r.json()),
+        getAddresses(),
+      ]);
+      setOrderCount(ordersRes.success ? (ordersRes.data.items?.length ?? 0) : 0);
+      setAddressCount(addrs.length);
+    } catch {}
   };
 
   const handleRequestOtp = async () => {
@@ -65,8 +89,11 @@ export default function ProfileScreen() {
     setError('');
     try {
       const result = await verifyOtp(fullPhone, otp);
+      // Sync guest cart to server after login
+      await syncLocalCartToServer().catch(() => {});
       const p = await getProfile();
       setProfile(p);
+      fetchCounts();
       if (result.isNewUser || !p.name) {
         setEditName('');
         setScreen('editName');
@@ -249,7 +276,18 @@ export default function ProfileScreen() {
     : '';
 
   return (
-    <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContent}>
+    <ScrollView
+      style={styles.scrollContainer}
+      contentContainerStyle={styles.scrollContent}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={async () => {
+          setRefreshing(true);
+          try { const p = await getProfile(); setProfile(p); } catch {}
+          await fetchCounts();
+          setRefreshing(false);
+        }} tintColor={colors.primary} />
+      }
+    >
       {/* Profile Card */}
       <FadeInUp delay={0} duration={500}>
       <View style={styles.profileCard}>
@@ -266,12 +304,20 @@ export default function ProfileScreen() {
             <Text style={styles.profilePhone}>{profile?.phone}</Text>
           </View>
         </View>
-        <TouchableOpacity
-          style={styles.settingsBtn}
-          onPress={() => { setEditName(profile?.name || ''); setScreen('editName'); }}
-        >
-          <Settings size={18} color={colors.textSecondary} strokeWidth={1.5} />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <RefreshButton onRefresh={async () => {
+            setRefreshing(true);
+            try { const p = await getProfile(); setProfile(p); } catch {}
+            await fetchCounts();
+            setRefreshing(false);
+          }} />
+          <TouchableOpacity
+            style={styles.settingsBtn}
+            onPress={() => { setEditName(profile?.name || ''); setScreen('editName'); }}
+          >
+            <Settings size={18} color={colors.textSecondary} strokeWidth={1.5} />
+          </TouchableOpacity>
+        </View>
       </View>
       </FadeInUp>
 
@@ -283,21 +329,21 @@ export default function ProfileScreen() {
             <Package size={22} color={colors.textPrimary} strokeWidth={1.5} />
           </View>
           <Text style={styles.tileLabel}>Orders</Text>
-          <Text style={styles.tileSub}>3 placed</Text>
+          <Text style={styles.tileSub}>{orderCount} placed</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.tile} activeOpacity={0.7}>
           <View style={styles.tileIconWrap}>
             <Heart size={22} color={colors.textPrimary} strokeWidth={1.5} />
           </View>
           <Text style={styles.tileLabel}>Saved</Text>
-          <Text style={styles.tileSub}>4 items</Text>
+          <Text style={styles.tileSub}>{savedCount} items</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.tile} activeOpacity={0.7} onPress={() => navigation.navigate('Cart', { screen: 'SelectAddress' })}>
           <View style={styles.tileIconWrap}>
             <MapPin size={22} color={colors.textPrimary} strokeWidth={1.5} />
           </View>
           <Text style={styles.tileLabel}>Addresses</Text>
-          <Text style={styles.tileSub}>2 saved</Text>
+          <Text style={styles.tileSub}>{addressCount} saved</Text>
         </TouchableOpacity>
       </View>
       </FadeInUp>

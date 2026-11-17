@@ -55,54 +55,48 @@
 
 ### 3.1 Mobile App (`apps/mobile`)
 
-**Onboarding & System States (5 screens)**
+**Onboarding (2 screens — implemented)**
 
 | Screen | P0 Features |
 |---|---|
-| Splash | Sajani logo on warm ivory, auto-transitions to Home or Welcome |
-| Welcome / Onboarding | 2-3 swipeable pages introducing Sajani heritage, direct-from-weavers, and delivery/returns. Skip link + Start Shopping CTA |
-| No Internet | On-brand error ("The Thread Seems Broken"), retry button |
-| App Update Required | Non-dismissable, links to app store ("A New Weave Awaits") |
-| Maintenance | Informational ("Weaving Something Better"), no action required |
+| Splash | "Sajani ସଜନୀ" wordmark (Noto Serif 28px, primary), pulsing dots, fade-in animation, 2.5s auto-dismiss |
+| Welcome / Onboarding | 3-slide carousel with swipe + pagination dots. Slides: "Handwoven with care", "Direct from the loom", "Delivered to your door". Skip link + Next/Start Shopping CTA. Shown only on first launch (AsyncStorage flag) |
 
-**Authentication (3 screens)**
+**Authentication (embedded in Profile screen)**
 
-| Screen | P0 Features |
-|---|---|
-| Login — Phone | +91 phone input, Send OTP button, guest browsing note |
-| Login — OTP Verify | 6-digit input boxes, resend timer, change number link |
-| Name Capture | First-time name prompt after OTP login, skip option |
+Login Phone, OTP Verify, and Name Capture are inline states within the Profile/Account screen — not separate screen files. Phone input with +91 prefix, 6-digit OTP, and name capture with skip option.
 
-**Core Shopping Flow (8 screens)**
+**Core Shopping Flow (8 screens — implemented)**
 
 | Screen | P0 Features |
 |---|---|
-| Home | Hero banner, trust badges (Silk Mark, Bargarh Weavers, Bandha Tie-Dye), 2×2 collection grid, horizontal New Arrivals, authenticity section, footer trust strip |
-| Explore | Category chips, filter & sort bar, 2-column product grid with technique badges, stock overlay, prices |
-| Product Detail | Image carousel, certification badge, scarcity alert, variant selector, pricing with discount, specs bento grid, story accordion, delivery assurance, sticky Add to Bag CTA |
-| Cart | Reservation timer, item cards with qty stepper, scarcity warnings, heritage certification box, bill details, sticky Proceed to Checkout |
-| Checkout — Address | Saved address list with radio select, add new address button |
-| Checkout — Add Address | Form: name, phone, line1, line2, landmark, city, district, state (default Odisha), PIN code, label (Home/Office), default toggle |
-| Checkout — Review | Address summary, items list, payment mode (COD/UPI), price breakdown, Place Order CTA |
-| Order Success | Animated checkmark, order number (SAJ-XXXXXXXX), estimated delivery, View Order + Continue Shopping buttons |
+| Home | Sub-header "Sajani ସଜନୀ" + "WESTERN ODISHA", 16:9 hero with gradient overlay, 2×2 collection grid with gradient name overlay, horizontal New Arrivals with low stock text |
+| Explore | "Shop" title (Noto Serif 22px), search bar with shadow + filter icon, category chips, count row, product cards with wishlist heart overlay, origin badge, stock status |
+| Product Detail | 3:4 hero with "GI CERTIFIED LOOM" badge, dot pagination, scarcity pill, price + discount pill, color swatches, PIN code check, details table, delivery items, "You may also like" scroll, sticky Add to Bag (green on success). Redirects to login if not authenticated |
+| Cart | Back circle + "My Bag (N)", free shipping progress meter, item cards with thumbnails + stepper (minus removes at qty 0) + "Save to Wishlist", coupon section, price details, sticky bar with savings |
+| Checkout — Address | "Saved Addresses" with count badge, address cards with radio + "Default" badge + delivery estimate, "Add New Address" button, assurance note, sticky "Deliver Here" |
+| Checkout — Add Address | Reassurance banner, shadow inputs (no border), +91 phone prefix, label chips (Home/Office/Other), custom checkbox, sticky "Save Address" |
+| Checkout — Review | "Delivering to" + "VERIFIED ADDRESS" badge, address card with Change, items with cluster dot badge, payment radios (COD selected, UPI disabled), price details, delivery notice, trust footer, sticky "Place Order" |
+| Order Success | BounceIn green checkmark, "Order placed!" (Noto Serif), craft gratitude subtitle, tappable order ref pill, preview card with delivery info, assurance card, "View Order" + "Continue Shopping →" |
 
-**Post-Purchase (2 screens)**
-
-| Screen | P0 Features |
-|---|---|
-| Orders List | Order cards with number, date, amount, color-coded status badge (Placed/Confirmed/Shipped/Delivered/Cancelled), empty state |
-| Order Detail | Status timeline stepper, tracking ID (when shipped), snapshotted items & address, payment info, WhatsApp support, cancel button (if placed) |
-
-**Profile & Addresses (3 screens)**
+**Post-Purchase (2 screens — implemented)**
 
 | Screen | P0 Features |
 |---|---|
-| Profile | Avatar with initial, name, phone, email, menu (Edit Name, My Addresses, Order History, Help & Support), logout |
-| My Addresses | Address cards with label/default badges, edit/delete, Add New Address button |
-| Search Results | Search bar, result count, active filter pills, product grid, empty state |
-| FAQs | Accordion Q&A list, hardcoded for pilot, one-open-at-a-time |
+| Orders List | Summary banner with order count + "ARTISAN CERTIFIED", order cards with status badge, item preview strip, "ORDER TOTAL" + "View Details →", support note |
+| Order Detail | COD badge + date, status timeline with green checkmarks (all completed steps green), tracking section with courier + copy button, items with prices, delivery address with location icon + HOME badge, payment summary with COD badge, WhatsApp support card |
 
-**Total: 22 screens**
+**Profile & Account (1 screen — implemented)**
+
+| Screen | P0 Features |
+|---|---|
+| Profile | Avatar circle with initials (56px, primary bg), name + phone, settings button. 3-column quick action tiles (Orders/Saved/Addresses with icon circles + subtitles). Menu card: Edit Profile, FAQs, Help & Support (WhatsApp 24/7 badge), Terms & Privacy. Log Out button (#C44A4A). App version footer. Inline auth screens for phone/OTP/name capture |
+
+**Deferred screens (9 — not yet implemented)**
+
+No Internet, App Update Required, Maintenance, My Addresses (standalone), Search Results, FAQs (standalone). Login Phone / OTP / Name Capture are handled inline in Profile.
+
+**Total: 13 screens implemented**
 
 ### 3.2 Backend API (`apps/api`)
 

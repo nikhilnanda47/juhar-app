@@ -34,7 +34,7 @@ const bodyBold = Platform.select({
 });
 
 export const typography = StyleSheet.create({
-  // ── Headlines (DM Serif Display) ──
+  // ── Headlines (Noto Serif) ──
   pageTitle: {
     fontFamily: headlineFamily,
     fontSize: 24,

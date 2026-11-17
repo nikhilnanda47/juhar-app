@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, Linking, Alert,
+  ActivityIndicator, Linking, Alert, RefreshControl,
 } from 'react-native';
 import {
   Check, Truck, MapPin, Phone, MessageCircle, ArrowRight, Copy, Info,
@@ -33,6 +33,7 @@ export default function OrderDetailScreen({ navigation, route }: Props) {
   const { orderId } = route.params;
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => { load(); }, [orderId]);
   const load = async () => {
@@ -48,7 +49,17 @@ export default function OrderDetailScreen({ navigation, route }: Props) {
   const addr = order.addressSnapshot;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.scrollContent}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={async () => {
+          setRefreshing(true);
+          try { setOrder(await fetchOrderDetail(orderId)); } catch {}
+          setRefreshing(false);
+        }} tintColor={colors.primary} />
+      }
+    >
       {/* Sub-bar */}
       <View style={styles.subBar}>
         <View style={styles.subBarLeft}>

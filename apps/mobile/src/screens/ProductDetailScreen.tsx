@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, Dimensions, Alert, TextInput,
+  ActivityIndicator, Dimensions, Alert, TextInput, RefreshControl,
 } from 'react-native';
 import {
   ChevronLeft, Heart, Share as ShareIcon, Check, CheckCircle,
@@ -9,6 +9,7 @@ import {
 } from 'lucide-react-native';
 import { colors, spacing, borderRadius, elevation } from '../theme';
 import { FadeInUp } from '../components/AnimatedUI';
+import { addToLocalCart, type LocalCartItem } from '../services/localCart';
 import {
   getProductBySlug, getProducts, formatPaise, getTotalStock, addToCart, isLoggedIn,
   type Product, type ProductVariant,
@@ -24,6 +25,7 @@ interface Props {
 export default function ProductDetailScreen({ route, navigation }: Props) {
   const { slug } = route.params;
   const [product, setProduct] = useState<Product | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -74,14 +76,26 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
     : null;
 
   const handleAddToCart = async () => {
-    if (!isLoggedIn()) {
-      Alert.alert('Login Required', 'Please log in to add items to your bag.');
-      return;
-    }
-    if (!selectedVariant) return;
+    if (!selectedVariant || !product) return;
     setAddingToCart(true);
     try {
-      await addToCart(selectedVariant.id, 1);
+      if (isLoggedIn()) {
+        await addToCart(selectedVariant.id, 1);
+      } else {
+        // Guest: add to local cart
+        await addToLocalCart({
+          variantId: selectedVariant.id,
+          quantity: 1,
+          productTitle: product.title,
+          productSlug: product.slug,
+          variantName: selectedVariant.name,
+          color: selectedVariant.color,
+          sku: selectedVariant.sku,
+          pricePaise: selectedVariant.pricePaise,
+          compareAtPaise: selectedVariant.compareAtPaise,
+          available: selectedVariant.available,
+        });
+      }
       setAddedToCart(true);
       setTimeout(() => setAddedToCart(false), 2000);
     } catch (err: any) {
@@ -93,7 +107,16 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={async () => {
+            setRefreshing(true);
+            await loadProduct();
+            setRefreshing(false);
+          }} tintColor={colors.primary} />
+        }
+      >
         {/* Top Action Bar */}
         <View style={styles.topBar}>
           <TouchableOpacity style={styles.circleBtn} onPress={() => navigation.goBack()}>

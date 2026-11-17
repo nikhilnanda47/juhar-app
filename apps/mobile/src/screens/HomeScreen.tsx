@@ -7,6 +7,7 @@ import { useNavigation } from '@react-navigation/native';
 import { colors, spacing, borderRadius, elevation } from '../theme';
 import { getProducts, getCategories, formatPaise, type Product } from '../services/api';
 import { FadeInUp, ScalePress } from '../components/AnimatedUI';
+import RefreshButton from '../components/RefreshButton';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - spacing.margin * 2 - spacing.gutter) / 2;
@@ -51,7 +52,10 @@ export default function HomeScreen() {
             <Text style={styles.brandName}>Sajani</Text>
             <Text style={styles.odiaScript}>ସଜନୀ</Text>
           </View>
-          <Text style={styles.originLabel}>WESTERN ODISHA</Text>
+          <View style={styles.subHeaderRight}>
+            <Text style={styles.originLabel}>WESTERN ODISHA</Text>
+            <RefreshButton onRefresh={onRefresh} />
+          </View>
         </View>
       </FadeInUp>
 
@@ -197,6 +201,7 @@ const styles = StyleSheet.create({
     color: colors.textTertiary,
     letterSpacing: 0.5,
   },
+  subHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   originLabel: {
     fontFamily: 'DMSans-SemiBold',
     fontSize: 11,

@@ -1,8 +1,8 @@
 # Sajani — UI Design Specification
 
-**Version:** 2.0  
-**Date:** 15 November 2026  
-**Status:** Finalized (22 screen designs locked)
+**Version:** 2.1  
+**Date:** 17 November 2026  
+**Status:** Finalized (13 screens implemented, 9 deferred)
 
 ---
 
@@ -99,7 +99,7 @@ Tight palette — 3 brand colors + neutrals. No rainbow.
 
 ## 4. Typography
 
-**Two fonts only:** DM Serif Display (headlines) + DM Sans (everything else).
+**Two fonts only:** Noto Serif (headlines) + DM Sans (everything else).
 
 Both are from the same design family — they pair perfectly.
 
@@ -107,8 +107,8 @@ Both are from the same design family — they pair perfectly.
 
 | Style | Font | Size | Weight | Line Height | Usage |
 |-------|------|------|--------|-------------|-------|
-| Page Title | DM Serif Display | 24px | 400 | 32px | Screen titles, hero text |
-| Section Title | DM Serif Display | 18px | 400 | 26px | Section headings |
+| Page Title | Noto Serif | 24px | 400 | 32px | Screen titles, hero text |
+| Section Title | Noto Serif | 18px | 400 | 26px | Section headings |
 | Product Title | DM Sans | 16px | 500 (Medium) | 22px | Product names, card titles |
 | Body | DM Sans | 14px | 400 (Regular) | 22px | Descriptions, general text |
 | Caption | DM Sans | 12px | 400 (Regular) | 18px | Metadata, timestamps, hints |
@@ -120,7 +120,7 @@ Both are from the same design family — they pair perfectly.
 
 ### Typography Rules
 
-- **DM Serif Display** — headlines only. Never for body, buttons, labels, or badges.
+- **Noto Serif** — headlines only. Never for body, buttons, labels, or badges.
 - **Uppercase** — ONLY for badge text and button labels. Nowhere else.
 - **Letter spacing** — normal everywhere. No wide tracking.
 - **Max 3 font sizes** visible on any single screen.
@@ -366,10 +366,23 @@ Used for: filters, sort options, address selection on larger screens
 - 60fps minimum — if frames drop, remove the animation
 - No parallax scrolling
 - No hero image zoom effects
-- No bouncing or pulsing elements
 - No floating animated elements
 - No spinners (use skeleton shimmer) — except pull-to-refresh branded spinner
 - Ease curves: `ease-out` for enters, `ease-in` for exits
+- Pulsing reserved for splash screen loading dots only
+
+### Implementation: `AnimatedUI.tsx`
+
+Reusable animation components in `apps/mobile/src/components/AnimatedUI.tsx`:
+
+| Component | Behaviour | Used In |
+|---|---|---|
+| `FadeInUp` | Fade in + slide up on mount (configurable delay, duration, distance) | Home, Explore, ProductDetail, Profile, OrderSuccess |
+| `FadeIn` | Simple opacity fade-in | General use |
+| `ScalePress` | Scale to 0.97 on press, spring back on release | Home hero, interactive cards |
+| `StaggeredList` | Renders children with incremental delay | List animations |
+| `BounceIn` | Spring scale 0→1 with opacity | OrderSuccess checkmark |
+| `Pulse` | Subtle infinite scale pulse (splash dots only) | SplashScreen |
 
 ---
 
@@ -409,7 +422,7 @@ Used for: filters, sort options, address selection on larger screens
 │                             │
 │                             │
 │                             │
-│          [Sajani Logo]      │  ← Centered, DM Serif Display
+│          [Sajani Logo]      │  ← Centered, Noto Serif
 │           ସଜନୀ              │  ← Odia script below, 14px caption
 │                             │
 │                             │
@@ -420,7 +433,7 @@ Used for: filters, sort options, address selection on larger screens
 ```
 
 - Background: `#FAFAF7`
-- "Sajani" wordmark: DM Serif Display, 32px, `#8B3A4A`
+- "Sajani" wordmark: Noto Serif, 32px, `#8B3A4A`
 - "ସଜନୀ" subtitle: DM Sans, 14px, `#6B6B6B`
 - Duration: 1.5–2s (or until API health check returns)
 - Animation: Logo fades in (opacity 0→1, 400ms ease-out), cross-fade to next screen
@@ -442,7 +455,7 @@ Used for: filters, sort options, address selection on larger screens
 │    │   Photo           │    │
 │    └───────────────────┘    │
 │                             │
-│    Handwoven with care      │  ← DM Serif Display, 24px
+│    Handwoven with care      │  ← Noto Serif, 24px
 │                             │
 │    Sambalpuri sarees made   │  ← DM Sans, 14px, #6B6B6B
 │    by master weavers from   │     Center-aligned
@@ -481,7 +494,7 @@ Used for: filters, sort options, address selection on larger screens
 │                             │
 │         wifi-off            │  ← Lucide, 48px, #999999
 │                             │
-│     No internet connection  │  ← DM Serif Display, 20px
+│     No internet connection  │  ← Noto Serif, 20px
 │                             │
 │     Check your connection   │  ← DM Sans, 14px, #6B6B6B
 │     and try again.          │     Center-aligned
@@ -510,7 +523,7 @@ Used for: filters, sort options, address selection on larger screens
 │                             │
 │         download            │  ← Lucide, 48px, #999999
 │                             │
-│       Update available      │  ← DM Serif Display, 20px
+│       Update available      │  ← Noto Serif, 20px
 │                             │
 │    A newer version of       │  ← DM Sans, 14px, #6B6B6B
 │    Sajani is available.     │     Center-aligned
@@ -539,7 +552,7 @@ Used for: filters, sort options, address selection on larger screens
 │                             │
 │         wrench              │  ← Lucide, 48px, #999999
 │                             │
-│      We'll be back soon     │  ← DM Serif Display, 20px
+│      We'll be back soon     │  ← Noto Serif, 20px
 │                             │
 │    We're making some        │  ← DM Sans, 14px, #6B6B6B
 │    improvements. Please     │     Center-aligned
@@ -562,7 +575,7 @@ Used for: filters, sort options, address selection on larger screens
 ┌─────────────────────────────┐
 │  ←                          │
 │                             │
-│    Log in to Sajani         │  ← DM Serif Display, 24px
+│    Log in to Sajani         │  ← Noto Serif, 24px
 │                             │
 │    Enter your phone number  │  ← DM Sans, 14px, #6B6B6B
 │    to continue.             │
@@ -594,7 +607,7 @@ Used for: filters, sort options, address selection on larger screens
 ┌─────────────────────────────┐
 │  ←                          │
 │                             │
-│    Verify your number       │  ← DM Serif Display, 24px
+│    Verify your number       │  ← Noto Serif, 24px
 │                             │
 │    OTP sent to              │  ← DM Sans, 14px, #6B6B6B
 │    +91 98765 43210          │  ← DM Sans, 14px bold, #1A1A1A
@@ -626,7 +639,7 @@ Used for: filters, sort options, address selection on larger screens
 ┌─────────────────────────────┐
 │                             │
 │                             │
-│    Welcome to Sajani        │  ← DM Serif Display, 24px
+│    Welcome to Sajani        │  ← Noto Serif, 24px
 │                             │
 │    What should we call you? │  ← DM Sans, 14px, #6B6B6B
 │                             │
@@ -654,14 +667,14 @@ Used for: filters, sort options, address selection on larger screens
 
 ```
 ┌─────────────────────────────┐
-│    Sajani                   │  ← DM Serif Display, 24px, #8B3A4A
+│    Sajani                   │  ← Noto Serif, 24px, #8B3A4A
 │                             │
 │  ┌─────────────────────────┐│
 │  │     Hero Image          ││  ← Full-width, 16:9, 12px radius
 │  │     (featured saree)    ││     Tappable → Explore filtered
 │  └─────────────────────────┘│
 │                             │
-│    Collections              │  ← DM Serif Display, 18px
+│    Collections              │  ← Noto Serif, 18px
 │                             │
 │  ┌──────────┐ ┌──────────┐ │  ← 2×2 grid, 12px gap
 │  │  Silk    │ │  Cotton  │ │     1:1 ratio, 12px radius
@@ -698,7 +711,7 @@ Used for: filters, sort options, address selection on larger screens
 
 ```
 ┌─────────────────────────────┐
-│    Shop                     │  ← DM Serif Display, 24px
+│    Shop                     │  ← Noto Serif, 24px
 │                             │
 │  ┌─────────────────────────┐│
 │  │ 🔍 Search sarees...     ││  ← Tappable → Search screen
@@ -752,7 +765,7 @@ Used for: filters, sort options, address selection on larger screens
 │  └─────────────────────────┘│
 │         ● ○ ○ ○             │  ← Dot pagination
 │                             │
-│  Pasapali Silk Saree        │  ← DM Serif Display, 20px
+│  Pasapali Silk Saree        │  ← Noto Serif, 20px
 │  ₹3,500  ₹4,500  22% off   │  ← Price / MRP strike / discount
 │  Only 3 left                │  ← 13px, #C44A4A (if stock ≤ 3)
 │  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  │
@@ -1033,7 +1046,7 @@ Used for: filters, sort options, address selection on larger screens
 │            ✓                │  ← Animated checkmark, 64px
 │                             │     #3D8B63, draw-in (500ms)
 │                             │
-│    Order placed!            │  ← DM Serif Display, 24px
+│    Order placed!            │  ← Noto Serif, 24px
 │                             │     Center-aligned
 │    SAJ-00000042             │  ← 16px medium, #8B3A4A
 │                             │     Tappable → copy to clipboard
@@ -1162,7 +1175,7 @@ Used for: filters, sort options, address selection on larger screens
 
 ```
 ┌─────────────────────────────┐
-│    Account                  │  ← DM Serif Display, 24px
+│    Account                  │  ← Noto Serif, 24px
 │                             │
 │  ┌─────────────────────────┐│
 │  │ ┌────┐  Priya Mohanty  ││  ← Avatar 56px left, info right
@@ -1321,7 +1334,7 @@ Used for: filters, sort options, address selection on larger screens
 |----------|--------|------------------------|--------|
 | Primary color | Soft Burgundy `#8B3A4A` | Deep Maroon, Clay, Charcoal | Modern but still heritage-rooted |
 | Accent color | Warm Bronze `#B5956B` | Gold, Terracotta | Subtle luxury without being flashy |
-| Headline font | DM Serif Display | Playfair Display, Lora, Libre Baskerville | Clean serif, pairs with DM Sans |
+| Headline font | Noto Serif | Playfair Display, Lora, Libre Baskerville | Clean serif, pairs with DM Sans |
 | Body font | DM Sans | Inter, Plus Jakarta Sans, Outfit | Same family as headline, warm geometric |
 | Background | `#FAFAF7` warm off-white | Pure white, warm ivory `#FFF8F4` | Cleaner than ivory, warmer than white |
 | Design approach | Clean/minimal | Heritage luxury (Stitch v1) | User preference: "not fancy, clear, simple" |
