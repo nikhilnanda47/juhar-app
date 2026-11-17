@@ -400,13 +400,66 @@ Reusable animation components in `apps/mobile/src/components/AnimatedUI.tsx`:
 
 ---
 
-## 12. Responsive Breakpoints (Future Web)
+## 12. Web App & Responsive Design
 
-| Breakpoint | Width | Grid Columns | Usage |
+**Status:** Implemented (`apps/web` — Next.js 14 App Router + Tailwind CSS)
+
+The web app (`localhost:3001`) mirrors all mobile app features with responsive layouts:
+
+| Breakpoint | Width | Grid Columns | Layout |
 |------------|-------|-------------|-------|
-| Mobile | < 640px | 2 product columns | Primary target |
-| Tablet | 640–1024px | 3 product columns | Secondary |
-| Desktop | > 1024px | 4 product columns, max-width 1200px centered | Future web |
+| Mobile | < 640px | 2 product columns | App-like with bottom nav, sticky CTAs |
+| Tablet (md) | 640–768px | 2–3 columns | Card grids, larger touch targets (h-14) |
+| Desktop (lg) | 1024px+ | 4–5 columns | Full-width, side-by-side layouts, table views |
+
+### 12.1 Web Pages (11 routes)
+
+| Route | Mobile Layout | Desktop Layout |
+|-------|---------------|----------------|
+| `/` (Home) | Sub-header + hero + horizontal scroll arrivals | Full-width hero + 4-col grid |
+| `/shop` | Search + chips + 2-col grid | Search (max-w-xl) + filter chips + 5-col grid |
+| `/shop/[slug]` | Stacked image → info + sticky bottom CTA | 55/45 split (sticky image + thumbnails / info + inline CTA) |
+| `/cart` | Stacked items + price summary | 2-col (items / sticky price sidebar) |
+| `/checkout/address` | Stacked address cards | 2-col grid cards + sticky summary sidebar |
+| `/checkout/address/new` | Stacked form fields | Numbered sections + 4-col fields + live preview sidebar |
+| `/checkout/review` | Stacked sections | Single column, centered |
+| `/order-success` | Centered card layout | Same, max-w-md |
+| `/orders` | Card list | Table layout with filter chips + column headers |
+| `/orders/[id]` | Vertical timeline + stacked sections | Horizontal timeline + 2-col (content / sticky sidebar) |
+| `/account` | App-like profile card + tiles + menu | Split-panel login; 2-col profile (sidebar / content grid) |
+
+### 12.2 Web-specific Components
+
+- **Header** (`components/Header.tsx`): Sticky, brand + nav links (desktop), icons hidden on mobile (bottom nav handles it). Cart badge count.
+- **BottomNav** (`components/BottomNav.tsx`): 5 tabs matching mobile app, hidden on desktop (`lg:hidden`). Cart badge count.
+- **CartProvider** (`lib/cart-context.tsx`): React context providing `itemCount` to Header and BottomNav. Polls every 2s, checks server cart (logged in) or localStorage guest cart.
+
+### 12.3 Cart Badge Count
+
+Both web and mobile show a badge on the cart icon:
+- **Web**: Burgundy circle badge on Header (desktop) and BottomNav (mobile). Via `useCartCount()` context.
+- **Mobile**: Native `tabBarBadge` on Cart tab. Polls every 3s via `TabNavigator`.
+- Badge hidden when count is 0, shows "99+" for counts over 99.
+
+### 12.4 Guest Cart (Local Cart)
+
+Users can browse and add items to cart without logging in:
+
+| Step | Behaviour |
+|------|-----------|
+| Guest adds to bag | Stored in `AsyncStorage` (mobile) / `localStorage` (web) via `localCart.ts` |
+| Guest views cart | Local cart rendered using `localCartToResponse()` |
+| Guest updates qty / removes | Updates local storage directly |
+| Guest taps "Proceed to Checkout" | Redirected to login screen |
+| After login | `syncLocalCartToServer()` pushes all local items to server cart, clears local storage |
+
+**Files:** `apps/mobile/src/services/localCart.ts`, `apps/web/src/lib/cart-context.tsx`
+
+### 12.5 RefreshButton Component
+
+Reusable refresh icon (`RefreshCw`) with spin animation on press. Used on Home, Shop, Cart, Orders, Profile headers. `useNativeDriver` disabled on web for transform compatibility.
+
+**File:** `apps/mobile/src/components/RefreshButton.tsx`
 
 ---
 

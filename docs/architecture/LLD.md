@@ -650,7 +650,13 @@ async reserve(tx: PrismaTx, variantId: string, qty: number, expiresAt: Date) {
 
 ### 2.8 Cart Module
 
-**Purpose:** Server-side cart with live pricing.
+**Purpose:** Server-side cart with live pricing. Supplemented by client-side guest cart for unauthenticated users.
+
+**Client-side guest cart:**
+- Mobile: `apps/mobile/src/services/localCart.ts` — AsyncStorage-based, provides `addToLocalCart()`, `updateLocalCartItem()`, `removeLocalCartItem()`, `syncLocalCartToServer()`, `localCartToResponse()`
+- Web: `apps/web/src/lib/cart-context.tsx` — React context with `CartProvider`, localStorage-based, polls every 2s, exposes `useCartCount()` for badge display
+- Guest items stored as `LocalCartItem[]` with variant snapshot (title, price, color, sku)
+- On login, `syncLocalCartToServer()` iterates local items and calls `POST /api/v1/cart/items` for each, then clears local storage
 
 ```
 modules/cart/
@@ -1776,6 +1782,54 @@ Note: Circular dependencies between Orders ↔ Payments resolved using `forwardR
 ---
 
 ## 6. Mobile App Screen Architecture
+
+## 6a. Web App Architecture (`apps/web`)
+
+**Technology:** Next.js 14 (App Router) + Tailwind CSS + TypeScript  
+**Port:** `localhost:3001` (dev), shares same API backend as mobile app
+
+```
+apps/web/
+├── src/
+│   ├── app/
+│   │   ├── layout.tsx          # Root layout (Header, BottomNav, CartProvider)
+│   │   ├── globals.css         # Tailwind + component classes
+│   │   ├── page.tsx            # Home (/, hero, collections, arrivals)
+│   │   ├── shop/
+│   │   │   ├── page.tsx        # Product listing (search, filters, grid)
+│   │   │   └── [slug]/page.tsx # Product detail (image, variants, add to bag)
+│   │   ├── cart/page.tsx       # Cart (items, stepper, price summary)
+│   │   ├── checkout/
+│   │   │   ├── address/
+│   │   │   │   ├── page.tsx    # Select address
+│   │   │   │   └── new/page.tsx# Add new address
+│   │   │   └── review/page.tsx # Order review
+│   │   ├── order-success/page.tsx # Order confirmation
+│   │   ├── orders/
+│   │   │   ├── page.tsx        # Orders list (table on desktop)
+│   │   │   └── [id]/page.tsx   # Order detail (timeline, tracking)
+│   │   └── account/page.tsx    # Profile / Auth (split-panel login)
+│   ├── components/
+│   │   ├── Header.tsx          # Sticky header (brand, nav, cart badge)
+│   │   └── BottomNav.tsx       # Mobile bottom nav (5 tabs, cart badge)
+│   └── lib/
+│       ├── api.ts              # API client (mirrors mobile api.ts)
+│       └── cart-context.tsx    # CartProvider, useCartCount()
+├── tailwind.config.ts          # Design tokens matching mobile theme
+├── next.config.js
+└── package.json
+```
+
+**Design token alignment:** Tailwind config uses same color hex values, font families (Noto Serif + DM Sans), and spacing values as `apps/mobile/src/theme/`.
+
+**Responsive strategy:**
+- Mobile (`<640px`): App-like layout, bottom nav, sticky CTAs, 2-col grids
+- Tablet (`md: 640–1024px`): 2–3 col grids, larger inputs (h-14), more padding
+- Desktop (`lg: 1024px+`): Full-width, side-by-side layouts, table views, header nav
+
+---
+
+## 6b. Mobile App Screen Architecture
 
 **Total: 13 screens implemented** (9 deferred: No Internet, App Update, Maintenance, standalone My Addresses, Search Results, FAQs). Auth screens are inline in Profile.
 

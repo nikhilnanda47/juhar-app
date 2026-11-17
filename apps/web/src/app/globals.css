@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-background text-text-primary font-sans text-body-md;
+    overscroll-behavior: none;
+  }
+
+  /* Hide scrollbar but keep functionality */
+  ::-webkit-scrollbar {
+    display: none;
+  }
+
+  * {
+    scrollbar-width: none;
+  }
+}
+
+@layer components {
+  /* Page container — full width with padding */
+  .page-container {
+    @apply w-full px-4 md:px-6 lg:px-10 xl:px-16;
+  }
+
+  /* Mobile-app-like container for small screens */
+  .app-shell {
+    @apply max-w-mobile mx-auto min-h-screen relative;
+  }
+
+  /* Card with shadow matching mobile mockups */
+  .card {
+    @apply bg-surface rounded-xl p-4 shadow-[0_1px_4px_rgba(0,0,0,0.03)] border border-[#EEEEEE];
+  }
+
+  /* Primary CTA button */
+  .btn-primary {
+    @apply h-12 bg-primary hover:bg-primary-dark text-white font-sans font-semibold text-body-md rounded-lg
+           flex items-center justify-center gap-2 transition-all duration-200 shadow-sm
+           active:scale-[0.98];
+  }
+
+  /* Outline button */
+  .btn-outline {
+    @apply h-12 border border-primary text-primary font-sans font-semibold text-body-md rounded-lg
+           flex items-center justify-center gap-2 transition-all duration-200
+           hover:bg-primary hover:text-white active:scale-[0.98];
+  }
+
+  /* Section title */
+  .section-title {
+    @apply font-serif text-headline-lg-mobile text-text-primary tracking-tight;
+  }
+
+  /* Label small uppercase */
+  .label-upper {
+    @apply font-sans text-label-sm uppercase tracking-widest text-text-tertiary font-semibold;
+  }
+
+  /* Badge pill */
+  .badge {
+    @apply px-2.5 py-0.5 rounded-full text-label-sm font-semibold;
+  }
+}

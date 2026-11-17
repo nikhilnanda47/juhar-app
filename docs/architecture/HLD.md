@@ -35,6 +35,7 @@
 | Layer | Technology | Rationale |
 |---|---|---|
 | Mobile App | React Native + Expo + TypeScript | Cross-platform Android/iOS from one codebase |
+| Web App | Next.js 14 + Tailwind CSS + TypeScript | Customer-facing website, responsive, SEO-ready |
 | Backend API | NestJS + TypeScript | Modular, typed, OpenAPI generation |
 | ORM | Prisma | Type-safe queries, versioned migrations |
 | Database | PostgreSQL 16 | ACID for inventory reservations, JSONB for attributes |
@@ -98,7 +99,48 @@ No Internet, App Update Required, Maintenance, My Addresses (standalone), Search
 
 **Total: 13 screens implemented**
 
-### 3.2 Backend API (`apps/api`)
+### 3.2 Web App (`apps/web`)
+
+**Technology:** Next.js 14 (App Router) + Tailwind CSS + TypeScript  
+**Port:** `localhost:3001`  
+**Purpose:** Customer-facing responsive website with same features as mobile app
+
+**11 pages** mirroring all mobile screens:
+
+| Route | Description | Desktop Layout |
+|-------|-------------|----------------|
+| `/` | Home — hero, collections, new arrivals | Full-width hero, 4-col grid |
+| `/shop` | Product listing — search, filters, grid | Filter chips, 5-col grid, table-like |
+| `/shop/[slug]` | Product detail — images, variants, add to bag | 55/45 split (image + info), thumbnail strip |
+| `/cart` | Cart — items, stepper, price summary | 2-col (items + sticky price sidebar) |
+| `/checkout/address` | Select delivery address | 2-col grid cards + sticky summary sidebar |
+| `/checkout/address/new` | Add new address | Numbered sections, live preview sidebar |
+| `/checkout/review` | Order review — place order | Centered, single column |
+| `/order-success` | Order confirmation | Centered card |
+| `/orders` | Orders list | Table layout with filter chips |
+| `/orders/[id]` | Order detail — timeline, tracking | Horizontal timeline + 2-col sidebar |
+| `/account` | Profile / Login / OTP | Split-panel auth; 2-col profile |
+
+**Key features:**
+- **Responsive:** Bottom nav on mobile (hidden `lg:`), desktop nav in header
+- **Guest cart:** Items stored in `localStorage`, synced to server on login
+- **Cart badge:** Count shown on cart icon in both Header and BottomNav via `CartProvider` context
+- **Same API:** Connects to same backend as mobile app (`localhost:3000`)
+- **Auth:** Split-panel login (burgundy brand panel + form), OTP verify, name capture
+
+### 3.3 Guest Cart Flow
+
+Users can browse and add to cart without logging in:
+
+1. **Add to Bag** → stored locally (`AsyncStorage` on mobile, `localStorage` on web)
+2. **Cart tab** → renders local cart with full stepper/remove functionality
+3. **Proceed to Checkout** → redirected to login
+4. **After login** → `syncLocalCartToServer()` pushes local items to server cart, clears local storage
+5. **Cart badge** → updates on both platforms, polling every 2–3 seconds
+
+**Files:** `apps/mobile/src/services/localCart.ts`, `apps/web/src/lib/cart-context.tsx`
+
+### 3.4 Backend API (`apps/api`)
 
 12 NestJS modules for pilot:
 
@@ -119,7 +161,7 @@ No Internet, App Update Required, Maintenance, My Addresses (standalone), Search
 
 **Deferred modules (post-pilot):** Shipping API integration, Notifications service, Analytics/reporting engine
 
-### 3.3 Admin Panel (`apps/admin`)
+### 3.5 Admin Panel (`apps/admin`)
 
 | Section | P0 Scope |
 |---|---|
@@ -131,7 +173,7 @@ No Internet, App Update Required, Maintenance, My Addresses (standalone), Search
 | Reports | Orders, GMV, COD pending, refunds, stock summary, top products |
 | Settings | Admin user management, role assignment |
 
-### 3.4 Shared Package (`packages/shared`)
+### 3.6 Shared Package (`packages/shared`)
 
 - TypeScript DTOs and interfaces
 - Enums: `OrderStatus`, `PaymentStatus`, `ShipmentStatus`, `UserRole`
