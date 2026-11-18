@@ -1,7 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, Dimensions, Alert, TextInput, RefreshControl,
+  Animated as RNAnimated, Platform,
 } from 'react-native';
 import {
   ChevronLeft, Heart, Share as ShareIcon, Check, CheckCircle,
@@ -35,8 +37,26 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
   const [pinCode, setPinCode] = useState('');
   const [pinChecked, setPinChecked] = useState(false);
   const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
+  const [toastVisible, setToastVisible] = useState(false);
+  const toastAnim = useRef(new RNAnimated.Value(0)).current;
+
+  const showToast = () => {
+    setToastVisible(true);
+    RNAnimated.sequence([
+      RNAnimated.timing(toastAnim, { toValue: 1, duration: 300, useNativeDriver: Platform.OS !== 'web' }),
+      RNAnimated.delay(2200),
+      RNAnimated.timing(toastAnim, { toValue: 0, duration: 300, useNativeDriver: Platform.OS !== 'web' }),
+    ]).start(() => setToastVisible(false));
+  };
 
   useEffect(() => { loadProduct(); }, [slug]);
+
+  // Reset "Go to Bag" state when screen regains focus (e.g. user removed item from cart and came back)
+  useFocusEffect(
+    useCallback(() => {
+      setAddedToCart(false);
+    }, [])
+  );
 
   const loadProduct = async () => {
     try {
@@ -97,7 +117,7 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
         });
       }
       setAddedToCart(true);
-      setTimeout(() => setAddedToCart(false), 2000);
+      showToast();
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Failed to add to cart');
     } finally {
@@ -323,6 +343,22 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
         <View style={{ height: 100 }} />
       </ScrollView>
 
+      {/* Toast notification */}
+      {toastVisible && (
+        <RNAnimated.View
+          style={[
+            styles.toast,
+            {
+              opacity: toastAnim,
+              transform: [{ translateY: toastAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
+            },
+          ]}
+        >
+          <Check size={16} color="#fff" strokeWidth={2.5} />
+          <Text style={styles.toastText}>Added to bag!</Text>
+        </RNAnimated.View>
+      )}
+
       {/* Sticky Bottom Bar */}
       <View style={styles.stickyBar}>
         <View style={styles.stickyPriceCol}>
@@ -339,11 +375,11 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
           ]}
           disabled={stock <= 0 || addingToCart}
           activeOpacity={0.85}
-          onPress={handleAddToCart}
+          onPress={addedToCart ? () => navigation.navigate('Cart') : handleAddToCart}
         >
           <ShoppingBag size={18} color={colors.white} strokeWidth={2} />
           <Text style={styles.addToCartText}>
-            {addedToCart ? 'Added to Bag ✓' : addingToCart ? 'Adding...' : stock > 0 ? 'Add to Bag' : 'Out of Stock'}
+            {addedToCart ? 'Go to Bag →' : addingToCart ? 'Adding...' : stock > 0 ? 'Add to Bag' : 'Out of Stock'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -537,6 +573,18 @@ const styles = StyleSheet.create({
   relatedName: { fontFamily: 'DMSans-Regular', fontSize: 14, color: colors.textPrimary, marginTop: 2 },
   relatedPrice: { fontFamily: 'DMSans-SemiBold', fontSize: 16, color: colors.accent, marginTop: 4, letterSpacing: -0.3 },
 
+  // Toast
+  toast: {
+    position: 'absolute', bottom: 100, left: spacing.margin, right: spacing.margin,
+    backgroundColor: '#1A1A2E',
+    borderRadius: 10, paddingVertical: 12, paddingHorizontal: 16,
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 8,
+    zIndex: 50,
+  },
+  toastText: {
+    fontFamily: 'DMSans-SemiBold', fontSize: 14, color: '#fff', letterSpacing: -0.1,
+  },
   // Sticky Bar
   stickyBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,

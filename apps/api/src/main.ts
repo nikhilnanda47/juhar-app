@@ -25,7 +25,11 @@ async function bootstrap() {
 
   // CORS
   app.enableCors({
-    origin: process.env.CORS_ORIGINS?.split(',') || ['http://localhost:3001'],
+    origin: process.env.CORS_ORIGINS?.split(',') || [
+      'http://localhost:3001',  // Customer website
+      'http://localhost:3002',  // Admin panel
+      'http://localhost:8081',  // Mobile app (Expo web)
+    ],
     credentials: true,
   });
 

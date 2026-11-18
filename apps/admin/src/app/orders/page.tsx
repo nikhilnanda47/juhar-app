@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Sidebar from '../../components/Sidebar';
+import AdminLayout from '../../components/AdminLayout';
 import { api } from '../../services/api';
 import styles from './orders.module.css';
 
@@ -38,10 +38,8 @@ export default function OrdersPage() {
   const [courierName, setCourierName] = useState('');
 
   useEffect(() => {
-    const token = api.getToken();
-    if (!token) { router.push('/login'); return; }
     loadOrders();
-  }, [router]);
+  }, []);
 
   const loadOrders = async () => {
     try {
@@ -51,7 +49,7 @@ export default function OrdersPage() {
       const data = await api.getOrders(params);
       setOrders(data.items || []);
     } catch {
-      router.push('/login');
+      // AdminLayout handles auth
     } finally {
       setLoading(false);
     }
@@ -63,7 +61,6 @@ export default function OrdersPage() {
   }, [filter]);
 
   const handleStatusUpdate = async (orderId: string, status: string) => {
-    // If shipping, show tracking modal
     if (status === 'shipped') {
       setShipModal(orderId);
       return;
@@ -98,39 +95,37 @@ export default function OrdersPage() {
     setUpdating(null);
   };
 
-  if (loading) return <div>Loading...</div>;
+  const searchInput = (
+    <input
+      className={styles.searchInput}
+      placeholder="Search by order # or phone..."
+      value={search}
+      onChange={(e) => setSearch(e.target.value)}
+      onKeyDown={(e) => e.key === 'Enter' && loadOrders()}
+    />
+  );
 
   return (
-    <div className={styles.layout}>
-      <Sidebar />
-      <main className={styles.main}>
-        <header className={styles.header}>
-          <h2>Orders</h2>
-          <div className={styles.searchBox}>
-            <input
-              placeholder="Search by order # or phone..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && loadOrders()}
-            />
-          </div>
-        </header>
-
-        <div className={styles.toolbar}>
-          <div className={styles.filterGroup}>
-            {STATUS_OPTIONS.map((s) => (
-              <button
-                key={s}
-                className={filter === s ? styles.filterActive : styles.filterBtn}
-                onClick={() => setFilter(s)}
-              >
-                {s.charAt(0).toUpperCase() + s.slice(1)}
-              </button>
-            ))}
-          </div>
+    <AdminLayout title="Orders" actions={searchInput}>
+      {/* Filter toolbar */}
+      <div className={styles.toolbar}>
+        <div className={styles.filterGroup}>
+          {STATUS_OPTIONS.map((s) => (
+            <button
+              key={s}
+              className={filter === s ? styles.filterActive : styles.filterBtn}
+              onClick={() => setFilter(s)}
+            >
+              {s.charAt(0).toUpperCase() + s.slice(1)}
+            </button>
+          ))}
         </div>
+      </div>
 
-        <div className={styles.content}>
+      {loading ? (
+        <div className={styles.loadingState}>Loading orders...</div>
+      ) : (
+        <div className={styles.tableCard}>
           <table className={styles.table}>
             <thead>
               <tr>
@@ -149,7 +144,7 @@ export default function OrdersPage() {
                 <tr key={order.id}>
                   <td className={styles.mono}>{order.publicNumber}</td>
                   <td>
-                    <div>{order.customer?.name || '—'}</div>
+                    <div className={styles.customerName}>{order.customer?.name || '—'}</div>
                     <div className={styles.phone}>{order.customer?.phone}</div>
                   </td>
                   <td className={styles.date}>
@@ -181,33 +176,39 @@ export default function OrdersPage() {
                 </tr>
               ))}
               {orders.length === 0 && (
-                <tr><td colSpan={8} className={styles.empty}>No orders found</td></tr>
+                <tr>
+                  <td colSpan={8} className={styles.empty}>
+                    <div className={styles.emptyIcon}>&#128230;</div>
+                    <div>No orders found</div>
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>
         </div>
+      )}
 
-        {/* Ship Modal */}
-        {shipModal && (
-          <div className={styles.modalOverlay}>
-            <div className={styles.modal}>
-              <h3>Ship Order</h3>
-              <div className={styles.modalField}>
-                <label>Tracking ID *</label>
-                <input value={trackingId} onChange={(e) => setTrackingId(e.target.value)} placeholder="e.g. DTDC123456" />
-              </div>
-              <div className={styles.modalField}>
-                <label>Courier Name</label>
-                <input value={courierName} onChange={(e) => setCourierName(e.target.value)} placeholder="e.g. DTDC, India Post" />
-              </div>
-              <div className={styles.modalActions}>
-                <button className={styles.cancelModalBtn} onClick={() => { setShipModal(null); setTrackingId(''); setCourierName(''); }}>Cancel</button>
-                <button className={styles.confirmBtn} onClick={handleShip} disabled={!trackingId}>Ship</button>
-              </div>
+      {/* Ship Modal */}
+      {shipModal && (
+        <div className={styles.modalOverlay} onClick={() => { setShipModal(null); setTrackingId(''); setCourierName(''); }}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <h3>Ship Order</h3>
+            <p className={styles.modalSubtext}>Enter tracking details to mark this order as shipped.</p>
+            <div className={styles.modalField}>
+              <label>Tracking ID *</label>
+              <input value={trackingId} onChange={(e) => setTrackingId(e.target.value)} placeholder="e.g. DTDC123456" />
+            </div>
+            <div className={styles.modalField}>
+              <label>Courier Name</label>
+              <input value={courierName} onChange={(e) => setCourierName(e.target.value)} placeholder="e.g. DTDC, India Post" />
+            </div>
+            <div className={styles.modalActions}>
+              <button className={styles.cancelModalBtn} onClick={() => { setShipModal(null); setTrackingId(''); setCourierName(''); }}>Cancel</button>
+              <button className={styles.confirmBtn} onClick={handleShip} disabled={!trackingId}>Ship Order</button>
             </div>
           </div>
-        )}
-      </main>
-    </div>
+        </div>
+      )}
+    </AdminLayout>
   );
 }

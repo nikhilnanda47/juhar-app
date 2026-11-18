@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Sidebar from '../../components/Sidebar';
+import AdminLayout from '../../components/AdminLayout';
 import { api } from '../../services/api';
 import styles from './categories.module.css';
 
@@ -25,10 +25,8 @@ export default function CategoriesPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const token = api.getToken();
-    if (!token) { router.push('/login'); return; }
     loadCategories();
-  }, [router]);
+  }, []);
 
   const loadCategories = async () => {
     try {
@@ -62,25 +60,28 @@ export default function CategoriesPage() {
     await loadCategories();
   };
 
-  if (loading) return <div>Loading...</div>;
+  const addButton = (
+    <button
+      className={showForm ? styles.cancelBtn : styles.addBtn}
+      onClick={() => setShowForm(!showForm)}
+    >
+      {showForm ? 'Cancel' : '+ Add Category'}
+    </button>
+  );
+
+  if (loading) return <div className={styles.loadingText}>Loading...</div>;
 
   return (
-    <div className={styles.layout}>
-      <Sidebar />
-      <main className={styles.main}>
-        <header className={styles.header}>
-          <h2>Categories</h2>
-          <button className={styles.addBtn} onClick={() => setShowForm(!showForm)}>
-            {showForm ? 'Cancel' : '+ Add Category'}
-          </button>
-        </header>
-
-        {showForm && (
-          <form className={styles.form} onSubmit={handleCreate}>
+    <AdminLayout title="Categories" actions={addButton}>
+      {showForm && (
+        <div className={styles.formCard}>
+          <h3 className={styles.formTitle}>New Category</h3>
+          <form onSubmit={handleCreate}>
             <div className={styles.formRow}>
               <div className={styles.formGroup}>
-                <label>Name</label>
+                <label className={styles.label}>Name</label>
                 <input
+                  className={styles.input}
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="e.g. Heritage"
@@ -88,8 +89,9 @@ export default function CategoriesPage() {
                 />
               </div>
               <div className={styles.formGroup}>
-                <label>Sort Order</label>
+                <label className={styles.label}>Sort Order</label>
                 <input
+                  className={styles.input}
                   type="number"
                   value={formData.sortOrder}
                   onChange={(e) => setFormData({ ...formData, sortOrder: parseInt(e.target.value) || 0 })}
@@ -97,8 +99,9 @@ export default function CategoriesPage() {
               </div>
             </div>
             <div className={styles.formGroup}>
-              <label>Description</label>
+              <label className={styles.label}>Description</label>
               <input
+                className={styles.input}
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 placeholder="Brief description..."
@@ -109,43 +112,46 @@ export default function CategoriesPage() {
               {saving ? 'Saving...' : 'Create Category'}
             </button>
           </form>
-        )}
-
-        <div className={styles.content}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Order</th>
-                <th>Name</th>
-                <th>Slug</th>
-                <th>Description</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {categories.map((cat) => (
-                <tr key={cat.id}>
-                  <td>{cat.sortOrder}</td>
-                  <td><strong>{cat.name}</strong></td>
-                  <td className={styles.slug}>{cat.slug}</td>
-                  <td className={styles.desc}>{cat.description || '—'}</td>
-                  <td>
-                    <span className={cat.active ? styles.badgeActive : styles.badgeInactive}>
-                      {cat.active ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td>
-                    <button className={styles.toggleBtn} onClick={() => toggleActive(cat)}>
-                      {cat.active ? 'Deactivate' : 'Activate'}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
-      </main>
-    </div>
+      )}
+
+      <div className={styles.tableCard}>
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th>Order</th>
+              <th>Name</th>
+              <th>Slug</th>
+              <th>Description</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {categories.map((cat) => (
+              <tr key={cat.id}>
+                <td className={styles.orderCell}>{cat.sortOrder}</td>
+                <td><strong>{cat.name}</strong></td>
+                <td className={styles.slug}>{cat.slug}</td>
+                <td className={styles.desc}>{cat.description || '—'}</td>
+                <td>
+                  <span className={cat.active ? styles.badgeActive : styles.badgeInactive}>
+                    {cat.active ? 'Active' : 'Inactive'}
+                  </span>
+                </td>
+                <td>
+                  <button className={styles.toggleBtn} onClick={() => toggleActive(cat)}>
+                    {cat.active ? 'Deactivate' : 'Activate'}
+                  </button>
+                </td>
+              </tr>
+            ))}
+            {categories.length === 0 && (
+              <tr><td colSpan={6} className={styles.empty}>No categories yet</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </AdminLayout>
   );
 }

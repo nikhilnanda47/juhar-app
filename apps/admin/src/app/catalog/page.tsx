@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Sidebar from '../../components/Sidebar';
+import AdminLayout from '../../components/AdminLayout';
 import { api } from '../../services/api';
 import styles from './catalog.module.css';
 
@@ -37,17 +37,15 @@ export default function CatalogPage() {
   const [filter, setFilter] = useState<'all' | 'published' | 'draft'>('all');
 
   useEffect(() => {
-    const token = api.getToken();
-    if (!token) { router.push('/login'); return; }
     loadProducts();
-  }, [router]);
+  }, []);
 
   const loadProducts = async () => {
     try {
       const data = await api.getProducts();
       setProducts(data.items || []);
     } catch {
-      router.push('/login');
+      // AdminLayout handles auth
     } finally {
       setLoading(false);
     }
@@ -63,37 +61,37 @@ export default function CatalogPage() {
     ? products
     : products.filter((p) => p.publishStatus === filter);
 
-  if (loading) return <div>Loading...</div>;
+  const addButton = (
+    <button className={styles.addBtn} onClick={() => router.push('/catalog/new')}>
+      + Add Product
+    </button>
+  );
 
   return (
-    <div className={styles.layout}>
-      <Sidebar />
-      <main className={styles.main}>
-        <header className={styles.header}>
-          <div>
-            <h2>Product Catalog</h2>
-            <span className={styles.count}>{products.length} products</span>
-          </div>
-          <button className={styles.addBtn} onClick={() => router.push('/catalog/new')}>
-            + Add Product
-          </button>
-        </header>
-
-        <div className={styles.toolbar}>
-          <div className={styles.filterGroup}>
-            {(['all', 'published', 'draft'] as const).map((f) => (
-              <button
-                key={f}
-                className={filter === f ? styles.filterActive : styles.filterBtn}
-                onClick={() => setFilter(f)}
-              >
-                {f.charAt(0).toUpperCase() + f.slice(1)}
-              </button>
-            ))}
-          </div>
+    <AdminLayout
+      title="Product Catalog"
+      subtitle={`${products.length} products`}
+      actions={addButton}
+    >
+      {/* Filter toolbar */}
+      <div className={styles.toolbar}>
+        <div className={styles.filterGroup}>
+          {(['all', 'published', 'draft'] as const).map((f) => (
+            <button
+              key={f}
+              className={filter === f ? styles.filterActive : styles.filterBtn}
+              onClick={() => setFilter(f)}
+            >
+              {f.charAt(0).toUpperCase() + f.slice(1)}
+            </button>
+          ))}
         </div>
+      </div>
 
-        <div className={styles.content}>
+      {loading ? (
+        <div className={styles.loadingState}>Loading products...</div>
+      ) : (
+        <div className={styles.tableCard}>
           <table className={styles.table}>
             <thead>
               <tr>
@@ -119,7 +117,7 @@ export default function CatalogPage() {
                   <tr key={product.id}>
                     <td>
                       <div className={styles.productCell}>
-                        <strong>{product.title}</strong>
+                        <span className={styles.productTitle}>{product.title}</span>
                         <span className={styles.slug}>{product.slug}</span>
                       </div>
                     </td>
@@ -160,14 +158,15 @@ export default function CatalogPage() {
               {filtered.length === 0 && (
                 <tr>
                   <td colSpan={7} className={styles.empty}>
-                    No products found
+                    <div className={styles.emptyIcon}>&#128722;</div>
+                    <div>No products found</div>
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
-      </main>
-    </div>
+      )}
+    </AdminLayout>
   );
 }

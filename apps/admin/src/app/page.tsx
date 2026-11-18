@@ -1,8 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import Sidebar from '../components/Sidebar';
+import AdminLayout from '../components/AdminLayout';
 import { api } from '../services/api';
 import styles from './page.module.css';
 
@@ -18,8 +17,23 @@ function formatPaise(paise: number): string {
   return '₹' + (paise / 100).toLocaleString('en-IN');
 }
 
+const STAT_CARDS = [
+  { key: 'todaysOrders', label: "Today's Orders", accent: 'blue', icon: '📄' },
+  { key: 'pendingConfirmation', label: 'Pending', accent: 'amber', icon: '⏳' },
+  { key: 'lowStockItems', label: 'Low Stock', accent: 'error', icon: '⚠️' },
+  { key: 'gmvTodayPaise', label: 'GMV Today', accent: 'green', icon: '💰' },
+] as const;
+
+const STATUS_CLASS_MAP: Record<string, string> = {
+  placed: 'statusPlaced',
+  confirmed: 'statusConfirmed',
+  packed: 'statusPacked',
+  shipped: 'statusShipped',
+  delivered: 'statusDelivered',
+  cancelled: 'statusCancelled',
+};
+
 export default function DashboardPage() {
-  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<DashboardStats>({
     todaysOrders: 0,
@@ -30,27 +44,11 @@ export default function DashboardPage() {
   });
 
   useEffect(() => {
-    const token = api.getToken();
-    if (!token) {
-      router.push('/login');
-      return;
-    }
-    api.getMe().then((user) => {
-      if (user.type !== 'admin') {
-        api.clearToken();
-        router.push('/login');
-      } else {
-        loadDashboard();
-      }
-    }).catch(() => {
-      api.clearToken();
-      router.push('/login');
-    });
-  }, [router]);
+    loadDashboard();
+  }, []);
 
   const loadDashboard = async () => {
     try {
-      // Fetch all orders and compute stats client-side
       const allOrders = await api.getOrders();
       const orders = allOrders.items || [];
 
@@ -65,7 +63,6 @@ export default function DashboardPage() {
         (sum: number, o: any) => sum + (o.totalPaise || 0), 0,
       );
 
-      // Fetch products to check low stock
       const products = await api.getProducts();
       let lowStock = 0;
       (products.items || []).forEach((p: any) => {
@@ -86,67 +83,77 @@ export default function DashboardPage() {
     setLoading(false);
   };
 
-  if (loading) return <div className={styles.loading}>Loading...</div>;
+  const formatStatValue = (key: string, stats: DashboardStats): string => {
+    if (key === 'gmvTodayPaise') return formatPaise(stats.gmvTodayPaise);
+    return String(stats[key as keyof DashboardStats]);
+  };
 
   return (
-    <div className={styles.layout}>
-      <Sidebar />
-      <main className={styles.main}>
-        <header className={styles.header}>
-          <h2>Dashboard</h2>
-        </header>
-        <div className={styles.content}>
+    <AdminLayout title="Dashboard" subtitle="Overview">
+      {loading ? (
+        <div className={styles.loadingContent}>Loading dashboard...</div>
+      ) : (
+        <>
           <div className={styles.statsGrid}>
-            <div className={styles.statCard}>
-              <span className={styles.statLabel}>Today&apos;s Orders</span>
-              <span className={styles.statValue}>{stats.todaysOrders}</span>
-            </div>
-            <div className={styles.statCard}>
-              <span className={styles.statLabel}>Pending Confirmation</span>
-              <span className={styles.statValue}>{stats.pendingConfirmation}</span>
-            </div>
-            <div className={styles.statCard}>
-              <span className={styles.statLabel}>Low Stock Items</span>
-              <span className={styles.statValue}>{stats.lowStockItems}</span>
-            </div>
-            <div className={styles.statCard}>
-              <span className={styles.statLabel}>GMV Today</span>
-              <span className={styles.statValue}>{formatPaise(stats.gmvTodayPaise)}</span>
-            </div>
+            {STAT_CARDS.map((card) => (
+              <div
+                key={card.key}
+                className={styles.statCard}
+                data-accent={card.accent}
+              >
+                <div className={styles.statCardInner}>
+                  <div
+                    className={styles.statIcon}
+                    data-accent={card.accent}
+                  >
+                    <span>{card.icon}</span>
+                  </div>
+                  <div className={styles.statText}>
+                    <span className={styles.statLabel}>{card.label}</span>
+                    <span className={styles.statValue}>
+                      {formatStatValue(card.key, stats)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
 
-          {/* Recent Orders */}
           {stats.recentOrders.length > 0 && (
             <div className={styles.recentSection}>
-              <h3>Recent Orders</h3>
-              <table className={styles.recentTable}>
-                <thead>
-                  <tr>
-                    <th>Order #</th>
-                    <th>Customer</th>
-                    <th>Total</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {stats.recentOrders.map((order: any) => (
-                    <tr key={order.id}>
-                      <td className={styles.mono}>{order.publicNumber}</td>
-                      <td>{order.customer?.name || order.customer?.phone || '—'}</td>
-                      <td>{formatPaise(order.totalPaise)}</td>
-                      <td>
-                        <span className={styles[`status_${order.status}`] || styles.statusDefault}>
-                          {order.status}
-                        </span>
-                      </td>
+              <h3 className={styles.sectionTitle}>Recent Orders</h3>
+              <div className={styles.tableCard}>
+                <table className={styles.recentTable}>
+                  <thead>
+                    <tr>
+                      <th>Order #</th>
+                      <th>Customer</th>
+                      <th>Total</th>
+                      <th>Status</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {stats.recentOrders.map((order: any) => (
+                      <tr key={order.id}>
+                        <td className={styles.mono}>{order.publicNumber}</td>
+                        <td>{order.customer?.name || order.customer?.phone || '—'}</td>
+                        <td>{formatPaise(order.totalPaise)}</td>
+                        <td>
+                          <span
+                            className={`${styles.statusBadge} ${styles[STATUS_CLASS_MAP[order.status] || 'statusDefault']}`}
+                          >
+                            {order.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
-        </div>
-      </main>
-    </div>
+        </>
+      )}
+    </AdminLayout>
   );
 }

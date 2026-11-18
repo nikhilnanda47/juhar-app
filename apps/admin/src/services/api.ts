@@ -73,7 +73,7 @@ class ApiClient {
   }
 
   async getMe() {
-    return this.request<{ id: string; phone: string; type: string; role?: string }>(
+    return this.request<{ id: string; phone: string; name: string | null; type: string; role?: string }>(
       '/api/v1/auth/me',
     );
   }

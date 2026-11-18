@@ -20,6 +20,7 @@ export default function ProductDetailPage() {
   const [pinCode, setPinCode] = useState('');
   const [pinChecked, setPinChecked] = useState(false);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
+  const [showToast, setShowToast] = useState(false);
 
   useEffect(() => {
     if (slug) {
@@ -34,19 +35,13 @@ export default function ProductDetailPage() {
     }
   }, [slug]);
 
-  if (!product) {
-    return <div className="flex items-center justify-center min-h-[60vh]">
-      <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-    </div>;
-  }
-
-  const stock = selectedVariant?.available ?? 0;
-  const discount = selectedVariant?.compareAtPaise && selectedVariant.compareAtPaise > selectedVariant.pricePaise
-    ? Math.round((1 - selectedVariant.pricePaise / selectedVariant.compareAtPaise) * 100)
-    : null;
+  // Reset addedToCart when slug changes (navigating to different product)
+  useEffect(() => {
+    setAddedToCart(false);
+  }, [slug]);
 
   const handleAddToCart = async () => {
-    if (!selectedVariant) return;
+    if (!selectedVariant || !product) return;
     setAddingToCart(true);
     try {
       if (isLoggedIn()) {
@@ -67,13 +62,36 @@ export default function ProductDetailPage() {
         localStorage.setItem('sajani_local_cart', JSON.stringify(localCart));
       }
       setAddedToCart(true);
-      setTimeout(() => setAddedToCart(false), 2000);
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 2500);
     } catch {}
     setAddingToCart(false);
   };
 
+  if (!product) {
+    return <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+    </div>;
+  }
+
+  const stock = selectedVariant?.available ?? 0;
+  const discount = selectedVariant?.compareAtPaise && selectedVariant.compareAtPaise > selectedVariant.pricePaise
+    ? Math.round((1 - selectedVariant.pricePaise / selectedVariant.compareAtPaise) * 100)
+    : null;
+
   return (
     <>
+      {/* Toast notification */}
+      {showToast && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 animate-[slideDown_0.3s_ease] bg-[#1A1A2E] text-white px-5 py-3 rounded-xl shadow-lg flex items-center gap-2.5 text-sm font-semibold">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
+            <polyline points="22 4 12 14.01 9 11.01" />
+          </svg>
+          Added to bag!
+        </div>
+      )}
+
       {/* Mobile back bar */}
       <div className="lg:hidden sticky top-0 z-40 bg-surface/80 backdrop-blur-xl h-12 px-4 flex items-center justify-between">
         <button onClick={() => router.back()} className="w-9 h-9 rounded-full bg-surface-container-low flex items-center justify-center">
@@ -121,8 +139,8 @@ export default function ProductDetailPage() {
             </div>
             {/* Thumbnail strip — desktop only */}
             <div className="hidden lg:flex gap-3 mt-3">
-              {[0, 1, 2, 3].map(i => (
-                <div key={i} className={`flex-1 aspect-square rounded-xl bg-surface-container-low cursor-pointer ${i === 0 ? 'ring-2 ring-primary' : 'hover:ring-2 hover:ring-border'} transition-all`} />
+              {[0, 1, 2, 3].map((i) => (
+                <div key={i} className={`flex-1 aspect-square rounded-xl bg-surface-container-low overflow-hidden cursor-pointer ${i === 0 ? 'ring-2 ring-primary' : 'hover:ring-2 hover:ring-border'} transition-all`} />
               ))}
             </div>
           </div>
@@ -224,15 +242,23 @@ export default function ProductDetailPage() {
 
             {/* Add to Cart — desktop inline */}
             <div className="hidden lg:flex gap-3 mb-8">
-              <button
-                onClick={handleAddToCart}
-                disabled={stock <= 0 || addingToCart}
-                className={`flex-1 h-14 rounded-xl font-sans text-title-sm text-white flex items-center justify-center gap-2 transition-all active:scale-[0.98] ${
-                  addedToCart ? 'bg-success' : stock <= 0 ? 'bg-text-tertiary opacity-40' : 'bg-primary hover:bg-primary-dark'
-                }`}
-              >
-                {addedToCart ? 'Added to Bag ✓' : addingToCart ? 'Adding...' : stock > 0 ? 'Add to Bag' : 'Out of Stock'}
-              </button>
+              {addedToCart ? (
+                <Link href="/cart"
+                  className="flex-1 h-14 rounded-xl font-sans text-title-sm text-white flex items-center justify-center gap-2 transition-all active:scale-[0.98] bg-success hover:bg-success/90"
+                >
+                  Go to Bag →
+                </Link>
+              ) : (
+                <button
+                  onClick={handleAddToCart}
+                  disabled={stock <= 0 || addingToCart}
+                  className={`flex-1 h-14 rounded-xl font-sans text-title-sm text-white flex items-center justify-center gap-2 transition-all active:scale-[0.98] ${
+                    stock <= 0 ? 'bg-text-tertiary opacity-40' : 'bg-primary hover:bg-primary-dark'
+                  }`}
+                >
+                  {addingToCart ? 'Adding...' : stock > 0 ? 'Add to Bag' : 'Out of Stock'}
+                </button>
+              )}
               <button onClick={() => setWishlisted(!wishlisted)}
                 className={`w-14 h-14 rounded-xl border-2 flex items-center justify-center transition-all hover:scale-105 ${wishlisted ? 'border-primary bg-primary/5' : 'border-border'}`}>
                 <Heart size={22} className={wishlisted ? 'text-primary fill-primary' : 'text-text-secondary'} strokeWidth={1.5} />
@@ -328,15 +354,23 @@ export default function ProductDetailPage() {
             <p className="label-upper">PRICE</p>
             <p className="font-sans text-price-lg text-text-primary">{selectedVariant ? formatPaise(selectedVariant.pricePaise) : ''}</p>
           </div>
-          <button
-            onClick={handleAddToCart}
-            disabled={stock <= 0 || addingToCart}
-            className={`flex-1 h-12 rounded-lg font-sans text-title-sm text-white flex items-center justify-center gap-2 transition-all active:scale-[0.98] ${
-              addedToCart ? 'bg-success' : stock <= 0 ? 'bg-text-tertiary opacity-40' : 'bg-primary hover:bg-primary-dark'
-            }`}
-          >
-            {addedToCart ? 'Added to Bag ✓' : addingToCart ? 'Adding...' : stock > 0 ? 'Add to Bag' : 'Out of Stock'}
-          </button>
+          {addedToCart ? (
+            <Link href="/cart"
+              className="flex-1 h-12 rounded-lg font-sans text-title-sm text-white flex items-center justify-center gap-2 transition-all active:scale-[0.98] bg-success hover:bg-success/90"
+            >
+              Go to Bag →
+            </Link>
+          ) : (
+            <button
+              onClick={handleAddToCart}
+              disabled={stock <= 0 || addingToCart}
+              className={`flex-1 h-12 rounded-lg font-sans text-title-sm text-white flex items-center justify-center gap-2 transition-all active:scale-[0.98] ${
+                stock <= 0 ? 'bg-text-tertiary opacity-40' : 'bg-primary hover:bg-primary-dark'
+              }`}
+            >
+              {addingToCart ? 'Adding...' : stock > 0 ? 'Add to Bag' : 'Out of Stock'}
+            </button>
+          )}
         </div>
       </div>
     </>

@@ -68,3 +68,8 @@
     @apply px-2.5 py-0.5 rounded-full text-label-sm font-semibold;
   }
 }
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translate(-50%, -12px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}

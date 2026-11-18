@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Sidebar from '../../components/Sidebar';
+import AdminLayout from '../../components/AdminLayout';
 import { api } from '../../services/api';
 import styles from './inventory.module.css';
 
@@ -17,20 +17,14 @@ interface VariantStock {
   available: number;
 }
 
-function formatPaise(paise: number): string {
-  return '₹' + (paise / 100).toLocaleString('en-IN');
-}
-
 export default function InventoryPage() {
   const router = useRouter();
   const [variants, setVariants] = useState<VariantStock[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = api.getToken();
-    if (!token) { router.push('/login'); return; }
     loadInventory();
-  }, [router]);
+  }, []);
 
   const loadInventory = async () => {
     try {
@@ -59,61 +53,53 @@ export default function InventoryPage() {
     }
   };
 
-  if (loading) return <div>Loading...</div>;
+  if (loading) return <div className={styles.loadingText}>Loading...</div>;
 
   return (
-    <div className={styles.layout}>
-      <Sidebar />
-      <main className={styles.main}>
-        <header className={styles.header}>
-          <h2>Inventory</h2>
-          <span className={styles.count}>{variants.length} variants</span>
-        </header>
-
-        <div className={styles.content}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Product</th>
-                <th>SKU</th>
-                <th>Color / Variant</th>
-                <th>On Hand</th>
-                <th>Reserved</th>
-                <th>Available</th>
-                <th>Status</th>
+    <AdminLayout title="Inventory" subtitle={`${variants.length} variants`}>
+      <div className={styles.tableCard}>
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th>SKU</th>
+              <th>Color / Variant</th>
+              <th className={styles.thCenter}>On Hand</th>
+              <th className={styles.thCenter}>Reserved</th>
+              <th className={styles.thCenter}>Available</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {variants.map((v) => (
+              <tr key={v.variantId}>
+                <td className={styles.productName}>{v.productTitle}</td>
+                <td className={styles.sku}>{v.sku}</td>
+                <td>{v.color || v.name || '—'}</td>
+                <td className={styles.num}>{v.onHand}</td>
+                <td className={styles.num}>{v.reserved}</td>
+                <td className={styles.num}>
+                  <span className={v.available <= 0 ? styles.stockOut : v.available <= 3 ? styles.stockLow : styles.stockOk}>
+                    {v.available}
+                  </span>
+                </td>
+                <td>
+                  {v.available <= 0 ? (
+                    <span className={styles.badgeOut}>OUT OF STOCK</span>
+                  ) : v.available <= 3 ? (
+                    <span className={styles.badgeLow}>LOW STOCK</span>
+                  ) : (
+                    <span className={styles.badgeOk}>IN STOCK</span>
+                  )}
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {variants.map((v) => (
-                <tr key={v.variantId}>
-                  <td className={styles.productName}>{v.productTitle}</td>
-                  <td className={styles.sku}>{v.sku}</td>
-                  <td>{v.color || v.name || '—'}</td>
-                  <td className={styles.num}>{v.onHand}</td>
-                  <td className={styles.num}>{v.reserved}</td>
-                  <td className={styles.num}>
-                    <span className={v.available <= 0 ? styles.stockOut : v.available <= 3 ? styles.stockLow : styles.stockOk}>
-                      {v.available}
-                    </span>
-                  </td>
-                  <td>
-                    {v.available <= 0 ? (
-                      <span className={styles.badgeOut}>OUT OF STOCK</span>
-                    ) : v.available <= 3 ? (
-                      <span className={styles.badgeLow}>LOW STOCK</span>
-                    ) : (
-                      <span className={styles.badgeOk}>IN STOCK</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-              {variants.length === 0 && (
-                <tr><td colSpan={7} className={styles.empty}>No inventory data</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </main>
-    </div>
+            ))}
+            {variants.length === 0 && (
+              <tr><td colSpan={7} className={styles.empty}>No inventory data</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </AdminLayout>
   );
 }

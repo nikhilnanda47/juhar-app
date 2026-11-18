@@ -1,66 +1,93 @@
-.layout { display: flex; min-height: 100vh; }
-.main { flex: 1; display: flex; flex-direction: column; }
-
-.header {
-  background: var(--white);
-  padding: 1rem 2rem;
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.header h2 { font-size: 1.25rem; font-weight: 600; }
-
+/* ── Action buttons ── */
 .addBtn {
   padding: 0.5rem 1.25rem;
   background: var(--maroon);
-  color: white;
+  color: #fff;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius);
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
+  transition: opacity var(--transition);
 }
+.addBtn:hover { opacity: 0.9; }
 
-.content { padding: 1.5rem 2rem; }
-
-.form {
-  margin: 1.5rem 2rem 0;
-  padding: 1.5rem;
-  background: var(--white);
+.cancelBtn {
+  padding: 0.5rem 1.25rem;
+  background: none;
+  color: var(--text-secondary);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color var(--transition), color var(--transition);
+}
+.cancelBtn:hover {
+  border-color: var(--maroon);
+  color: var(--maroon);
 }
 
-.formRow { display: flex; gap: 1rem; }
+/* ── Create form card ── */
+.formCard {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 1.5rem;
+  margin-bottom: 1.25rem;
+  animation: slideIn 200ms ease-out;
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.formTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 1.25rem;
+}
+
+.formRow {
+  display: flex;
+  gap: 1rem;
+}
 
 .formGroup {
   flex: 1;
   margin-bottom: 1rem;
 }
 
-.formGroup label {
+.label {
   display: block;
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--grey);
+  color: var(--text-secondary);
   margin-bottom: 0.4rem;
 }
 
-.formGroup input {
+.input {
   width: 100%;
-  padding: 0.6rem 0.75rem;
+  height: 42px;
+  padding: 0 0.75rem;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius);
   font-size: 0.9rem;
+  color: var(--text-primary);
+  background: var(--bg-card);
+  transition: border-color var(--transition);
+  box-sizing: border-box;
 }
-
-.formGroup input:focus {
+.input:focus {
   outline: none;
   border-color: var(--maroon);
+}
+.input::placeholder {
+  color: var(--text-muted);
 }
 
 .error {
@@ -72,49 +99,83 @@
 .saveBtn {
   padding: 0.6rem 1.5rem;
   background: var(--maroon);
-  color: white;
+  color: #fff;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius);
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
+  transition: opacity var(--transition);
 }
+.saveBtn:hover { opacity: 0.9; }
+.saveBtn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.saveBtn:disabled { opacity: 0.5; }
+/* ── Table card ── */
+.tableCard {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
 
 .table {
   width: 100%;
   border-collapse: collapse;
-  background: var(--white);
-  border-radius: 10px;
-  overflow: hidden;
-  border: 1px solid var(--border);
 }
 
 .table th {
   text-align: left;
-  padding: 0.75rem 1rem;
+  padding: 0.85rem 1rem;
   font-size: 0.7rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--grey);
+  color: var(--text-secondary);
+  background: var(--bg-hover);
   border-bottom: 1px solid var(--border);
-  background: #fafafa;
 }
 
 .table td {
-  padding: 0.75rem 1rem;
+  padding: 0.85rem 1rem;
   font-size: 0.9rem;
-  border-bottom: 1px solid var(--border);
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-light);
+  transition: background var(--transition);
 }
 
-.slug { color: var(--grey); font-family: monospace; font-size: 0.8rem; }
-.desc { color: var(--grey); font-size: 0.85rem; max-width: 250px; }
+.table tbody tr:hover td {
+  background: var(--bg-hover);
+}
 
-.badgeActive, .badgeInactive {
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.orderCell {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-align: center;
+  width: 60px;
+}
+
+.slug {
+  color: var(--text-secondary);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.8rem;
+}
+
+.desc {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  max-width: 250px;
+}
+
+/* ── Status badges ── */
+.badgeActive,
+.badgeInactive {
   display: inline-block;
-  padding: 0.2rem 0.6rem;
+  padding: 0.2rem 0.65rem;
   border-radius: 20px;
   font-size: 0.7rem;
   font-weight: 600;
@@ -122,17 +183,78 @@
   letter-spacing: 0.05em;
 }
 
-.badgeActive { background: #e8f5e9; color: #2e7d32; }
-.badgeInactive { background: #fce4ec; color: #c62828; }
-
-.toggleBtn {
-  padding: 0.3rem 0.75rem;
-  background: none;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  font-size: 0.8rem;
-  color: var(--charcoal);
-  cursor: pointer;
+.badgeActive {
+  background: var(--success-bg);
+  color: var(--success);
 }
 
-.toggleBtn:hover { border-color: var(--maroon); color: var(--maroon); }
+.badgeInactive {
+  background: var(--error-bg);
+  color: var(--error);
+}
+
+/* ── Toggle button ── */
+.toggleBtn {
+  padding: 0.35rem 0.85rem;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: border-color var(--transition), color var(--transition);
+}
+.toggleBtn:hover {
+  border-color: var(--maroon);
+  color: var(--maroon);
+}
+
+/* ── Empty / loading states ── */
+.empty {
+  text-align: center;
+  padding: 3rem 1rem !important;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.loadingText {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 768px) {
+  .tableCard {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .table {
+    min-width: 550px;
+  }
+
+  .formRow {
+    flex-direction: column;
+    gap: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .addBtn {
+    padding: 0.4rem 0.9rem;
+    font-size: 0.8rem;
+  }
+
+  .formCard {
+    margin: 0;
+    padding: 1.25rem;
+  }
+
+  .saveBtn {
+    width: 100%;
+  }
+}
