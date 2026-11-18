@@ -10,10 +10,10 @@ import RefreshButton from '../components/RefreshButton';
 import { loadToken, formatPaise } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_BASE = __DEV__ ? 'http://localhost:3000' : 'https://api.sajani.in';
+const API_BASE = __DEV__ ? 'http://localhost:3000' : 'https://api.juhar.in';
 
 async function fetchOrders() {
-  const token = await AsyncStorage.getItem('sajani_token');
+  const token = await AsyncStorage.getItem('juhar_token');
   if (!token) return [];
   const res = await fetch(`${API_BASE}/api/v1/orders`, {
     headers: { Authorization: `Bearer ${token}` },

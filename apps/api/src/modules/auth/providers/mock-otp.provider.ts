@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OtpProvider } from './otp-provider.interface';
-import { AUTH } from '@sajani/shared';
+import { AUTH } from '@juhar/shared';
 
 /**
  * Mock OTP provider for development.

@@ -1,8 +1,8 @@
-# Sajani
+# Juhar
 
 **Digital-first Sambalpuri fashion brand — Western Odisha to India.**
 
-Sajani is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce platform. Local manufacturing and weaving partners supply products; Sajani owns customer experience, merchandising, quality, digital commerce, order support and brand identity.
+Juhar is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce platform. Local manufacturing and weaving partners supply products; Juhar owns customer experience, merchandising, quality, digital commerce, order support and brand identity.
 
 ## Pilot Scope (P0)
 
@@ -116,7 +116,7 @@ Sajani is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce p
 ## Project Structure
 
 ```
-sajani-app/
+juhar-app/
 ├── apps/
 │   ├── mobile/              # React Native + Expo (customer mobile app)
 │   │   └── src/
@@ -261,13 +261,13 @@ Full spec: [`docs/api/openapi.yaml`](docs/api/openapi.yaml)
 ### 1. Clone the repo
 
 ```bash
-git clone git@github.com:nikhilnanda47/sajani-app.git
-cd sajani-app
+git clone git@github.com:nikhilnanda47/juhar-app.git
+cd juhar-app
 ```
 
 > **Windows SSH note:** If SSH is not set up, use HTTPS instead:
 > ```bash
-> git clone https://github.com/nikhilnanda47/sajani-app.git
+> git clone https://github.com/nikhilnanda47/juhar-app.git
 > ```
 
 ### 2. Set up the database
@@ -278,9 +278,9 @@ cd sajani-app
 <summary><strong>macOS / Linux</strong></summary>
 
 ```bash
-psql postgres -c "CREATE USER sajani WITH PASSWORD 'sajani_dev_password' CREATEDB;"
-psql postgres -c "CREATE DATABASE sajani_dev OWNER sajani;"
-psql postgres -c "GRANT ALL PRIVILEGES ON DATABASE sajani_dev TO sajani;"
+psql postgres -c "CREATE USER juhar WITH PASSWORD 'juhar_dev_password' CREATEDB;"
+psql postgres -c "CREATE DATABASE juhar_dev OWNER juhar;"
+psql postgres -c "GRANT ALL PRIVILEGES ON DATABASE juhar_dev TO juhar;"
 ```
 
 </details>
@@ -295,16 +295,16 @@ Open **pgAdmin** (installed with PostgreSQL) or **psql** from Start Menu:
 psql -U postgres
 
 -- Then run:
-CREATE USER sajani WITH PASSWORD 'sajani_dev_password' CREATEDB;
-CREATE DATABASE sajani_dev OWNER sajani;
-GRANT ALL PRIVILEGES ON DATABASE sajani_dev TO sajani;
+CREATE USER juhar WITH PASSWORD 'juhar_dev_password' CREATEDB;
+CREATE DATABASE juhar_dev OWNER juhar;
+GRANT ALL PRIVILEGES ON DATABASE juhar_dev TO juhar;
 \q
 ```
 
 Or use **pgAdmin GUI:**
 1. Open pgAdmin → right-click "Login/Group Roles" → Create → Login/Group Role
-2. Name: `sajani`, Password: `sajani_dev_password`, Privileges: Can login + Create databases
-3. Right-click "Databases" → Create → Database, Name: `sajani_dev`, Owner: `sajani`
+2. Name: `juhar`, Password: `juhar_dev_password`, Privileges: Can login + Create databases
+3. Right-click "Databases" → Create → Database, Name: `juhar_dev`, Owner: `juhar`
 
 </details>
 
@@ -423,7 +423,7 @@ cd apps/api && npx prisma studio
 | `cd apps/api && npx prisma migrate dev --name <name>` | Root | Create new migration |
 | `cd apps/api && npx prisma generate` | Root | Regenerate Prisma client |
 | `cd apps/api && npx ts-node prisma/seed.ts` | Root | Re-seed database |
-| `psql -U sajani -d sajani_dev` | Anywhere | Connect to database CLI |
+| `psql -U juhar -d juhar_dev` | Anywhere | Connect to database CLI |
 | `cd apps/mobile && npx expo start --web --clear` | Root | Mobile with cleared cache |
 
 ### Service ports

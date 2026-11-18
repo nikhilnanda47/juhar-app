@@ -10,10 +10,10 @@ import { colors, spacing, borderRadius } from '../theme';
 import { formatPaise } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_BASE = __DEV__ ? 'http://localhost:3000' : 'https://api.sajani.in';
+const API_BASE = __DEV__ ? 'http://localhost:3000' : 'https://api.juhar.in';
 
 async function fetchOrderDetail(orderId: string) {
-  const token = await AsyncStorage.getItem('sajani_token');
+  const token = await AsyncStorage.getItem('juhar_token');
   const res = await fetch(`${API_BASE}/api/v1/orders/${orderId}`, {
     headers: { Authorization: `Bearer ${token}` },
   });

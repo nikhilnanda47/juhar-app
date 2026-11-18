@@ -20,8 +20,8 @@ export default function Header() {
       <div className="w-full h-16 px-4 md:px-6 lg:px-10 xl:px-16 flex items-center justify-between">
         {/* Brand — hidden on mobile (sub-header handles it) */}
         <Link href="/" className="hidden lg:flex items-center gap-space-xs">
-          <span className="font-serif text-headline-md text-primary">Sajani</span>
-          <span className="font-sans text-body-md text-on-surface-variant/80">ସଜନୀ</span>
+          <span className="font-serif text-headline-md text-primary">Juhar</span>
+          <span className="font-sans text-body-md text-on-surface-variant/80">ଜୁହାର୍</span>
         </Link>
         <div className="lg:hidden" />
 

@@ -1,8 +1,8 @@
 {
-  "name": "sajani-app",
+  "name": "juhar-app",
   "version": "1.0.0",
   "private": true,
-  "description": "Sajani — D2C Sambalpuri fashion e-commerce platform",
+  "description": "Juhar — D2C Sambalpuri fashion e-commerce platform",
   "workspaces": [
     "packages/*",
     "apps/api",

@@ -41,7 +41,7 @@ export default function AccountPage() {
 
   const fetchCounts = async () => {
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('sajani_token') : null;
+      const token = typeof window !== 'undefined' ? localStorage.getItem('juhar_token') : null;
       const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
       const [ordersRes, addrs] = await Promise.all([
         fetch(`${API_BASE}/api/v1/orders`, { headers }).then(r => r.json()),
@@ -64,13 +64,13 @@ export default function AccountPage() {
     try {
       const result = await verifyOtp('+91' + phone, otp);
       // Sync local cart
-      const localCart = JSON.parse(localStorage.getItem('sajani_local_cart') || '[]');
+      const localCart = JSON.parse(localStorage.getItem('juhar_local_cart') || '[]');
       if (localCart.length > 0) {
         const { addToCart } = await import('@/lib/api');
         for (const item of localCart) {
           try { await addToCart(item.variantId, item.quantity); } catch {}
         }
-        localStorage.removeItem('sajani_local_cart');
+        localStorage.removeItem('juhar_local_cart');
       }
       const p = await getProfile(); setProfile(p);
       fetchCounts();
@@ -101,8 +101,8 @@ export default function AccountPage() {
   const MobileBrandHero = () => (
     <div className="lg:hidden bg-primary rounded-2xl p-6 mb-6 text-center relative overflow-hidden">
       <div className="absolute inset-0 opacity-[0.07]" style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, rgba(255,255,255,0.3) 0%, transparent 50%), radial-gradient(circle at 80% 50%, rgba(255,255,255,0.2) 0%, transparent 50%)' }} />
-      <span className="font-serif text-[32px] text-white tracking-tight relative">Sajani</span>
-      <span className="font-sans text-body-lg text-white/70 ml-2 relative">ସଜନୀ</span>
+      <span className="font-serif text-[32px] text-white tracking-tight relative">Juhar</span>
+      <span className="font-sans text-body-lg text-white/70 ml-2 relative">ଜୁହାର୍</span>
       <p className="font-sans text-body-sm text-white/60 mt-2 relative">Handloom traditions of Western Odisha</p>
       <div className="flex items-center justify-center gap-5 mt-4 relative">
         {[
@@ -123,8 +123,8 @@ export default function AccountPage() {
   const DesktopBrandPanel = ({ subtitle }: { subtitle: string }) => (
     <div className="hidden lg:flex flex-col items-center justify-center bg-primary text-white p-12 relative overflow-hidden">
       <div className="absolute inset-0 opacity-[0.07]" style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, rgba(255,255,255,0.4) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(255,255,255,0.3) 0%, transparent 50%)' }} />
-      <span className="font-serif text-[44px] tracking-tight mb-1 relative">Sajani</span>
-      <span className="font-sans text-[18px] text-white/70 mb-6 relative">ସଜନୀ</span>
+      <span className="font-serif text-[44px] tracking-tight mb-1 relative">Juhar</span>
+      <span className="font-sans text-[18px] text-white/70 mb-6 relative">ଜୁହାର୍</span>
       <div className="w-12 h-px bg-white/25 mb-6" />
       <p className="font-sans text-body-lg text-white/70 text-center leading-relaxed max-w-[240px] relative">{subtitle}</p>
       <div className="mt-10 flex items-center gap-6 text-white/50 relative">
@@ -236,15 +236,15 @@ export default function AccountPage() {
       <div className="w-full max-w-[460px]">
         {/* Compact brand strip for mobile */}
         <div className="lg:hidden flex items-center justify-center gap-2 mb-6">
-          <span className="font-serif text-headline-md text-primary">Sajani</span>
-          <span className="font-sans text-body-md text-on-surface-variant/70">ସଜନୀ</span>
+          <span className="font-serif text-headline-md text-primary">Juhar</span>
+          <span className="font-sans text-body-md text-on-surface-variant/70">ଜୁହାର୍</span>
         </div>
 
         <div className="bg-surface rounded-2xl shadow-[0_2px_20px_rgba(0,0,0,0.06)] border border-border p-6 md:p-8 lg:p-10 text-center">
           <div className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mx-auto mb-5">
             <User size={32} className="text-primary" strokeWidth={1.5} />
           </div>
-          <h1 className="font-serif text-headline-lg-mobile text-text-primary mb-1">Welcome to Sajani</h1>
+          <h1 className="font-serif text-headline-lg-mobile text-text-primary mb-1">Welcome to Juhar</h1>
           <p className="font-sans text-body-md text-text-secondary mb-8">What should we call you?</p>
 
           <div className="mb-5 text-left">
@@ -282,7 +282,7 @@ export default function AccountPage() {
             <div className="w-20 h-20 lg:w-24 lg:h-24 rounded-full bg-primary flex items-center justify-center mb-3">
               <span className="font-sans text-[24px] lg:text-[32px] font-medium text-white tracking-wide">{initials || '?'}</span>
             </div>
-            <p className="font-sans text-[18px] lg:text-[20px] font-medium text-text-primary">{profile?.name || 'Sajani Customer'}</p>
+            <p className="font-sans text-[18px] lg:text-[20px] font-medium text-text-primary">{profile?.name || 'Juhar Customer'}</p>
             <p className="font-sans text-body-md text-outline mt-1">{profile?.phone}</p>
             <button
               onClick={() => { setEditName(profile?.name || ''); setScreen('editName'); }}
@@ -297,7 +297,7 @@ export default function AccountPage() {
             <LogOut size={20} className="text-[#C44A4A]" strokeWidth={1.5} />
             <span className="font-sans text-title-sm text-[#C44A4A] font-medium">Log Out</span>
           </button>
-          <p className="hidden lg:block font-sans text-body-sm text-[#999] text-center mt-4">Sajani v2.0.4</p>
+          <p className="hidden lg:block font-sans text-body-sm text-[#999] text-center mt-4">Juhar v2.0.4</p>
         </div>
 
         {/* Right content */}
@@ -358,7 +358,7 @@ export default function AccountPage() {
             <LogOut size={20} className="text-[#C44A4A] group-active:scale-95 transition-transform" strokeWidth={1.5} />
             <span className="font-sans text-title-sm text-[#C44A4A] font-medium">Log Out</span>
           </button>
-          <p className="lg:hidden font-sans text-body-sm text-[#999] text-center mt-8">Sajani v2.0.4</p>
+          <p className="lg:hidden font-sans text-body-sm text-[#999] text-center mt-8">Juhar v2.0.4</p>
         </div>
       </div>
     </div>

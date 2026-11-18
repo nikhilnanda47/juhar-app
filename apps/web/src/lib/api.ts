@@ -6,13 +6,13 @@ let accessToken: string | null = null;
 export function setToken(token: string) {
   accessToken = token;
   if (typeof window !== 'undefined') {
-    localStorage.setItem('sajani_token', token);
+    localStorage.setItem('juhar_token', token);
   }
 }
 
 export function loadToken(): boolean {
   if (typeof window === 'undefined') return false;
-  accessToken = localStorage.getItem('sajani_token');
+  accessToken = localStorage.getItem('juhar_token');
   return !!accessToken;
 }
 
@@ -22,7 +22,7 @@ export function getToken(): string | null {
 
 export function isLoggedIn(): boolean {
   if (!accessToken && typeof window !== 'undefined') {
-    accessToken = localStorage.getItem('sajani_token');
+    accessToken = localStorage.getItem('juhar_token');
   }
   return !!accessToken;
 }
@@ -30,8 +30,8 @@ export function isLoggedIn(): boolean {
 export function clearTokens() {
   accessToken = null;
   if (typeof window !== 'undefined') {
-    localStorage.removeItem('sajani_token');
-    localStorage.removeItem('sajani_refresh_token');
+    localStorage.removeItem('juhar_token');
+    localStorage.removeItem('juhar_refresh_token');
   }
 }
 
@@ -157,7 +157,7 @@ export async function verifyOtp(phone: string, otp: string) {
   );
   setToken(data.accessToken);
   if (typeof window !== 'undefined') {
-    localStorage.setItem('sajani_refresh_token', data.refreshToken);
+    localStorage.setItem('juhar_refresh_token', data.refreshToken);
   }
   return data;
 }

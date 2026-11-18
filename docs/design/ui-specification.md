@@ -1,4 +1,4 @@
-# Sajani — UI Design Specification
+# Juhar — UI Design Specification
 
 **Version:** 2.1  
 **Date:** 17 November 2026  
@@ -47,8 +47,10 @@ Every element earns its place. If removing something doesn't hurt the user exper
 
 | Attribute | Value |
 |-----------|-------|
-| **Name** | Sajani (ସଜନୀ) |
-| **Meaning** | "Beloved" in Odia |
+| **Name** | Juhar (ଜୁହାର୍) |
+| **Meaning** | "Greetings" — a traditional tribal salutation |
+| **Tagline** | A Tradition Worth Wearing |
+| **Legal Name** | JUHAR TEXTILES |
 | **Positioning** | Clean, modern handloom — not traditional/ornate |
 | **Feeling** | Calm confidence. Like walking into a well-curated boutique. |
 | **Target** | Women 25-55, semi-urban India, buying ₹1,500–₹12,000 sarees |
@@ -338,7 +340,7 @@ Used for: filters, sort options, address selection on larger screens
 | Interaction | Animation | Duration |
 |-------------|-----------|----------|
 | Initial content load | Skeleton shimmer (grey placeholders) | Continuous until loaded |
-| Pull to refresh | Custom branded spinner (burgundy dot or Sajani mark) | Until data loads |
+| Pull to refresh | Custom branded spinner (burgundy dot or Juhar mark) | Until data loads |
 
 ### Cart Interactions
 
@@ -475,8 +477,8 @@ Reusable refresh icon (`RefreshCw`) with spin animation on press. Used on Home, 
 │                             │
 │                             │
 │                             │
-│          [Sajani Logo]      │  ← Centered, Noto Serif
-│           ସଜନୀ              │  ← Odia script below, 14px caption
+│          [Juhar Logo]      │  ← Centered, Noto Serif
+│           ଜୁହାର୍              │  ← Odia script below, 14px caption
 │                             │
 │                             │
 │                             │
@@ -486,8 +488,8 @@ Reusable refresh icon (`RefreshCw`) with spin animation on press. Used on Home, 
 ```
 
 - Background: `#FAFAF7`
-- "Sajani" wordmark: Noto Serif, 32px, `#8B3A4A`
-- "ସଜନୀ" subtitle: DM Sans, 14px, `#6B6B6B`
+- "Juhar" wordmark: Noto Serif, 32px, `#8B3A4A`
+- "ଜୁହାର୍" subtitle: DM Sans, 14px, `#6B6B6B`
 - Duration: 1.5–2s (or until API health check returns)
 - Animation: Logo fades in (opacity 0→1, 400ms ease-out), cross-fade to next screen
 - No tagline, no illustration, no decorative background
@@ -579,7 +581,7 @@ Reusable refresh icon (`RefreshCw`) with spin animation on press. Used on Home, 
 │       Update available      │  ← Noto Serif, 20px
 │                             │
 │    A newer version of       │  ← DM Sans, 14px, #6B6B6B
-│    Sajani is available.     │     Center-aligned
+│    Juhar is available.     │     Center-aligned
 │    Please update to         │
 │    continue.                │
 │                             │
@@ -628,7 +630,7 @@ Reusable refresh icon (`RefreshCw`) with spin animation on press. Used on Home, 
 ┌─────────────────────────────┐
 │  ←                          │
 │                             │
-│    Log in to Sajani         │  ← Noto Serif, 24px
+│    Log in to Juhar         │  ← Noto Serif, 24px
 │                             │
 │    Enter your phone number  │  ← DM Sans, 14px, #6B6B6B
 │    to continue.             │
@@ -692,7 +694,7 @@ Reusable refresh icon (`RefreshCw`) with spin animation on press. Used on Home, 
 ┌─────────────────────────────┐
 │                             │
 │                             │
-│    Welcome to Sajani        │  ← Noto Serif, 24px
+│    Welcome to Juhar        │  ← Noto Serif, 24px
 │                             │
 │    What should we call you? │  ← DM Sans, 14px, #6B6B6B
 │                             │
@@ -720,7 +722,7 @@ Reusable refresh icon (`RefreshCw`) with spin animation on press. Used on Home, 
 
 ```
 ┌─────────────────────────────┐
-│    Sajani                   │  ← Noto Serif, 24px, #8B3A4A
+│    Juhar                   │  ← Noto Serif, 24px, #8B3A4A
 │                             │
 │  ┌─────────────────────────┐│
 │  │     Hero Image          ││  ← Full-width, 16:9, 12px radius
@@ -1101,7 +1103,7 @@ Reusable refresh icon (`RefreshCw`) with spin animation on press. Used on Home, 
 │                             │
 │    Order placed!            │  ← Noto Serif, 24px
 │                             │     Center-aligned
-│    SAJ-00000042             │  ← 16px medium, #8B3A4A
+│    JUH-00000042             │  ← 16px medium, #8B3A4A
 │                             │     Tappable → copy to clipboard
 │    Estimated delivery       │
 │    22–26 Nov 2026           │  ← 14px, #6B6B6B
@@ -1131,7 +1133,7 @@ Reusable refresh icon (`RefreshCw`) with spin animation on press. Used on Home, 
 │  ←    My Orders             │
 │                             │
 │  ┌─────────────────────────┐│
-│  │  SAJ-00000042           ││
+│  │  JUH-00000042           ││
 │  │  15 Nov 2026   [Placed] ││  ← Status badge per §9.6
 │  │  ┌─────┐ Pasapali Silk  ││  ← First item image 48×64px
 │  │  │ img │ +1 more item   ││
@@ -1140,7 +1142,7 @@ Reusable refresh icon (`RefreshCw`) with spin animation on press. Used on Home, 
 │  └─────────────────────────┘│
 │                             │
 │  ┌─────────────────────────┐│
-│  │  SAJ-00000041           ││
+│  │  JUH-00000041           ││
 │  │  12 Nov 2026 [Delivered]││
 │  │  ...                    ││
 │  └─────────────────────────┘│
@@ -1162,7 +1164,7 @@ Reusable refresh icon (`RefreshCw`) with spin animation on press. Used on Home, 
 
 ```
 ┌─────────────────────────────┐
-│  ←    SAJ-00000042          │
+│  ←    JUH-00000042          │
 │                             │
 │  Order Status               │
 │  ┌─────────────────────────┐│
@@ -1218,7 +1220,7 @@ Reusable refresh icon (`RefreshCw`) with spin animation on press. Used on Home, 
 ```
 
 - No cancel button (removed from scope)
-- WhatsApp: `wa.me/91XXXXXXXXXX?text=Order%20SAJ-00000042`
+- WhatsApp: `wa.me/91XXXXXXXXXX?text=Order%20JUH-00000042`
 
 ---
 

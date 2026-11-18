@@ -1,6 +1,6 @@
 import { IsUUID, IsEnum, IsString, IsOptional, MaxLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { PaymentMode } from '@sajani/shared';
+import { PaymentMode } from '@juhar/shared';
 
 export class PlaceOrderDto {
   @ApiProperty()

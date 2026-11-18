@@ -8,7 +8,7 @@ import styles from './login.module.css';
 export default function LoginPage() {
   const router = useRouter();
   const [step, setStep] = useState<'phone' | 'otp'>('phone');
-  const [phone, setPhone] = useState('+91');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -52,7 +52,7 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      await api.requestOtp(phone);
+      await api.requestOtp('+91' + phoneNumber);
       setStep('otp');
     } catch (err: any) {
       setError(err.message || 'Failed to send OTP');
@@ -66,9 +66,9 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      const result = await api.verifyOtp(phone, otp);
+      const result = await api.verifyOtp('+91' + phoneNumber, otp);
       api.setToken(result.accessToken);
-      localStorage.setItem('sajani_admin_refresh', result.refreshToken);
+      localStorage.setItem('juhar_admin_refresh', result.refreshToken);
 
       // Verify admin access
       const me = await api.getMe();
@@ -92,7 +92,7 @@ export default function LoginPage() {
       <div className={styles.brandPanel}>
         <div className={styles.brandDecor} />
         <div className={styles.brandContent}>
-          <h1 className={styles.brandName}>Sajani</h1>
+          <h1 className={styles.brandName}>Juhar</h1>
           <p className={styles.brandSubtitle}>Admin Portal</p>
           <div className={styles.brandDivider} />
           <p className={styles.brandTagline}>
@@ -113,14 +113,19 @@ export default function LoginPage() {
             <form onSubmit={handleRequestOtp} className={styles.form}>
               <div className={styles.fieldGroup}>
                 <label className={styles.label}>Phone Number</label>
-                <input
-                  className={styles.input}
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+919876543210"
-                  required
-                />
+                <div className={styles.phoneRow}>
+                  <span className={styles.phonePrefix}>+91</span>
+                  <input
+                    className={styles.phoneInput}
+                    type="tel"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                    placeholder="98765 43210"
+                    maxLength={10}
+                    required
+                    autoFocus
+                  />
+                </div>
                 <p className={styles.hint}>Enter your admin phone number. Dev OTP: 123456</p>
               </div>
               {error && <div className={styles.error}>{error}</div>}
@@ -148,7 +153,7 @@ export default function LoginPage() {
                     />
                   ))}
                 </div>
-                <p className={styles.hint}>OTP sent to {phone}. Dev OTP: <strong>123456</strong></p>
+                <p className={styles.hint}>OTP sent to +91{phoneNumber}. Dev OTP: <strong>123456</strong></p>
               </div>
               {error && <div className={styles.error}>{error}</div>}
               <button className={styles.button} type="submit" disabled={loading}>

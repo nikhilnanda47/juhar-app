@@ -57,8 +57,9 @@ export default function SplashScreen({ onFinish }: Props) {
 
       {/* Centered Brand */}
       <Animated.View style={[styles.brandCore, { opacity: brandOpacity, transform: [{ translateY: brandTranslate }] }]}>
-        <Text style={styles.wordmark}>Sajani</Text>
-        <Text style={styles.odiaScript}>ସଜନୀ</Text>
+        <Text style={styles.wordmark}>Juhar</Text>
+        <Text style={styles.odiaScript}>ଜୁହାର୍</Text>
+        <Text style={styles.tagline}>A Tradition Worth Wearing</Text>
 
         {/* Pulsing dots */}
         <View style={styles.dotsRow}>
@@ -93,6 +94,11 @@ const styles = StyleSheet.create({
   odiaScript: {
     fontFamily: 'DMSans-Regular', fontSize: 14, lineHeight: 22,
     color: 'rgba(84,66,68,0.8)', marginTop: 4,
+  },
+  tagline: {
+    fontFamily: 'DMSans-Medium', fontSize: 12, lineHeight: 18,
+    color: 'rgba(84,66,68,0.6)', marginTop: 8, letterSpacing: 1.5,
+    textTransform: 'uppercase',
   },
 
   // Dots

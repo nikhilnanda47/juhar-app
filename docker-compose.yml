@@ -3,18 +3,18 @@ version: '3.8'
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: sajani-postgres
+    container_name: juhar-postgres
     restart: unless-stopped
     ports:
       - '5432:5432'
     environment:
-      POSTGRES_USER: sajani
-      POSTGRES_PASSWORD: sajani_dev_password
-      POSTGRES_DB: sajani_dev
+      POSTGRES_USER: juhar
+      POSTGRES_PASSWORD: juhar_dev_password
+      POSTGRES_DB: juhar_dev
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U sajani -d sajani_dev']
+      test: ['CMD-SHELL', 'pg_isready -U juhar -d juhar_dev']
       interval: 5s
       timeout: 5s
       retries: 5

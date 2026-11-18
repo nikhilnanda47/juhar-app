@@ -11,7 +11,7 @@ async function main() {
     update: {},
     create: {
       phone: '+919876543210',
-      name: 'Sajani Admin',
+      name: 'Juhar Admin',
       role: 'owner',
     },
   });

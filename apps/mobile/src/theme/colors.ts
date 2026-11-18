@@ -1,5 +1,5 @@
 /**
- * Sajani color palette — UI Specification v2.0
+ * Juhar color palette — UI Specification v2.0
  * Soft Burgundy + Warm Bronze, clean/minimal design system.
  */
 export const colors = {

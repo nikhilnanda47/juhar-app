@@ -1,21 +1,21 @@
 {
   "expo": {
-    "name": "Sajani",
-    "slug": "sajani-app",
+    "name": "Juhar",
+    "slug": "juhar-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "scheme": "sajani",
+    "scheme": "juhar",
     "splash": {
       "backgroundColor": "#FAFAF7",
       "resizeMode": "contain"
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.sajani.app"
+      "bundleIdentifier": "com.juhar.app"
     },
     "android": {
-      "package": "com.sajani.app",
+      "package": "com.juhar.app",
       "adaptiveIcon": {
         "backgroundColor": "#8B3A4A"
       }

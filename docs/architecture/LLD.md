@@ -1,4 +1,4 @@
-# Sajani — Low-Level Design (Pilot P0)
+# Juhar — Low-Level Design (Pilot P0)
 
 **Version:** 1.0  
 **Date:** 13 November 2026  
@@ -38,7 +38,7 @@ src/
 │   └── utils/
 │       ├── paise.util.ts            # Money helpers
 │       ├── slug.util.ts             # Slug generation
-│       └── order-number.util.ts     # SAJ-YYYYMMDD-XXXX generator
+│       └── order-number.util.ts     # JUH-YYYYMMDD-XXXX generator
 ├── prisma/
 │   ├── prisma.module.ts
 │   └── prisma.service.ts            # Extends PrismaClient, onModuleInit
@@ -1908,7 +1908,7 @@ TabNavigator (5 tabs)
 | Screen | Trigger |
 |---|---|
 | Splash | App cold start, shown for 1-2s |
-| Welcome | First launch only (`@sajani/onboarded` not in AsyncStorage) |
+| Welcome | First launch only (`@juhar/onboarded` not in AsyncStorage) |
 | No Internet | `NetInfo` listener detects offline state |
 | Force Update | API response header `X-Min-App-Version` > current app version |
 | Maintenance | API returns HTTP 503 with `maintenance: true` |

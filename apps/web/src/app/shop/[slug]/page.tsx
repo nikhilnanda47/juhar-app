@@ -47,7 +47,7 @@ export default function ProductDetailPage() {
       if (isLoggedIn()) {
         await addToCart(selectedVariant.id, 1);
       } else {
-        const localCart = JSON.parse(localStorage.getItem('sajani_local_cart') || '[]');
+        const localCart = JSON.parse(localStorage.getItem('juhar_local_cart') || '[]');
         const existing = localCart.find((c: any) => c.variantId === selectedVariant.id);
         if (existing) { existing.quantity += 1; }
         else {
@@ -59,7 +59,7 @@ export default function ProductDetailPage() {
             compareAtPaise: selectedVariant.compareAtPaise, available: selectedVariant.available,
           });
         }
-        localStorage.setItem('sajani_local_cart', JSON.stringify(localCart));
+        localStorage.setItem('juhar_local_cart', JSON.stringify(localCart));
       }
       setAddedToCart(true);
       setShowToast(true);

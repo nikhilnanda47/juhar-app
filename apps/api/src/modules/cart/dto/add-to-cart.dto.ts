@@ -1,6 +1,6 @@
 import { IsUUID, IsInt, Min, Max } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { CART } from '@sajani/shared';
+import { CART } from '@juhar/shared';
 
 export class AddToCartDto {
   @ApiProperty()

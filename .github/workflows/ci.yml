@@ -14,9 +14,9 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_USER: sajani
-          POSTGRES_PASSWORD: sajani_test_password
-          POSTGRES_DB: sajani_test
+          POSTGRES_USER: juhar
+          POSTGRES_PASSWORD: juhar_test_password
+          POSTGRES_DB: juhar_test
         ports:
           - 5432:5432
         options: >-
@@ -52,7 +52,7 @@ jobs:
       - name: Run tests
         run: npm run test -w apps/api --if-present
         env:
-          DATABASE_URL: postgresql://sajani:sajani_test_password@localhost:5432/sajani_test
+          DATABASE_URL: postgresql://juhar:juhar_test_password@localhost:5432/juhar_test
           JWT_SECRET: test-secret
           JWT_REFRESH_SECRET: test-refresh-secret
           NODE_ENV: test

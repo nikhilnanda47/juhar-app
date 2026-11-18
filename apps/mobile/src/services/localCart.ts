@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addToCart as serverAddToCart, getCart, isLoggedIn, type CartResponse } from './api';
 
-const LOCAL_CART_KEY = 'sajani_local_cart';
+const LOCAL_CART_KEY = 'juhar_local_cart';
 
 export interface LocalCartItem {
   variantId: string;

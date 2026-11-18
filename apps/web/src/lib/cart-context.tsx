@@ -21,14 +21,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
       } else {
         // Check local cart
         if (typeof window !== 'undefined') {
-          const local = JSON.parse(localStorage.getItem('sajani_local_cart') || '[]');
+          const local = JSON.parse(localStorage.getItem('juhar_local_cart') || '[]');
           setItemCount(local.reduce((sum: number, i: any) => sum + i.quantity, 0));
         }
       }
     } catch {
       // Fallback to local cart
       if (typeof window !== 'undefined') {
-        const local = JSON.parse(localStorage.getItem('sajani_local_cart') || '[]');
+        const local = JSON.parse(localStorage.getItem('juhar_local_cart') || '[]');
         setItemCount(local.reduce((sum: number, i: any) => sum + i.quantity, 0));
       }
     }

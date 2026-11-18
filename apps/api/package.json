@@ -1,7 +1,10 @@
 {
-  "name": "@sajani/api",
+  "name": "@juhar/api",
   "version": "1.0.0",
   "private": true,
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
+  },
   "scripts": {
     "dev": "nest start --watch",
     "build": "nest build",
@@ -29,7 +32,7 @@
     "@nestjs/swagger": "^7.4.0",
     "@nestjs/throttler": "^6.2.0",
     "@prisma/client": "^5.20.0",
-    "@sajani/shared": "*",
+    "@juhar/shared": "*",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
     "passport": "^0.7.0",

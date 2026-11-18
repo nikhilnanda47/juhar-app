@@ -16,7 +16,7 @@ export default function OrderSuccessPage() {
   useEffect(() => {
     if (!orderId) return;
     loadToken();
-    const token = localStorage.getItem('sajani_token');
+    const token = localStorage.getItem('juhar_token');
     fetch(`${API_BASE}/api/v1/orders/${orderId}`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then(j => { if (j.success) setOrder(j.data); })

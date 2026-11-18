@@ -3,7 +3,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AddToCartDto, UpdateCartItemDto } from './dto';
-import { CART } from '@sajani/shared';
+import { CART } from '@juhar/shared';
 
 @Injectable()
 export class CartService {

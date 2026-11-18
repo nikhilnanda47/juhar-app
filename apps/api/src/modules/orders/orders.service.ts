@@ -5,7 +5,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { InventoryService } from '../inventory/inventory.service';
 import { OrderQueryDto, AdminOrderQueryDto, UpdateOrderStatusDto, CancelOrderDto } from './dto';
-import { canTransitionOrder, OrderStatus, PAGINATION } from '@sajani/shared';
+import { canTransitionOrder, OrderStatus, PAGINATION } from '@juhar/shared';
 
 @Injectable()
 export class OrdersService {

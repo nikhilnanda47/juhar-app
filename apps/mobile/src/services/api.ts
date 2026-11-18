@@ -7,10 +7,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const API_BASE = __DEV__
   ? 'http://localhost:3000'  // Dev: local API
-  : 'https://api.sajani.in'; // Prod: placeholder
+  : 'https://api.juhar.in'; // Prod: placeholder
 
-const TOKEN_KEY = 'sajani_token';
-const REFRESH_KEY = 'sajani_refresh';
+const TOKEN_KEY = 'juhar_token';
+const REFRESH_KEY = 'juhar_refresh';
 
 let accessToken: string | null = null;
 

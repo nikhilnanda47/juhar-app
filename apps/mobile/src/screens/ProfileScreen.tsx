@@ -14,7 +14,7 @@ import {
 } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_BASE = __DEV__ ? 'http://localhost:3000' : 'https://api.sajani.in';
+const API_BASE = __DEV__ ? 'http://localhost:3000' : 'https://api.juhar.in';
 import { useNavigation } from '@react-navigation/native';
 import { FadeInUp, ScalePress } from '../components/AnimatedUI';
 import RefreshButton from '../components/RefreshButton';
@@ -58,7 +58,7 @@ export default function ProfileScreen() {
 
   const fetchCounts = async () => {
     try {
-      const token = await AsyncStorage.getItem('sajani_token');
+      const token = await AsyncStorage.getItem('juhar_token');
       const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
       const [ordersRes, addrs] = await Promise.all([
         fetch(`${API_BASE}/api/v1/orders`, { headers }).then(r => r.json()),
@@ -237,7 +237,7 @@ export default function ProfileScreen() {
     return (
       <View style={styles.authContainer}>
         <View style={styles.authContent}>
-          <Text style={styles.authTitle}>Welcome to Sajani</Text>
+          <Text style={styles.authTitle}>Welcome to Juhar</Text>
           <Text style={styles.authSubtext}>What should we call you?</Text>
 
           <View style={styles.inputGroup}>
@@ -300,7 +300,7 @@ export default function ProfileScreen() {
             )}
           </View>
           <View style={styles.profileInfo}>
-            <Text style={styles.profileName} numberOfLines={1}>{profile?.name || 'Sajani Customer'}</Text>
+            <Text style={styles.profileName} numberOfLines={1}>{profile?.name || 'Juhar Customer'}</Text>
             <Text style={styles.profilePhone}>{profile?.phone}</Text>
           </View>
         </View>
@@ -415,7 +415,7 @@ export default function ProfileScreen() {
       {/* App Version */}
       <FadeInUp delay={420} duration={400}>
       <View style={styles.versionWrap}>
-        <Text style={styles.versionText}>Sajani v2.0.4</Text>
+        <Text style={styles.versionText}>Juhar v2.0.4</Text>
       </View>
       </FadeInUp>
     </ScrollView>

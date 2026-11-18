@@ -9,7 +9,7 @@ const FREE_SHIPPING_THRESHOLD = 500000;
 
 function getLocalCart(): any[] {
   if (typeof window === 'undefined') return [];
-  return JSON.parse(localStorage.getItem('sajani_local_cart') || '[]');
+  return JSON.parse(localStorage.getItem('juhar_local_cart') || '[]');
 }
 
 function localToCartResponse(items: any[]): CartResponse {
@@ -61,7 +61,7 @@ export default function CartPage() {
         let items = getLocalCart();
         if (newQty <= 0) items = items.filter((c: any) => c.variantId !== variantId);
         else { const item = items.find((c: any) => c.variantId === variantId); if (item) item.quantity = newQty; }
-        localStorage.setItem('sajani_local_cart', JSON.stringify(items));
+        localStorage.setItem('juhar_local_cart', JSON.stringify(items));
         setCart(localToCartResponse(items));
       }
     } catch {}
@@ -75,7 +75,7 @@ export default function CartPage() {
       else {
         const variantId = itemId.replace('local-', '');
         const items = getLocalCart().filter((c: any) => c.variantId !== variantId);
-        localStorage.setItem('sajani_local_cart', JSON.stringify(items));
+        localStorage.setItem('juhar_local_cart', JSON.stringify(items));
         setCart(localToCartResponse(items));
       }
     } catch {}

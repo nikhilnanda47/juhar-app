@@ -10,7 +10,7 @@ import SplashScreen from './src/screens/SplashScreen';
 import WelcomeScreen from './src/screens/WelcomeScreen';
 import { colors } from './src/theme';
 
-const ONBOARDING_KEY = 'sajani_onboarding_done';
+const ONBOARDING_KEY = 'juhar_onboarding_done';
 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);

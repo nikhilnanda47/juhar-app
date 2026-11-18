@@ -1,6 +1,6 @@
 import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { OrderStatus } from '@sajani/shared';
+import { OrderStatus } from '@juhar/shared';
 
 export class UpdateOrderStatusDto {
   @ApiProperty({ enum: OrderStatus })

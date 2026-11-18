@@ -1,6 +1,6 @@
 import { IsString, IsOptional, IsUUID, IsEnum, IsArray, IsInt, Min, MaxLength, IsBoolean, IsObject } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { PublishStatus } from '@sajani/shared';
+import { PublishStatus } from '@juhar/shared';
 
 export class UpdateProductDto {
   @ApiPropertyOptional()

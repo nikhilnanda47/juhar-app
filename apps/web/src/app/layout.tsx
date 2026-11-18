@@ -1,26 +1,32 @@
 import type { Metadata, Viewport } from 'next';
-import { Noto_Serif, DM_Sans } from 'next/font/google';
+import localFont from 'next/font/local';
 import './globals.css';
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import { CartProvider } from '@/lib/cart-context';
 
-const notoSerif = Noto_Serif({
-  subsets: ['latin'],
+const notoSerif = localFont({
+  src: [
+    { path: '../fonts/NotoSerif-Regular.ttf', weight: '400', style: 'normal' },
+    { path: '../fonts/NotoSerif-Medium.ttf', weight: '500', style: 'normal' },
+  ],
   variable: '--font-serif',
   display: 'swap',
-  weight: ['400', '500'],
 });
 
-const dmSans = DM_Sans({
-  subsets: ['latin'],
+const dmSans = localFont({
+  src: [
+    { path: '../fonts/DMSans-Regular.ttf', weight: '400', style: 'normal' },
+    { path: '../fonts/DMSans-Medium.ttf', weight: '500', style: 'normal' },
+    { path: '../fonts/DMSans-SemiBold.ttf', weight: '600', style: 'normal' },
+    { path: '../fonts/DMSans-Bold.ttf', weight: '700', style: 'normal' },
+  ],
   variable: '--font-sans',
   display: 'swap',
-  weight: ['400', '500', '600', '700'],
 });
 
 export const metadata: Metadata = {
-  title: 'Sajani — Sambalpuri Handloom Sarees | Direct from Weavers',
+  title: 'Juhar — Sambalpuri Handloom Sarees | Direct from Weavers',
   description: 'Authentic Sambalpuri handloom sarees from Western Odisha. Direct from master weavers to your doorstep. GI certified, fair-trade, cash on delivery.',
   keywords: ['sambalpuri saree', 'handloom', 'odisha', 'ikat', 'bandha', 'handwoven'],
 };

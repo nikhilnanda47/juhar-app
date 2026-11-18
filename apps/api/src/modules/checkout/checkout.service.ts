@@ -4,7 +4,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { InventoryService } from '../inventory/inventory.service';
 import { CheckoutQuoteDto, PlaceOrderDto } from './dto';
-import { generateOrderNumber, PaymentMode } from '@sajani/shared';
+import { generateOrderNumber, PaymentMode } from '@juhar/shared';
 
 // Pilot: flat shipping rate
 const SHIPPING_PAISE = 9900; // ₹99

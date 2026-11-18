@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
-  title: Sajani API
+  title: Juhar API
   description: |
-    REST API for Sajani — D2C Sambalpuri fashion e-commerce platform.
+    REST API for Juhar — D2C Sambalpuri fashion e-commerce platform.
     Pilot scope: catalog browsing, cart/checkout, UPI + COD payments,
     inventory management, order lifecycle, and admin operations.
 
@@ -24,14 +24,14 @@ info:
     - Public APIs: 30 req/min/IP
   version: 1.0.0
   contact:
-    name: Sajani Tech Team
+    name: Juhar Tech Team
 
 servers:
   - url: http://localhost:3000
     description: Local development
-  - url: https://api.staging.sajani.in
+  - url: https://api.staging.juhar.in
     description: Staging
-  - url: https://api.sajani.in
+  - url: https://api.juhar.in
     description: Production
 
 tags:
@@ -555,7 +555,7 @@ components:
           format: uuid
         sku:
           type: string
-          example: SAJ-IKT-MRN-001
+          example: JUH-IKT-MRN-001
         name:
           type: string
           nullable: true
@@ -927,7 +927,7 @@ components:
           type: array
           items:
             type: string
-          example: ["Only 2 units of SAJ-IKT-MRN-001 left"]
+          example: ["Only 2 units of JUH-IKT-MRN-001 left"]
 
     PlaceOrderBody:
       type: object
@@ -957,7 +957,7 @@ components:
           format: uuid
         publicNumber:
           type: string
-          example: SAJ-20261115-0001
+          example: JUH-20261115-0001
         status:
           type: string
           enum: [placed, confirmed, packed, shipped, delivered, cancelled, return_requested, return_approved, return_rejected, returned, refund_pending, refunded]
@@ -1141,7 +1141,7 @@ components:
               type: string
             name:
               type: string
-              example: Sajani
+              example: Juhar
             description:
               type: string
             prefill:
@@ -2374,7 +2374,7 @@ paths:
               occasion: ["Festive", "Wedding"]
               tags: ["silk", "ikat", "bapta", "maroon"]
               variants:
-                - sku: "SAJ-IKT-MRN-001"
+                - sku: "JUH-IKT-MRN-001"
                   name: "Maroon with Gold Border"
                   color: "Maroon"
                   attributes: { "border": "gold zari", "pallu": "contrast" }

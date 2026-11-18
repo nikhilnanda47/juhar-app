@@ -1,5 +1,5 @@
 {
-  "name": "@sajani/admin",
+  "name": "@juhar/admin",
   "version": "1.0.0",
   "private": true,
   "scripts": {
@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@sajani/shared": "*",
+    "@juhar/shared": "*",
     "next": "^14.2.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"

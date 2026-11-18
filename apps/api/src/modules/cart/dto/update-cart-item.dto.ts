@@ -1,6 +1,6 @@
 import { IsInt, Min, Max } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { CART } from '@sajani/shared';
+import { CART } from '@juhar/shared';
 
 export class UpdateCartItemDto {
   @ApiProperty({ example: 2, minimum: 0, maximum: CART.MAX_QUANTITY_PER_VARIANT, description: '0 = remove' })

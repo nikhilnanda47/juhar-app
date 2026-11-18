@@ -49,8 +49,8 @@ export default function HomeScreen() {
       <FadeInUp delay={0} duration={600}>
         <View style={styles.subHeader}>
           <View style={styles.brandRow}>
-            <Text style={styles.brandName}>Sajani</Text>
-            <Text style={styles.odiaScript}>ସଜନୀ</Text>
+            <Text style={styles.brandName}>Juhar</Text>
+            <Text style={styles.odiaScript}>ଜୁହାର୍</Text>
           </View>
           <View style={styles.subHeaderRight}>
             <Text style={styles.originLabel}>WESTERN ODISHA</Text>

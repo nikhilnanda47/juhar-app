@@ -35,7 +35,7 @@ async function bootstrap() {
 
   // Swagger / OpenAPI
   const config = new DocumentBuilder()
-    .setTitle('Sajani API')
+    .setTitle('Juhar API')
     .setDescription('D2C Sambalpuri fashion e-commerce API')
     .setVersion('1.0')
     .addBearerAuth()
@@ -45,7 +45,7 @@ async function bootstrap() {
 
   const port = process.env.PORT || 3000;
   await app.listen(port);
-  console.log(`🚀 Sajani API running on http://localhost:${port}`);
+  console.log(`🚀 Juhar API running on http://localhost:${port}`);
   console.log(`📄 Swagger docs at http://localhost:${port}/api/docs`);
 }
 

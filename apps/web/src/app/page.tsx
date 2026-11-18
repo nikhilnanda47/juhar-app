@@ -18,8 +18,8 @@ export default function HomePage() {
       {/* Sub-header — mobile only */}
       <div className="flex items-center justify-between px-margin py-3 lg:hidden">
         <div className="flex items-center gap-space-xs">
-          <span className="font-serif text-headline-md text-primary">Sajani</span>
-          <span className="font-sans text-body-md text-on-surface-variant/80">ସଜନୀ</span>
+          <span className="font-serif text-headline-md text-primary">Juhar</span>
+          <span className="font-sans text-body-md text-on-surface-variant/80">ଜୁହାର୍</span>
         </div>
         <span className="label-upper">WESTERN ODISHA</span>
       </div>

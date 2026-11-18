@@ -10,7 +10,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OtpProvider, OTP_PROVIDER } from './providers/otp-provider.interface';
 import { RequestOtpDto, VerifyOtpDto } from './dto';
-import { AUTH } from '@sajani/shared';
+import { AUTH } from '@juhar/shared';
 import * as crypto from 'crypto';
 
 interface OtpRecord {

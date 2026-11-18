@@ -1,7 +1,7 @@
-# Sajani — Deployment Plan (Pilot P0)
+# Juhar — Deployment Plan (Pilot P0)
 
-**Version:** 1.0  
-**Date:** 14 November 2026  
+**Version:** 1.1  
+**Date:** 18 November 2026  
 **Status:** Planned
 
 ---
@@ -12,41 +12,47 @@
 ┌──────────────────────────────────────────────────────────────────┐
 │                        CUSTOMERS                                 │
 │                                                                  │
-│   ┌─────────────┐              ┌──────────────┐                 │
-│   │ Android App │              │   Admin Panel │                 │
-│   │ (APK/Store) │              │  (Web Browser)│                 │
-│   └──────┬──────┘              └──────┬───────┘                 │
-│          │                            │                          │
-└──────────┼────────────────────────────┼──────────────────────────┘
-           │ HTTPS                      │ HTTPS
-           │                            │
-┌──────────▼────────────────────────────▼──────────────────────────┐
+│   ┌─────────────┐  ┌──────────────┐       ┌──────────────┐     │
+│   │ Android App │  │  Customer    │       │  Admin Panel  │     │
+│   │ (APK/Store) │  │  Website    │       │  (Web Browser)│     │
+│   └──────┬──────┘  └──────┬──────┘       └──────┬───────┘     │
+│          │                │                      │              │
+└──────────┼────────────────┼──────────────────────┼──────────────┘
+           │ HTTPS          │ HTTPS                │ HTTPS
+           │                │                      │
+┌──────────▼────────────────▼──────────────────────▼──────────────┐
 │                     HOSTING LAYER                                │
 │                                                                  │
-│   ┌─────────────┐     ┌──────────────┐     ┌─────────────────┐  │
-│   │  Expo EAS   │     │   Vercel     │     │  Cloudflare R2  │  │
-│   │  (Build &   │     │  (Admin      │     │  (Images + CDN) │  │
-│   │   OTA)      │     │   Panel)     │     │  10GB Free      │  │
-│   │  Free Tier  │     │  Free Tier   │     │  Zero Egress    │  │
-│   └─────────────┘     └──────┬───────┘     └────────┬────────┘  │
-│                              │                      │            │
-│                   ┌──────────▼──────────┐           │            │
-│                   │    Railway.app      │◄──────────┘            │
-│                   │    (NestJS API)     │                        │
-│                   │    $5/month Hobby   │                        │
-│                   └──────────┬──────────┘                        │
+│   ┌─────────────┐  ┌──────────────┐  ┌──────────────┐          │
+│   │  Expo EAS   │  │   Vercel     │  │   Vercel     │          │
+│   │  (Build &   │  │  (Customer   │  │  (Admin      │          │
+│   │   OTA)      │  │   Website)   │  │   Panel)     │          │
+│   │  Free Tier  │  │  Free Tier   │  │  Free Tier   │          │
+│   └─────────────┘  └──────┬───────┘  └──────┬───────┘          │
+│                           │                  │                   │
+│                   ┌───────▼──────────────────▼──┐               │
+│                   │       Railway.app           │               │
+│                   │       (NestJS API)          │               │
+│                   │       $5/month Hobby        │               │
+│                   └──────────┬──────────────────┘               │
 │                              │                                   │
-│                   ┌──────────▼──────────┐                       │
+│   ┌─────────────────┐       │                                   │
+│   │  Cloudflare R2  │◄──────┘                                   │
+│   │  (Images + CDN) │       │                                   │
+│   │  10GB Free      │       │                                   │
+│   └─────────────────┘       │                                   │
+│                   ┌─────────▼───────────┐                       │
 │                   │     Supabase        │                        │
 │                   │   (PostgreSQL 15)   │                        │
 │                   │    Free Tier        │                        │
 │                   │    500MB + Backups  │                        │
 │                   └─────────────────────┘                        │
 │                                                                  │
-│   ┌─────────────┐                                               │
-│   │   MSG91     │  SMS OTP Provider                             │
-│   │  ~₹0.20/SMS│  Pay-per-use                                  │
-│   └─────────────┘                                               │
+│   ┌─────────────┐  ┌──────────────┐                             │
+│   │   MSG91     │  │  Zoho Mail   │                             │
+│   │  ~₹0.20/SMS│  │  (Email)     │                             │
+│   │  Pay-per-use│  │  Free Tier   │                             │
+│   └─────────────┘  └──────────────┘                             │
 │                                                                  │
 └──────────────────────────────────────────────────────────────────┘
 ```
@@ -79,28 +85,51 @@
 
 ---
 
-### 2.2 Admin Panel — Vercel
+### 2.2 Customer Website — Vercel
+
+| Item | Detail |
+|------|--------|
+| **Service** | Vercel (vercel.com) |
+| **What it does** | Hosts the Next.js customer-facing e-commerce website |
+| **Plan** | Hobby (free) |
+| **Cost** | ₹0 |
+| **Bandwidth** | 100GB/month |
+| **Deploy** | Auto-deploys on `git push` to `main` via GitHub integration |
+| **Custom Domain** | `juhar.co.in` + `www.juhar.co.in` (free SSL included) |
+| **Features** | Shop, product detail, cart, checkout, orders, account — same as mobile app |
+
+**Setup:**
+1. Create a new Vercel project, connect GitHub repo
+2. Set root directory to `apps/web`
+3. Set env variable: `NEXT_PUBLIC_API_URL=https://api.juhar.co.in`
+4. Add custom domain `juhar.co.in` and `www.juhar.co.in`
+5. Every push to `main` auto-deploys
+
+---
+
+### 2.3 Admin Panel — Vercel
 
 | Item | Detail |
 |------|--------|
 | **Service** | Vercel (vercel.com) |
 | **What it does** | Hosts the Next.js admin panel as a static + serverless app |
-| **Plan** | Hobby (free) |
+| **Plan** | Hobby (free) — same account as customer website |
 | **Cost** | ₹0 |
 | **Bandwidth** | 100GB/month (more than enough for admin usage) |
 | **Deploy** | Auto-deploys on `git push` to `main` via GitHub integration |
-| **Custom Domain** | `admin.sajani.in` (free SSL included) |
+| **Custom Domain** | `admin.juhar.co.in` (free SSL included) |
 | **Limitations** | 1 team member on free tier, 100 deployments/day |
 
 **Setup:**
-1. Connect GitHub repo to Vercel
+1. Create a second Vercel project (same account), connect GitHub repo
 2. Set root directory to `apps/admin`
-3. Set env variable: `NEXT_PUBLIC_API_URL=https://api.sajani.in`
-4. Every push to `main` auto-deploys
+3. Set env variable: `NEXT_PUBLIC_API_URL=https://api.juhar.co.in`
+4. Add custom domain `admin.juhar.co.in`
+5. Every push to `main` auto-deploys
 
 ---
 
-### 2.3 Backend API — Railway.app
+### 2.4 Backend API — Railway.app
 
 | Item | Detail |
 |------|--------|
@@ -110,7 +139,7 @@
 | **Cost** | ~₹420/month |
 | **Resources** | 8GB RAM, 8 vCPU (shared), 100GB bandwidth |
 | **Deploy** | Auto-deploys on `git push` via GitHub integration |
-| **Custom Domain** | `api.sajani.in` (free SSL) |
+| **Custom Domain** | `api.juhar.co.in` (free SSL) |
 | **Cold Start** | None on Hobby plan (always-on) |
 | **Logs** | Built-in log viewer + metrics |
 
@@ -130,7 +159,7 @@
 
 ---
 
-### 2.4 Database — Supabase PostgreSQL
+### 2.5 Database — Supabase PostgreSQL
 
 | Item | Detail |
 |------|--------|
@@ -160,7 +189,7 @@
 
 ---
 
-### 2.5 Media Storage — Cloudflare R2
+### 2.6 Media Storage — Cloudflare R2
 
 | Item | Detail |
 |------|--------|
@@ -172,7 +201,7 @@
 | **Egress** | **Zero egress fees** (unlike AWS S3) |
 | **CDN** | Built-in — images served from nearest Cloudflare edge |
 | **API** | S3-compatible (same SDK, different endpoint URL) |
-| **Custom Domain** | `images.sajani.in` |
+| **Custom Domain** | `images.juhar.co.in` |
 
 **Why R2 over S3:**
 - S3 charges for every image download (egress). With 1000 customers viewing 10 images each = 10,000 downloads/day → S3 egress adds up fast
@@ -182,11 +211,11 @@
 **Image strategy:**
 - Upload original + generate thumbnail on API side
 - Store as: `products/{productId}/{variantId}_{sortOrder}.webp`
-- Serve via: `https://images.sajani.in/products/...`
+- Serve via: `https://images.juhar.co.in/products/...`
 
 ---
 
-### 2.6 SMS/OTP — MSG91
+### 2.7 SMS/OTP — MSG91
 
 | Item | Detail |
 |------|--------|
@@ -205,6 +234,25 @@
 
 ---
 
+### 2.8 Email — Zoho Mail
+
+| Item | Detail |
+|------|--------|
+| **Service** | Zoho Mail (zoho.com/mail) |
+| **What it does** | Business email for the juhar.co.in domain |
+| **Plan** | Free tier (up to 5 users) |
+| **Cost** | ₹0 |
+| **Email** | e.g. `hello@juhar.co.in`, `support@juhar.co.in` |
+| **Status** | ✅ Already configured — MX records set, sending/receiving works |
+
+**Future use:**
+- Order confirmation emails to customers
+- Shipping notification emails
+- Password reset / account emails (if added)
+- Can integrate via Zoho SMTP or Zoho API for transactional emails
+
+---
+
 ## 3. Cost Summary
 
 ### Pilot Phase (0-3 months)
@@ -212,12 +260,14 @@
 | Service | Monthly Cost |
 |---------|-------------|
 | Expo EAS (mobile builds) | ₹0 |
+| Vercel (customer website) | ₹0 |
 | Vercel (admin panel) | ₹0 |
 | Railway.app (API) | ₹420 |
 | Supabase (database) | ₹0 |
 | Cloudflare R2 (images) | ₹0 |
 | MSG91 (OTP SMS) | ₹200 |
-| Domain (sajani.in) | ₹42 (₹500/year) |
+| Zoho Mail (email) | ₹0 |
+| Domain (juhar.co.in) | ₹42 (₹500/year) |
 | **Total** | **~₹660/month** |
 
 ### Growth Phase (3-12 months, ~2000 customers)
@@ -225,7 +275,7 @@
 | Service | Monthly Cost |
 |---------|-------------|
 | Expo EAS | ₹0 |
-| Vercel | ₹0 |
+| Vercel (website + admin) | ₹0 |
 | Railway.app (Pro) | ₹1,700 ($20) |
 | Supabase (Pro) | ₹2,100 ($25) |
 | Cloudflare R2 | ₹0 |
@@ -250,13 +300,14 @@
 
 | Domain | Points To | Purpose |
 |--------|-----------|---------|
-| `sajani.in` | Marketing landing page (future) | Brand homepage |
-| `api.sajani.in` | Railway.app | Backend API |
-| `admin.sajani.in` | Vercel | Admin panel |
-| `images.sajani.in` | Cloudflare R2 | Product images CDN |
+| `juhar.co.in` / `www` | Vercel | Customer website |
+| `api.juhar.co.in` | Railway.app | Backend API |
+| `admin.juhar.co.in` | Vercel | Admin panel |
+| `images.juhar.co.in` | Cloudflare R2 | Product images CDN |
+| MX records | Zoho Mail | Business email (already configured) |
 
-**Registrar:** Any Indian registrar (GoDaddy, Namecheap, BigRock)  
-**DNS:** Cloudflare (free) — also gives DDoS protection and analytics
+**Registrar:** GoDaddy (already registered)  
+**DNS:** GoDaddy (current) — consider moving to Cloudflare (free) for R2 custom domain + DDoS protection
 
 ---
 
@@ -276,14 +327,14 @@ MSG91_TEMPLATE_ID=<msg91-template-id>
 # ── Server ──
 PORT=3000
 NODE_ENV=production
-CORS_ORIGINS=https://admin.sajani.in,https://sajani.in
+CORS_ORIGINS=https://juhar.co.in,https://www.juhar.co.in,https://admin.juhar.co.in
 
 # ── Storage ──
 R2_ACCOUNT_ID=<cloudflare-account-id>
 R2_ACCESS_KEY=<r2-access-key>
 R2_SECRET_KEY=<r2-secret-key>
-R2_BUCKET=sajani-media
-R2_PUBLIC_URL=https://images.sajani.in
+R2_BUCKET=juhar-media
+R2_PUBLIC_URL=https://images.juhar.co.in
 
 # ── Payments (Phase 4) ──
 PAYMENT_GATEWAY=mock
@@ -297,11 +348,13 @@ PAYMENT_GATEWAY=mock
 
 ### One-Time Setup
 
-- [ ] Register `sajani.in` domain
-- [ ] Create Cloudflare account, add domain, update nameservers
+- [x] Register `juhar.co.in` domain (GoDaddy)
+- [x] Set up Zoho Mail (MX records configured, email working)
+- [ ] Create Cloudflare account, add domain, update nameservers (optional — needed for R2 custom domain)
 - [ ] Create Supabase project (Mumbai region)
 - [ ] Create Railway.app project, connect GitHub repo
-- [ ] Create Vercel project, connect GitHub repo
+- [ ] Create Vercel project for customer website (`apps/web`), connect GitHub repo
+- [ ] Create Vercel project for admin panel (`apps/admin`), connect GitHub repo
 - [ ] Create Cloudflare R2 bucket
 - [ ] Create MSG91 account, register DLT template
 - [ ] Create Expo EAS project (`eas init`)
@@ -314,6 +367,7 @@ PAYMENT_GATEWAY=mock
 
 - [ ] Push code to `main` branch
 - [ ] Railway auto-deploys API (verify health check)
+- [ ] Vercel auto-deploys customer website
 - [ ] Vercel auto-deploys admin panel
 - [ ] For mobile changes: `npx eas build --platform android`
 - [ ] Download APK, share to pilot users
@@ -323,7 +377,7 @@ PAYMENT_GATEWAY=mock
 
 - [ ] Railway built-in logs and metrics
 - [ ] Supabase dashboard (DB stats, connections, storage)
-- [ ] Vercel analytics (admin panel)
+- [ ] Vercel analytics (customer website + admin panel)
 - [ ] Cloudflare analytics (image requests, bandwidth)
 - [ ] Optional: Better Stack (betterstack.com) free tier for uptime monitoring
 

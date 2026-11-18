@@ -1,7 +1,7 @@
 import { IsOptional, IsString, IsInt, Min, IsEnum, IsUUID } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
-import { ProductSortBy } from '@sajani/shared';
+import { ProductSortBy } from '@juhar/shared';
 
 export class ProductQueryDto extends PaginationDto {
   @ApiPropertyOptional()

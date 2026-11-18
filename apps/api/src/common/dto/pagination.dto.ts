@@ -1,6 +1,6 @@
 import { IsOptional, IsString, IsInt, Min, Max } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { PAGINATION } from '@sajani/shared';
+import { PAGINATION } from '@juhar/shared';
 
 export class PaginationDto {
   @ApiPropertyOptional({ description: 'Cursor from previous response' })

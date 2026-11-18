@@ -4,7 +4,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { PublishStatus } from '@sajani/shared';
+import { PublishStatus } from '@juhar/shared';
 
 export class CreateVariantDto {
   @ApiProperty({ example: 'SAJ-IKT-MRN-001' })

@@ -1,4 +1,4 @@
-# Sajani — High-Level Design (Pilot P0)
+# Juhar — High-Level Design (Pilot P0)
 
 **Version:** 1.0  
 **Date:** 13 November 2026  
@@ -60,7 +60,7 @@
 
 | Screen | P0 Features |
 |---|---|
-| Splash | "Sajani ସଜନୀ" wordmark (Noto Serif 28px, primary), pulsing dots, fade-in animation, 2.5s auto-dismiss |
+| Splash | "Juhar ଜୁହାର୍" wordmark (Noto Serif 28px, primary), pulsing dots, fade-in animation, 2.5s auto-dismiss |
 | Welcome / Onboarding | 3-slide carousel with swipe + pagination dots. Slides: "Handwoven with care", "Direct from the loom", "Delivered to your door". Skip link + Next/Start Shopping CTA. Shown only on first launch (AsyncStorage flag) |
 
 **Authentication (embedded in Profile screen)**
@@ -71,7 +71,7 @@ Login Phone, OTP Verify, and Name Capture are inline states within the Profile/A
 
 | Screen | P0 Features |
 |---|---|
-| Home | Sub-header "Sajani ସଜନୀ" + "WESTERN ODISHA", 16:9 hero with gradient overlay, 2×2 collection grid with gradient name overlay, horizontal New Arrivals with low stock text |
+| Home | Sub-header "Juhar ଜୁହାର୍" + "WESTERN ODISHA", 16:9 hero with gradient overlay, 2×2 collection grid with gradient name overlay, horizontal New Arrivals with low stock text |
 | Explore | "Shop" title (Noto Serif 22px), search bar with shadow + filter icon, category chips, count row, product cards with wishlist heart overlay, origin badge, stock status |
 | Product Detail | 3:4 hero with "GI CERTIFIED LOOM" badge, dot pagination, scarcity pill, price + discount pill, color swatches, PIN code check, details table, delivery items, "You may also like" scroll, sticky Add to Bag (green on success). Redirects to login if not authenticated |
 | Cart | Back circle + "My Bag (N)", free shipping progress meter, item cards with thumbnails + stepper (minus removes at qty 0) + "Save to Wishlist", coupon section, price details, sticky bar with savings |
@@ -435,7 +435,7 @@ Push → Lint + Typecheck + Test (parallel) → Build → Deploy Staging (auto) 
 ## 10. Monorepo Structure
 
 ```
-sajani-app/
+juhar-app/
 ├── apps/
 │   ├── mobile/              # React Native + Expo
 │   │   └── src/
@@ -445,7 +445,7 @@ sajani-app/
 │   │       ├── services/    # API client
 │   │       ├── hooks/
 │   │       ├── store/
-│   │       └── theme/       # Sajani brand colors/typography
+│   │       └── theme/       # Juhar brand colors/typography
 │   ├── api/                 # NestJS
 │   │   ├── src/modules/     # auth, users, addresses, categories,
 │   │   │                    # products, media, inventory, cart,
@@ -480,4 +480,4 @@ sajani-app/
 | 7 | Tax treatment | Inclusive GST shown in product price | Finance |
 | 8 | Initial SKU count | ~20–30 designs from factory audit | Merchandising |
 | 9 | WhatsApp provider | Gupshup / Wati | Tech |
-| 10 | Stock ownership | Reserved allocation to Sajani (not shared) | Ops |
+| 10 | Stock ownership | Reserved allocation to Juhar (not shared) | Ops |

@@ -30,7 +30,7 @@ export default function OrdersPage() {
     const hasToken = loadToken();
     setLoggedIn(hasToken);
     if (hasToken) {
-      const token = localStorage.getItem('sajani_token');
+      const token = localStorage.getItem('juhar_token');
       fetch(`${API_BASE}/api/v1/orders`, { headers: { Authorization: `Bearer ${token}` } })
         .then(r => r.json())
         .then(j => setOrders(j.success ? j.data.items : []))

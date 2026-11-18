@@ -1,6 +1,6 @@
 import { IsUUID, IsInt, IsEnum, IsOptional, IsString } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { AdjustmentReason } from '@sajani/shared';
+import { AdjustmentReason } from '@juhar/shared';
 
 export class AdjustStockDto {
   @ApiProperty()

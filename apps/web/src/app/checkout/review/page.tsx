@@ -30,7 +30,7 @@ export default function OrderReviewPage() {
   const handlePlaceOrder = async () => {
     setPlacing(true);
     try {
-      const token = localStorage.getItem('sajani_token');
+      const token = localStorage.getItem('juhar_token');
       const idempotencyKey = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
       const res = await fetch(`${API_BASE}/api/v1/orders`, {
         method: 'POST',

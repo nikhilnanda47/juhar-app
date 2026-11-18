@@ -1,4 +1,4 @@
-# Sajani — Database Design (Pilot P0)
+# Juhar — Database Design (Pilot P0)
 
 **Version:** 1.0  
 **Date:** 13 November 2026  
@@ -14,7 +14,7 @@
 | Money in integer paise | All amounts stored as `INT` (1 INR = 100 paise). No floats. |
 | UTC timestamps | All `timestamp` columns use `timestamptz`. App converts for display. |
 | UUID primary keys | `UUID v4` — non-sequential, safe for public URLs and APIs. |
-| Human-readable order numbers | `SAJ-YYYYMMDD-XXXX` format. Separate from UUID PK. |
+| Human-readable order numbers | `JUH-YYYYMMDD-XXXX` format. Separate from UUID PK. |
 | Immutable order history | Order items snapshot product title, SKU, and price at time of purchase. Address is snapshot as JSONB. Source data may change later. |
 | Soft deletes for catalog | Products and categories use `publish_status` / `active` flags. Never hard-delete — preserves order history references. |
 | Audit everything | All admin/system mutations logged in `audit_events` with actor, action, before/after state. |
@@ -154,7 +154,7 @@ Purchasable SKU. Each product has at least one variant.
 |---|---|---|---|
 | id | UUID | PK | |
 | product_id | UUID | FK → products.id, NOT NULL | ON DELETE CASCADE |
-| sku | VARCHAR(50) | UNIQUE, NOT NULL | "SAJ-IKT-MRN-001" |
+| sku | VARCHAR(50) | UNIQUE, NOT NULL | "JUH-IKT-MRN-001" |
 | name | VARCHAR(100) | NULL | Variant label: "Maroon with Gold Border" |
 | color | VARCHAR(50) | NULL | Primary color for filtering |
 | attributes | JSONB | NULL | Flexible: {"border": "gold zari", "pallu": "contrast"} |
@@ -256,7 +256,7 @@ Server-side cart. Prices are NOT stored — recalculated from variant on every r
 | Column | Type | Constraints | Notes |
 |---|---|---|---|
 | id | UUID | PK | |
-| public_number | VARCHAR(20) | UNIQUE, NOT NULL | "SAJ-20261115-0001" |
+| public_number | VARCHAR(20) | UNIQUE, NOT NULL | "JUH-20261115-0001" |
 | user_id | UUID | FK → users.id, NOT NULL | |
 | status | VARCHAR(30) | NOT NULL, DEFAULT 'placed' | See state machine |
 | payment_mode | VARCHAR(20) | NOT NULL | "upi", "cod" |

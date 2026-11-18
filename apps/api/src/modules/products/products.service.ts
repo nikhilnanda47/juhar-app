@@ -8,7 +8,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ProductQueryDto, CreateProductDto, UpdateProductDto, UpdateVariantDto } from './dto';
 import { CreateVariantDto } from './dto/create-product.dto';
-import { generateSlug, ProductSortBy, PublishStatus, PAGINATION } from '@sajani/shared';
+import { generateSlug, ProductSortBy, PublishStatus, PAGINATION } from '@juhar/shared';
 
 @Injectable()
 export class ProductsService {

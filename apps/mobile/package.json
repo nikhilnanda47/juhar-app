@@ -1,5 +1,5 @@
 {
-  "name": "@sajani/mobile",
+  "name": "@juhar/mobile",
   "version": "1.0.0",
   "private": true,
   "main": "node_modules/expo/AppEntry.js",
@@ -17,7 +17,7 @@
     "@react-navigation/bottom-tabs": "^7.2.0",
     "@react-navigation/native": "^7.0.14",
     "@react-navigation/native-stack": "^7.2.0",
-    "@sajani/shared": "file:../../packages/shared",
+    "@juhar/shared": "file:../../packages/shared",
     "expo": "^52.0.0",
     "expo-asset": "~11.0.5",
     "expo-clipboard": "^58.0.4",

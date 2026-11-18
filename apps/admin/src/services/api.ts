@@ -6,14 +6,14 @@ class ApiClient {
   setToken(token: string) {
     this.accessToken = token;
     if (typeof window !== 'undefined') {
-      localStorage.setItem('sajani_admin_token', token);
+      localStorage.setItem('juhar_admin_token', token);
     }
   }
 
   getToken(): string | null {
     if (this.accessToken) return this.accessToken;
     if (typeof window !== 'undefined') {
-      this.accessToken = localStorage.getItem('sajani_admin_token');
+      this.accessToken = localStorage.getItem('juhar_admin_token');
     }
     return this.accessToken;
   }
@@ -21,8 +21,8 @@ class ApiClient {
   clearToken() {
     this.accessToken = null;
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('sajani_admin_token');
-      localStorage.removeItem('sajani_admin_refresh');
+      localStorage.removeItem('juhar_admin_token');
+      localStorage.removeItem('juhar_admin_refresh');
     }
   }
 

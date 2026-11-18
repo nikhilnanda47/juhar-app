@@ -86,8 +86,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('sajani_admin_token');
-    localStorage.removeItem('sajani_admin_refresh');
+    localStorage.removeItem('juhar_admin_token');
+    localStorage.removeItem('juhar_admin_refresh');
     window.location.href = '/login';
   };
 
@@ -102,9 +102,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
       <aside className={`${styles.sidebar} ${isOpen ? styles.sidebarOpen : ''}`}>
         <div className={styles.logo}>
-          <div className={styles.logoIcon}>S</div>
+          <div className={styles.logoIcon}>J</div>
           <div className={styles.logoText}>
-            <h1>Sajani</h1>
+            <h1>Juhar</h1>
             <span>Admin Portal</span>
           </div>
           {/* Close button visible only on mobile */}
