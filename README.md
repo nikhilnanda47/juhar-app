@@ -16,28 +16,49 @@ Sajani is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce p
 
 ## Current Status
 
-### Customer App (Mobile) — 18 features working
+### Customer App (Mobile) — 23 features working
 
 | # | Feature | Status |
 |---|---------|--------|
-| 1 | Home screen — hero, collections grid, new arrivals from API | ✅ |
-| 2 | Explore catalog — category chips, 2-column product grid | ✅ |
-| 3 | Filter products by category | ✅ |
-| 4 | Product detail — price, variants, specs, certifications, delivery info | ✅ |
-| 5 | Variant selection (color) | ✅ |
-| 6 | Login via phone OTP | ✅ |
-| 7 | Name capture for new users | ✅ |
-| 8 | Add to bag (with login check) | ✅ |
-| 9 | Cart — qty stepper, price breakdown, availability warnings | ✅ |
-| 10 | Update quantity / remove cart items | ✅ |
-| 11 | Checkout — select delivery address | ✅ |
-| 12 | Add new address (PIN code validation) | ✅ |
-| 13 | Order review — address, items, COD, total | ✅ |
-| 14 | Place order (COD) — atomic stock reservation | ✅ |
-| 15 | Order success with order number | ✅ |
-| 16 | Order history with status badges | ✅ |
-| 17 | Order detail with status timeline | ✅ |
-| 18 | Cancel order (if placed/confirmed) | ✅ |
+| 1 | Splash screen with branded animation | ✅ |
+| 2 | Welcome onboarding (3-slide carousel, first launch only) | ✅ |
+| 3 | Home screen — hero, collections grid, new arrivals from API | ✅ |
+| 4 | Explore catalog — category chips, 2-column product grid | ✅ |
+| 5 | Filter products by category | ✅ |
+| 6 | Product detail — price, variants, PIN check, specs, delivery info | ✅ |
+| 7 | Variant selection (color) | ✅ |
+| 8 | Login via phone OTP | ✅ |
+| 9 | Name capture for new users | ✅ |
+| 10 | Guest cart — add to bag without login (local storage) | ✅ |
+| 11 | Cart badge count on tab icon | ✅ |
+| 12 | Cart — qty stepper, price breakdown, availability warnings | ✅ |
+| 13 | Update quantity / remove cart items (minus to 0 removes) | ✅ |
+| 14 | Guest cart sync to server on login | ✅ |
+| 15 | Checkout — select delivery address | ✅ |
+| 16 | Add new address (PIN code validation) | ✅ |
+| 17 | Order review — address, items, COD, total | ✅ |
+| 18 | Place order (COD) — atomic stock reservation | ✅ |
+| 19 | Order success with order number | ✅ |
+| 20 | Order history with status badges | ✅ |
+| 21 | Order detail with status timeline | ✅ |
+| 22 | Pull-to-refresh + refresh button on all screens | ✅ |
+| 23 | Fade-in animations across screens | ✅ |
+
+### Customer Website (Web) — 11 pages working
+
+| # | Feature | Status |
+|---|---------|--------|
+| 1 | Home — hero banner, collections, new arrivals | ✅ |
+| 2 | Shop — search, category filters, product grid (responsive 2–5 cols) | ✅ |
+| 3 | Product detail — variants, PIN check, add to bag, related products | ✅ |
+| 4 | Guest cart — add items without login (localStorage) | ✅ |
+| 5 | Cart — stepper, price breakdown, checkout redirect | ✅ |
+| 6 | Cart badge count on header + bottom nav | ✅ |
+| 7 | Select address — 2-col grid, delivery estimate, sticky sidebar | ✅ |
+| 8 | Add address — numbered sections, live preview, label cards | ✅ |
+| 9 | Order review — place order (COD) | ✅ |
+| 10 | Orders — table layout (desktop), card layout (mobile), filter chips | ✅ |
+| 11 | Account — split-panel login, profile with sidebar (desktop) | ✅ |
 
 ### Admin Panel (Web) — 14 features working
 
@@ -75,7 +96,6 @@ Sajani is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce p
 | Wishlist | Post-pilot |
 | Push notifications / SMS updates | Phase 5 |
 | WhatsApp support integration | Phase 5 |
-| Splash screen / onboarding | Phase 5 |
 | No internet / force update screens | Phase 5 |
 
 ## Tech Stack
@@ -83,6 +103,7 @@ Sajani is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce p
 | Layer | Technology |
 |-------|-----------|
 | Mobile App | React Native + Expo SDK 52 + TypeScript |
+| Customer Website | Next.js 14 (App Router) + Tailwind CSS + TypeScript |
 | Backend API | NestJS + TypeScript (modular monolith) |
 | Database | PostgreSQL 16 + Prisma ORM |
 | Admin Panel | Next.js 14 (App Router) + TypeScript |
@@ -97,14 +118,23 @@ Sajani is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce p
 ```
 sajani-app/
 ├── apps/
-│   ├── mobile/              # React Native + Expo
+│   ├── mobile/              # React Native + Expo (customer mobile app)
 │   │   └── src/
-│   │       ├── screens/     # 12 screens (Home, Explore, ProductDetail, Cart,
-│   │       │                #   SelectAddress, AddAddress, OrderReview,
-│   │       │                #   OrderSuccess, Orders, OrderDetail, Profile)
+│   │       ├── screens/     # 13 screens (Splash, Welcome, Home, Explore,
+│   │       │                #   ProductDetail, Cart, SelectAddress, AddAddress,
+│   │       │                #   OrderReview, OrderSuccess, Orders, OrderDetail, Profile)
 │   │       ├── navigation/  # Tab (5 tabs) + Stack navigators
-│   │       ├── services/    # API client with token management
-│   │       └── theme/       # Stitch design tokens (colors, typography, spacing)
+│   │       ├── services/    # API client, local guest cart
+│   │       ├── components/  # AnimatedUI, RefreshButton
+│   │       └── theme/       # Design tokens (colors, typography, spacing)
+│   ├── web/                 # Next.js customer website (responsive)
+│   │   └── src/
+│   │       ├── app/         # 11 pages (/, /shop, /shop/[slug], /cart,
+│   │       │                #   /checkout/address, /checkout/address/new,
+│   │       │                #   /checkout/review, /order-success,
+│   │       │                #   /orders, /orders/[id], /account)
+│   │       ├── components/  # Header, BottomNav
+│   │       └── lib/         # API client, cart context
 │   ├── api/                 # NestJS backend
 │   │   ├── src/modules/     # 10 active modules (see below)
 │   │   ├── prisma/          # Schema + migrations (18 tables) + seed data
@@ -330,53 +360,89 @@ cd ../..
 
 ### 7. Start development servers
 
-Open 3 terminals (or terminal tabs):
+Open **5 terminals** (or terminal tabs) to run everything:
 
 ```bash
-# Terminal 1 — API (localhost:3000)
-npm run dev -w @sajani/api
+# Terminal 1 — API Backend (localhost:3000)
+cd apps/api
+npm run dev
 
-# Terminal 2 — Admin Panel (localhost:3001)
+# Terminal 2 — Customer Website (localhost:3001)
+cd apps/web
+npm install        # first time only
+npm run dev
+
+# Terminal 3 — Admin Panel (localhost:3002)
 cd apps/admin
 npm run dev
 
-# Terminal 3 — Mobile App (localhost:8081)
+# Terminal 4 — Mobile App (localhost:8081)
 cd apps/mobile
 npx expo start --web
+
+# Terminal 5 — Prisma Studio (localhost:5555)
+cd apps/api
+npx prisma studio
+```
+
+**Quick start (from project root):**
+
+```bash
+# Start API
+npm run dev:api
+
+# Start Website
+npm run dev:web
+
+# Start Admin
+npm run dev:admin
+
+# Start Mobile App
+cd apps/mobile && npx expo start --web
+
+# Start Prisma Studio
+cd apps/api && npx prisma studio
 ```
 
 ### 8. Test login
 
-- **Mobile**: Profile tab → `+919876543210` → OTP `123456`
-- **Admin**: `localhost:3001` → same phone/OTP
+- **Website**: `localhost:3001/account` → `+919876543210` → OTP `123456`
+- **Mobile App**: Account tab → `+919876543210` → OTP `123456`
+- **Admin Panel**: `localhost:3002` → same phone/OTP
 - Dev mode always accepts OTP `123456`
 
 ### Useful commands
 
-| Command | Description |
-|---------|-------------|
-| `npx prisma studio` | Visual database browser (localhost:5555) |
-| `npx prisma migrate dev --name <name>` | Create new migration |
-| `npx prisma generate` | Regenerate Prisma client |
-| `psql -U sajani -d sajani_dev` | Connect to database CLI |
-| `npx expo start --web --clear` | Mobile with cleared cache |
+| Command | Where to run | Description |
+|---------|-------------|-------------|
+| `npm run dev:api` | Root | Start API backend |
+| `npm run dev:web` | Root | Start customer website |
+| `npm run dev:admin` | Root | Start admin panel |
+| `cd apps/mobile && npx expo start --web` | Root | Start mobile app (web preview) |
+| `cd apps/api && npx prisma studio` | Root | Visual database browser |
+| `cd apps/api && npx prisma migrate dev --name <name>` | Root | Create new migration |
+| `cd apps/api && npx prisma generate` | Root | Regenerate Prisma client |
+| `cd apps/api && npx ts-node prisma/seed.ts` | Root | Re-seed database |
+| `psql -U sajani -d sajani_dev` | Anywhere | Connect to database CLI |
+| `cd apps/mobile && npx expo start --web --clear` | Root | Mobile with cleared cache |
 
 ### Service ports
 
-| Service | Port | URL |
-|---------|------|-----|
-| API | 3000 | http://localhost:3000 |
-| Swagger Docs | 3000 | http://localhost:3000/api/docs |
-| Prisma Studio | 5555 | http://localhost:5555 |
-| Admin Panel | 3001 | http://localhost:3001 |
-| Mobile (Web) | 8081 | http://localhost:8081 |
-| PostgreSQL | 5432 | — |
+| Service | Port | URL | Description |
+|---------|------|-----|-------------|
+| API Backend | 3000 | http://localhost:3000 | NestJS REST API |
+| Swagger Docs | 3000 | http://localhost:3000/api/docs | Interactive API documentation |
+| Customer Website | 3001 | http://localhost:3001 | Next.js storefront |
+| Admin Panel | 3002 | http://localhost:3002 | Next.js admin dashboard |
+| Mobile App (Web) | 8081 | http://localhost:8081 | Expo web preview |
+| Prisma Studio | 5555 | http://localhost:5555 | Visual database browser |
+| PostgreSQL | 5432 | — | Database |
 
 ## Documentation
 
 | Document | Description |
 |----------|-------------|
-| [HLD](docs/architecture/HLD.md) | System architecture, 21 mobile screens, tech decisions |
+| [HLD](docs/architecture/HLD.md) | System architecture, 13 mobile screens + 11 web pages, tech decisions |
 | [Database Design](docs/architecture/database-design.md) | 18 tables, ER diagram, constraints, indexes |
 | [LLD](docs/architecture/LLD.md) | Module designs, DTOs, state machines, navigation tree |
 | [OpenAPI Spec](docs/api/openapi.yaml) | 38 REST endpoints with full schemas |
