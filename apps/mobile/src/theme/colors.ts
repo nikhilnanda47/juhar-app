@@ -65,7 +65,7 @@ export const lightColors = {
   transparent: 'transparent',
 } as const;
 
-export const darkColors: typeof lightColors = {
+export const darkColors: ColorPalette = {
   // ── Brand (unchanged) ──
   primary: '#8B3A4A',
   primaryDark: '#6B1D2A',
@@ -128,8 +128,7 @@ export const darkColors: typeof lightColors = {
   transparent: 'transparent',
 } as const;
 
-export type ColorPalette = typeof lightColors;
+export type ColorPalette = { [K in keyof typeof lightColors]: string };
 
-// Default export for backward compatibility — screens that haven't migrated
-// to useTheme() yet will still see the light palette.
+// Default export for backward compatibility
 export const colors = lightColors;
