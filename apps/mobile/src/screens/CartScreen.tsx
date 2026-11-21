@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, RefreshControl, TextInput,
@@ -8,7 +8,7 @@ import {
   ShoppingBag, Trash2, Heart, Minus, Plus, Package,
   ChevronLeft, Truck, ArrowRight, X, BadgeCheck, Leaf,
 } from 'lucide-react-native';
-import { colors, spacing, borderRadius, elevation } from '../theme';
+import { useTheme, type ColorPalette, spacing, borderRadius, elevation } from '../theme';
 import RefreshButton from '../components/RefreshButton';
 import {
   isLoggedIn, loadToken, getCart, updateCartItem, removeCartItem, formatPaise,
@@ -23,6 +23,8 @@ const FREE_SHIPPING_THRESHOLD = 500000; // 5000 paise = ₹5,000
 
 export default function CartScreen() {
   const navigation = useNavigation<any>();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [cart, setCart] = useState<CartResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -198,14 +200,15 @@ export default function CartScreen() {
         {/* Price Details */}
         <View style={styles.priceCard}>
           <Text style={styles.priceCardTitle}>Price Details ({cart.itemCount} Items)</Text>
-          <PriceRow label={`Subtotal (${cart.itemCount} items)`} value={formatPaise(cart.subtotalPaise)} />
+          <PriceRow label={`Subtotal (${cart.itemCount} items)`} value={formatPaise(cart.subtotalPaise)} colors={colors} />
           {appliedCoupon && (
-            <PriceRow label={`Coupon (${appliedCoupon})`} value={`−${formatPaise(couponDiscount)}`} valueColor={colors.accent} />
+            <PriceRow label={`Coupon (${appliedCoupon})`} value={`−${formatPaise(couponDiscount)}`} valueColor={colors.accent} colors={colors} />
           )}
           <PriceRow
             label="Shipping"
             value={shippingPaise === 0 ? 'FREE' : formatPaise(shippingPaise)}
             valueColor={shippingPaise === 0 ? colors.accent : undefined}
+            colors={colors}
           />
           <View style={styles.priceDivider} />
           <View style={styles.totalRow}>
@@ -262,6 +265,8 @@ function CartItemCard({
   item: CartItemResponse; updating: boolean;
   onIncrement: () => void; onDecrement: () => void; onRemove: () => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const discount = item.variant.compareAtPaise && item.variant.compareAtPaise > item.variant.pricePaise
     ? Math.round((1 - item.variant.pricePaise / item.variant.compareAtPaise) * 100) : null;
 
@@ -322,7 +327,8 @@ function CartItemCard({
   );
 }
 
-function PriceRow({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) {
+function PriceRow({ label, value, valueColor, colors }: { label: string; value: string; valueColor?: string; colors: ColorPalette }) {
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.priceRow}>
       <Text style={styles.priceLabel}>{label}</Text>
@@ -331,7 +337,7 @@ function PriceRow({ label, value, valueColor }: { label: string; value: string; 
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ColorPalette) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   scrollContent: { paddingHorizontal: spacing.margin, paddingBottom: 140 },
   center: {
@@ -358,7 +364,7 @@ const styles = StyleSheet.create({
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   backBtn: {
-    width: 36, height: 36, borderRadius: 18, backgroundColor: '#EEEEEB',
+    width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surfaceMuted,
     justifyContent: 'center', alignItems: 'center',
   },
   headerTitle: { fontFamily: 'DMSans-SemiBold', fontSize: 16, color: colors.textPrimary, letterSpacing: -0.2 },
@@ -373,7 +379,7 @@ const styles = StyleSheet.create({
   shippingLeft: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 },
   shippingText: { fontFamily: 'DMSans-Medium', fontSize: 12, color: colors.accent },
   shippingGoal: { fontFamily: 'DMSans-Medium', fontSize: 12, color: colors.accent },
-  progressBar: { width: '100%', height: 6, backgroundColor: '#E8E8E5', borderRadius: 3, overflow: 'hidden' },
+  progressBar: { width: '100%', height: 6, backgroundColor: colors.surfaceMuted, borderRadius: 3, overflow: 'hidden' },
   progressFill: { height: '100%', backgroundColor: colors.accent, borderRadius: 3 },
 
   // Item Card
@@ -383,8 +389,8 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
   },
   itemRow: { flexDirection: 'row', gap: 12 },
-  itemThumb: { width: 80, height: 106, borderRadius: 6, overflow: 'hidden', backgroundColor: '#E0DDD8' },
-  thumbPlaceholder: { flex: 1, backgroundColor: '#D5CFC9' },
+  itemThumb: { width: 80, height: 106, borderRadius: 6, overflow: 'hidden', backgroundColor: colors.placeholder },
+  thumbPlaceholder: { flex: 1, backgroundColor: colors.placeholder },
   itemDetails: { flex: 1 },
   itemTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 4 },
   itemTitle: { fontFamily: 'DMSans-SemiBold', fontSize: 15, color: colors.textPrimary, flex: 1, letterSpacing: -0.2 },
@@ -400,7 +406,7 @@ const styles = StyleSheet.create({
   actionRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     marginTop: 10, paddingTop: 8, paddingHorizontal: 8, paddingVertical: 6,
-    backgroundColor: 'rgba(244,244,241,0.5)', borderRadius: 8,
+    backgroundColor: colors.surfaceAlt, borderRadius: 8,
   },
   stepper: {
     flexDirection: 'row', alignItems: 'center', height: 32,
@@ -418,7 +424,7 @@ const styles = StyleSheet.create({
   couponTitle: { fontFamily: 'DMSans-SemiBold', fontSize: 16, color: colors.textPrimary, letterSpacing: -0.2 },
   appliedCoupon: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: 'rgba(255,218,171,0.3)', padding: 10, borderRadius: 8, marginBottom: 8,
+    backgroundColor: colors.accentBg, padding: 10, borderRadius: 8, marginBottom: 8,
   },
   appliedCode: { fontFamily: 'DMSans-SemiBold', fontSize: 13, color: colors.textPrimary, letterSpacing: 0.5 },
   appliedDesc: { fontFamily: 'DMSans-Regular', fontSize: 11, color: colors.textSecondary },
@@ -430,7 +436,7 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 2, elevation: 1,
   },
   couponApplyBtn: {
-    height: 48, paddingHorizontal: 20, backgroundColor: '#EEEEEB', borderRadius: 6,
+    height: 48, paddingHorizontal: 20, backgroundColor: colors.surfaceMuted, borderRadius: 6,
     justifyContent: 'center', alignItems: 'center',
   },
   couponApplyText: { fontFamily: 'DMSans-Medium', fontSize: 13, color: colors.textPrimary },
@@ -444,21 +450,21 @@ const styles = StyleSheet.create({
   priceRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
   priceLabel: { fontFamily: 'DMSans-Regular', fontSize: 14, color: colors.textSecondary },
   priceValue: { fontFamily: 'DMSans-Medium', fontSize: 14, color: colors.textPrimary },
-  priceDivider: { height: 1, backgroundColor: '#E8E8E5', marginVertical: 8 },
+  priceDivider: { height: 1, backgroundColor: colors.surfaceMuted, marginVertical: 8 },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingTop: 4 },
   totalLabel: { fontFamily: 'DMSans-Bold', fontSize: 16, color: colors.textPrimary },
   totalTaxNote: { fontFamily: 'DMSans-Regular', fontSize: 11, color: colors.textTertiary, marginTop: 2 },
   totalValue: { fontFamily: 'NotoSerif-Regular', fontSize: 20, color: colors.textPrimary },
   freeShipNote: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: '#F4F4F1', padding: 10, borderRadius: 8, marginTop: 10,
+    backgroundColor: colors.surfaceAlt, padding: 10, borderRadius: 8, marginTop: 10,
   },
   freeShipText: { fontFamily: 'DMSans-Medium', fontSize: 12, color: colors.accent },
 
   // Sticky Bar
   stickyBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: 'rgba(249,249,246,0.95)',
+    backgroundColor: colors.stickyBar,
     paddingHorizontal: spacing.margin, paddingVertical: 12, paddingBottom: 28,
     flexDirection: 'row', alignItems: 'center', gap: 12,
     shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.06, shadowRadius: 16, elevation: 5,

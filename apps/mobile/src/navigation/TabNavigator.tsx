@@ -1,9 +1,9 @@
 // @ts-nocheck
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Home, Search, ShoppingBag, Package, User } from 'lucide-react-native';
-import { colors, spacing, elevation } from '../theme';
+import { useTheme, type ColorPalette, spacing, elevation } from '../theme';
 import { loadToken, getCart } from '../services/api';
 import { getLocalCart, localCartToResponse } from '../services/localCart';
 import HomeScreen from '../screens/HomeScreen';
@@ -23,24 +23,16 @@ const ExploreStack = createNativeStackNavigator();
 const CartStack = createNativeStackNavigator();
 const OrdersStack = createNativeStackNavigator();
 
-const stackHeaderStyle = {
-  headerStyle: {
-    backgroundColor: colors.background,
-  },
-  headerTintColor: colors.textPrimary,
-  headerTitleStyle: {
-    fontFamily: 'DMSans-Medium',
-    fontWeight: '500',
-    fontSize: 16,
-    color: colors.textPrimary,
-  },
-  headerShadowVisible: false,
-  headerBackTitle: '',
-};
-
 function ExploreStackScreen() {
+  const { colors } = useTheme();
   return (
-    <ExploreStack.Navigator screenOptions={stackHeaderStyle}>
+    <ExploreStack.Navigator screenOptions={{
+      headerStyle: { backgroundColor: colors.background },
+      headerTintColor: colors.textPrimary,
+      headerTitleStyle: { fontFamily: 'DMSans-Medium', fontWeight: '500', fontSize: 16, color: colors.textPrimary },
+      headerShadowVisible: false,
+      headerBackTitle: '',
+    }}>
       <ExploreStack.Screen name="ExploreList" component={ExploreScreen} options={{ headerShown: false }} />
       <ExploreStack.Screen name="ProductDetail" component={ProductDetailScreen} options={{ headerShown: false }} />
     </ExploreStack.Navigator>
@@ -48,8 +40,15 @@ function ExploreStackScreen() {
 }
 
 function CartStackScreen() {
+  const { colors } = useTheme();
   return (
-    <CartStack.Navigator screenOptions={stackHeaderStyle}>
+    <CartStack.Navigator screenOptions={{
+      headerStyle: { backgroundColor: colors.background },
+      headerTintColor: colors.textPrimary,
+      headerTitleStyle: { fontFamily: 'DMSans-Medium', fontWeight: '500', fontSize: 16, color: colors.textPrimary },
+      headerShadowVisible: false,
+      headerBackTitle: '',
+    }}>
       <CartStack.Screen name="CartView" component={CartScreen} options={{ headerShown: false }} />
       <CartStack.Screen name="SelectAddress" component={SelectAddressScreen} options={{ headerTitle: 'Delivery Address' }} />
       <CartStack.Screen name="AddAddress" component={AddAddressScreen} options={{ headerTitle: 'Add Address' }} />
@@ -60,8 +59,15 @@ function CartStackScreen() {
 }
 
 function OrdersStackScreen() {
+  const { colors } = useTheme();
   return (
-    <OrdersStack.Navigator screenOptions={stackHeaderStyle}>
+    <OrdersStack.Navigator screenOptions={{
+      headerStyle: { backgroundColor: colors.background },
+      headerTintColor: colors.textPrimary,
+      headerTitleStyle: { fontFamily: 'DMSans-Medium', fontWeight: '500', fontSize: 16, color: colors.textPrimary },
+      headerShadowVisible: false,
+      headerBackTitle: '',
+    }}>
       <OrdersStack.Screen name="OrdersList" component={OrdersScreen} options={{ headerShown: false }} />
       <OrdersStack.Screen name="OrderDetail" component={OrderDetailScreen} options={{ headerTitle: 'Order Details' }} />
     </OrdersStack.Navigator>
@@ -69,6 +75,7 @@ function OrdersStackScreen() {
 }
 
 export default function TabNavigator() {
+  const { colors } = useTheme();
   const [cartCount, setCartCount] = useState(0);
 
   const refreshCartCount = useCallback(async () => {
@@ -114,7 +121,7 @@ export default function TabNavigator() {
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textTertiary,
         tabBarStyle: {
-          backgroundColor: colors.white,
+          backgroundColor: colors.surface,
           borderTopWidth: 1,
           borderTopColor: colors.border,
           height: 80,

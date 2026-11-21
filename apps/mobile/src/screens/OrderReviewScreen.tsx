@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, Alert,
 } from 'react-native';
 import { Truck, Phone, ArrowRight, Package, BadgeCheck, Handshake } from 'lucide-react-native';
-import { colors, spacing, borderRadius } from '../theme';
+import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
 import { getAddresses, getCart, formatPaise, type Address, type CartResponse } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -28,6 +28,8 @@ interface Props {
 }
 
 export default function OrderReviewScreen({ navigation, route }: Props) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { addressId } = route.params;
   const [address, setAddress] = useState<Address | null>(null);
   const [cart, setCart] = useState<CartResponse | null>(null);
@@ -222,7 +224,7 @@ export default function OrderReviewScreen({ navigation, route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ColorPalette) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   scrollContent: { padding: spacing.margin, paddingBottom: 120 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
@@ -255,7 +257,7 @@ const styles = StyleSheet.create({
 
   // Items
   itemRow: { flexDirection: 'row', gap: 12, paddingVertical: 8 },
-  itemThumb: { width: 60, height: 80, borderRadius: 8, backgroundColor: '#E0DDD8' },
+  itemThumb: { width: 60, height: 80, borderRadius: 8, backgroundColor: colors.placeholder },
   itemDetails: { flex: 1 },
   itemNameRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 4 },
   itemName: { fontFamily: 'DMSans-SemiBold', fontSize: 16, color: colors.textPrimary, flex: 1, letterSpacing: -0.2 },
@@ -264,34 +266,34 @@ const styles = StyleSheet.create({
   clusterRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
   clusterDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.accent },
   clusterText: { fontFamily: 'DMSans-SemiBold', fontSize: 11, color: colors.accent, letterSpacing: 0.3 },
-  itemDivider: { height: 1, backgroundColor: '#EEEEEB', marginVertical: 4 },
+  itemDivider: { height: 1, backgroundColor: colors.surfaceMuted, marginVertical: 4 },
 
   // Payment
   paymentRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8 },
   paymentLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   radioOuter: {
-    width: 18, height: 18, borderRadius: 9, backgroundColor: '#E2E3E0',
+    width: 18, height: 18, borderRadius: 9, backgroundColor: colors.borderMedium,
     justifyContent: 'center', alignItems: 'center', padding: 3,
   },
   radioInner: { width: '100%', height: '100%', borderRadius: 6, backgroundColor: colors.primary },
-  radioOuterEmpty: { width: 18, height: 18, borderRadius: 9, backgroundColor: '#E2E3E0' },
+  radioOuterEmpty: { width: 18, height: 18, borderRadius: 9, backgroundColor: colors.borderMedium },
   paymentLabel: { fontFamily: 'DMSans-SemiBold', fontSize: 16, color: colors.textPrimary, letterSpacing: -0.2 },
   paymentSub: { fontFamily: 'DMSans-Regular', fontSize: 12, color: colors.textSecondary },
-  paymentDivider: { height: 1, backgroundColor: '#EEEEEB' },
+  paymentDivider: { height: 1, backgroundColor: colors.surfaceMuted },
 
   // Price
   priceRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
   priceLabel: { fontFamily: 'DMSans-Regular', fontSize: 14, color: colors.textSecondary },
   priceValue: { fontFamily: 'DMSans-Regular', fontSize: 14, color: colors.textPrimary },
   priceAccent: { fontFamily: 'DMSans-Medium', fontSize: 14, color: colors.accent },
-  priceDivider: { height: 1, backgroundColor: '#EEEEEB', marginVertical: 8 },
+  priceDivider: { height: 1, backgroundColor: colors.surfaceMuted, marginVertical: 8 },
   totalLabel: { fontFamily: 'DMSans-SemiBold', fontSize: 16, color: colors.textPrimary },
   totalValue: { fontFamily: 'DMSans-SemiBold', fontSize: 20, color: colors.textPrimary, letterSpacing: -0.4 },
 
   // Delivery Notice
   deliveryNotice: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: '#F4F4F1', borderRadius: borderRadius.md, padding: spacing.md,
+    backgroundColor: colors.surfaceAlt, borderRadius: borderRadius.md, padding: spacing.md,
     marginTop: spacing.lg,
   },
   deliveryNoticeText: { fontFamily: 'DMSans-Regular', fontSize: 14, color: colors.textSecondary },
@@ -307,7 +309,7 @@ const styles = StyleSheet.create({
   // Sticky
   stickyBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: 'rgba(255,255,255,0.95)',
+    backgroundColor: colors.stickyBar,
     paddingHorizontal: spacing.margin, paddingVertical: 10, paddingBottom: 28,
     flexDirection: 'row', alignItems: 'center', gap: 12,
     shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.03, shadowRadius: 16, elevation: 5,

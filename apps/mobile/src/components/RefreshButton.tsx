@@ -1,7 +1,7 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useMemo } from 'react';
 import { TouchableOpacity, Animated, StyleSheet, Platform } from 'react-native';
 import { RefreshCw } from 'lucide-react-native';
-import { colors } from '../theme';
+import { useTheme, type ColorPalette } from '../theme';
 
 interface Props {
   onRefresh: () => void | Promise<void>;
@@ -9,6 +9,8 @@ interface Props {
 }
 
 export default function RefreshButton({ onRefresh, size = 18 }: Props) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const spin = useRef(new Animated.Value(0)).current;
   const [spinning, setSpinning] = useState(false);
 
@@ -41,10 +43,10 @@ export default function RefreshButton({ onRefresh, size = 18 }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ColorPalette) => StyleSheet.create({
   btn: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: '#F4F4F1',
+    backgroundColor: colors.surfaceAlt,
     justifyContent: 'center', alignItems: 'center',
   },
 });

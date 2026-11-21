@@ -1,10 +1,10 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, Dimensions, RefreshControl, TextInput,
 } from 'react-native';
 import { Search as SearchIcon, SlidersHorizontal, Heart, ChevronDown } from 'lucide-react-native';
-import { colors, spacing, borderRadius, elevation } from '../theme';
+import { useTheme, type ColorPalette, spacing, borderRadius, elevation } from '../theme';
 import {
   getCategories, getProducts, formatPaise,
   type Category, type Product,
@@ -21,6 +21,8 @@ interface Props {
 }
 
 export default function ExploreScreen({ navigation, route }: Props) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -160,6 +162,8 @@ export default function ExploreScreen({ navigation, route }: Props) {
 }
 
 function ProductCard({ product, onPress }: { product: any; onPress: () => void }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const price = product.startingPricePaise ?? 0;
   const compare = product.compareAtPaise ?? null;
   const lowStock = product.totalStock !== undefined && product.totalStock > 0 && product.totalStock <= 3;
@@ -221,7 +225,7 @@ function ProductCard({ product, onPress }: { product: any; onPress: () => void }
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ColorPalette) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   content: { paddingBottom: 100 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
@@ -284,7 +288,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: borderRadius.full,
-    backgroundColor: '#E8E8E5',
+    backgroundColor: colors.surfaceMuted,
   },
   chipActive: {
     backgroundColor: colors.primary,
@@ -298,7 +302,7 @@ const styles = StyleSheet.create({
     fontFamily: 'DMSans-Medium',
     fontSize: 13,
     letterSpacing: 0.3,
-    color: '#544244',
+    color: colors.textBrand,
   },
   chipTextActive: {
     color: colors.white,
@@ -375,13 +379,13 @@ const styles = StyleSheet.create({
     aspectRatio: 3 / 4,
     borderRadius: 10,
     overflow: 'hidden',
-    backgroundColor: '#EEEEE9',
+    backgroundColor: colors.surfaceAlt,
     position: 'relative',
     marginBottom: 10,
   },
   cardImage: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#E0DDD8',
+    backgroundColor: colors.placeholder,
   },
 
   // Wishlist
@@ -392,7 +396,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.8)',
+    backgroundColor: colors.surfaceOverlay,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -402,7 +406,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 8,
     left: 8,
-    backgroundColor: 'rgba(255,255,255,0.9)',
+    backgroundColor: colors.surfaceOverlay,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 4,

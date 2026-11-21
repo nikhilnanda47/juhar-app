@@ -1,11 +1,11 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Package, User, ArrowRight } from 'lucide-react-native';
-import { colors, spacing, borderRadius } from '../theme';
+import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
 import RefreshButton from '../components/RefreshButton';
 import { loadToken, formatPaise } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -22,18 +22,21 @@ async function fetchOrders() {
   return json.success ? json.data.items : [];
 }
 
-const STATUS_STYLES: Record<string, { bg: string; text: string }> = {
-  placed: { bg: '#E8E8E5', text: colors.primary },
-  confirmed: { bg: '#FFF8E1', text: '#F57F17' },
-  packed: { bg: '#FFF3E0', text: '#E65100' },
-  shipped: { bg: '#FFF3E0', text: '#E65100' },
-  delivered: { bg: 'rgba(255,218,171,0.4)', text: '#795E38' },
-  cancelled: { bg: '#FCE4EC', text: '#C62828' },
-};
+const getStatusStyles = (colors: ColorPalette): Record<string, { bg: string; text: string }> => ({
+  placed: { bg: colors.surfaceMuted, text: colors.primary },
+  confirmed: { bg: colors.statusConfirmedBg, text: colors.statusConfirmedText },
+  packed: { bg: colors.statusPackedBg, text: colors.statusPackedText },
+  shipped: { bg: colors.statusShippedBg, text: colors.statusShippedText },
+  delivered: { bg: colors.accentBg, text: colors.accentDark },
+  cancelled: { bg: colors.statusCancelledBg, text: colors.statusCancelledText },
+});
 
 interface Props { navigation: any; }
 
 export default function OrdersScreen({ navigation }: Props) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const statusStyles = useMemo(() => getStatusStyles(colors), [colors]);
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -84,13 +87,11 @@ export default function OrdersScreen({ navigation }: Props) {
       contentContainerStyle={styles.scrollContent}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); checkAndLoad(); }} tintColor={colors.primary} />}
     >
-      {/* Page Title */}
       <View style={styles.header}>
         <Text style={styles.pageTitle}>My Orders</Text>
         <RefreshButton onRefresh={() => { setRefreshing(true); checkAndLoad(); }} />
       </View>
 
-      {/* Summary Banner */}
       <View style={styles.summaryBanner}>
         <View style={styles.summaryLeft}>
           <Package size={18} color={colors.accent} strokeWidth={2} />
@@ -99,9 +100,8 @@ export default function OrdersScreen({ navigation }: Props) {
         <Text style={styles.summaryLabel}>ARTISAN CERTIFIED</Text>
       </View>
 
-      {/* Order Cards */}
       {orders.map((order: any) => {
-        const sc = STATUS_STYLES[order.status] || STATUS_STYLES.placed;
+        const sc = statusStyles[order.status] || statusStyles.placed;
         const firstItem = order.items?.[0];
         const moreCount = (order.itemCount || order.items?.length || 0) - 1;
 
@@ -112,7 +112,6 @@ export default function OrdersScreen({ navigation }: Props) {
             onPress={() => navigation.navigate('OrderDetail', { orderId: order.id })}
             activeOpacity={0.9}
           >
-            {/* Header */}
             <View style={styles.cardHeader}>
               <View>
                 <Text style={styles.orderNumber}>{order.publicNumber}</Text>
@@ -127,7 +126,6 @@ export default function OrdersScreen({ navigation }: Props) {
               </View>
             </View>
 
-            {/* Item Preview */}
             <View style={styles.itemPreview}>
               <View style={styles.itemThumb} />
               <View style={styles.itemInfo}>
@@ -143,7 +141,6 @@ export default function OrdersScreen({ navigation }: Props) {
               </View>
             </View>
 
-            {/* Footer */}
             <View style={styles.cardFooter}>
               <View>
                 <Text style={styles.totalLabel}>ORDER TOTAL</Text>
@@ -158,7 +155,6 @@ export default function OrdersScreen({ navigation }: Props) {
         );
       })}
 
-      {/* Support Note */}
       <View style={styles.supportNote}>
         <View style={styles.supportBar} />
         <Text style={styles.supportText}>
@@ -172,7 +168,7 @@ export default function OrdersScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ColorPalette) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   scrollContent: { paddingHorizontal: spacing.margin, paddingBottom: 100 },
   center: {
@@ -192,48 +188,41 @@ const styles = StyleSheet.create({
   },
   outlineBtnText: { fontFamily: 'DMSans-SemiBold', fontSize: 14, color: colors.primary },
 
-  // Header
   header: { paddingTop: 56, marginBottom: spacing.md, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   pageTitle: { fontFamily: 'NotoSerif-Regular', fontSize: 22, color: colors.textPrimary, letterSpacing: -0.2 },
 
-  // Summary Banner
   summaryBanner: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: spacing.md, paddingVertical: 10,
-    backgroundColor: '#F4F4F1', borderRadius: borderRadius.md, marginBottom: spacing.md,
+    backgroundColor: colors.surfaceAlt, borderRadius: borderRadius.md, marginBottom: spacing.md,
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
   },
   summaryLeft: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   summaryText: { fontFamily: 'DMSans-Medium', fontSize: 12, color: colors.textSecondary },
   summaryLabel: { fontFamily: 'DMSans-SemiBold', fontSize: 11, color: colors.accent, letterSpacing: 1.5 },
 
-  // Order Card
   orderCard: {
     backgroundColor: colors.surface, borderRadius: borderRadius.md, padding: spacing.md,
     marginBottom: spacing.md,
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
   },
 
-  // Card Header
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   orderNumber: { fontFamily: 'DMSans-SemiBold', fontSize: 16, color: colors.textPrimary, letterSpacing: -0.2 },
   orderDate: { fontFamily: 'DMSans-Regular', fontSize: 12, color: colors.textSecondary, marginTop: 2 },
   statusBadge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: borderRadius.full },
   statusText: { fontFamily: 'DMSans-SemiBold', fontSize: 11, letterSpacing: 1, textTransform: 'uppercase' },
 
-  // Item Preview
   itemPreview: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: 'rgba(244,244,241,0.5)', padding: 4, borderRadius: 8,
-    marginTop: spacing.md,
+    backgroundColor: colors.surfaceAlt, padding: 4, borderRadius: 8, marginTop: spacing.md,
   },
-  itemThumb: { width: 48, height: 64, borderRadius: 8, backgroundColor: '#E0DDD8' },
+  itemThumb: { width: 48, height: 64, borderRadius: 8, backgroundColor: colors.placeholder },
   itemInfo: { flex: 1, justifyContent: 'center' },
   itemName: { fontFamily: 'DMSans-Medium', fontSize: 14, color: colors.textPrimary },
   itemMeta: { fontFamily: 'DMSans-Regular', fontSize: 12, color: colors.textSecondary, marginTop: 2 },
   moreItems: { fontFamily: 'DMSans-SemiBold', fontSize: 11, color: colors.primary, marginTop: 4 },
 
-  // Card Footer
   cardFooter: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     marginTop: spacing.md, paddingTop: spacing.sm,
@@ -243,12 +232,8 @@ const styles = StyleSheet.create({
   viewDetailsBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   viewDetailsText: { fontFamily: 'DMSans-Medium', fontSize: 13, color: colors.primary, letterSpacing: 0.2 },
 
-  // Support Note
   supportNote: { alignItems: 'center', marginTop: spacing.md, gap: 4 },
-  supportBar: { width: 32, height: 4, borderRadius: 2, backgroundColor: '#E8E8E5', marginBottom: 4 },
+  supportBar: { width: 32, height: 4, borderRadius: 2, backgroundColor: colors.surfaceMuted, marginBottom: 4 },
   supportText: { fontFamily: 'DMSans-Regular', fontSize: 12, color: colors.textSecondary, textAlign: 'center' },
-  supportLink: {
-    fontFamily: 'DMSans-Medium', fontSize: 13, color: colors.primary,
-    textDecorationLine: 'underline',
-  },
+  supportLink: { fontFamily: 'DMSans-Medium', fontSize: 13, color: colors.primary, textDecorationLine: 'underline' },
 });

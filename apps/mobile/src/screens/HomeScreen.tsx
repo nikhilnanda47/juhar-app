@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   Dimensions, RefreshControl, ImageBackground,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { colors, spacing, borderRadius, elevation } from '../theme';
+import { useTheme, type ColorPalette } from '../theme';
+import { spacing, borderRadius, elevation } from '../theme';
 import { getProducts, getCategories, formatPaise, type Product } from '../services/api';
 import { FadeInUp, ScalePress } from '../components/AnimatedUI';
 import RefreshButton from '../components/RefreshButton';
@@ -14,6 +15,8 @@ const CARD_WIDTH = (width - spacing.margin * 2 - spacing.gutter) / 2;
 
 export default function HomeScreen() {
   const navigation = useNavigation<any>();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [newArrivals, setNewArrivals] = useState<Product[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -166,7 +169,7 @@ export default function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ColorPalette) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -219,20 +222,18 @@ const styles = StyleSheet.create({
     aspectRatio: 16 / 9,
     borderRadius: borderRadius.md,
     overflow: 'hidden',
-    backgroundColor: '#E8E4E0',
+    backgroundColor: colors.placeholder,
     position: 'relative',
   },
   heroPlaceholder: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#D5CFC9',
+    backgroundColor: colors.placeholder,
   },
   heroOverlay: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'flex-end',
     padding: spacing.md,
-    // Gradient effect via semi-transparent bg
     backgroundColor: 'transparent',
-    // Apply bottom gradient
     backgroundImage: 'linear-gradient(to top, rgba(26,28,27,0.7), rgba(26,28,27,0.15), transparent)',
   },
   heroLabel: {
@@ -289,14 +290,14 @@ const styles = StyleSheet.create({
   },
   collectionCard: {
     width: CARD_WIDTH,
-    height: CARD_WIDTH, // 1:1 square
+    height: CARD_WIDTH,
     borderRadius: borderRadius.md,
     overflow: 'hidden',
     position: 'relative',
   },
   collectionImage: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#D5CFC9',
+    backgroundColor: colors.placeholder,
   },
   collectionGradient: {
     position: 'absolute',
@@ -327,7 +328,7 @@ const styles = StyleSheet.create({
     width: '100%',
     aspectRatio: 3 / 4,
     borderRadius: borderRadius.md,
-    backgroundColor: '#E8E4E0',
+    backgroundColor: colors.placeholder,
     marginBottom: spacing.xs,
   },
   arrivalMeta: {
@@ -374,7 +375,7 @@ const styles = StyleSheet.create({
   shimmerCard: {
     width: 160,
     height: 260,
-    backgroundColor: '#E8E4E0',
+    backgroundColor: colors.placeholder,
     borderRadius: borderRadius.md,
   },
 });
