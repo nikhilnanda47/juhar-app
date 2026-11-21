@@ -382,7 +382,7 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
   );
 }
 
-function DetailRow({ label, value, even, colors }: { label: string; value: string; even: boolean; colors: ColorPalette }) {
+function DetailRow({ label, value, even, colors }: { label: string; value: string | null | undefined; even: boolean; colors: ColorPalette }) {
   if (!value) return null;
   const styles = useMemo(() => createStyles(colors), [colors]);
   return (
@@ -440,7 +440,7 @@ const createStyles = (colors: ColorPalette) => StyleSheet.create({
     width: '100%', aspectRatio: 3 / 4, borderRadius: borderRadius.md,
     overflow: 'hidden', backgroundColor: colors.placeholder, position: 'relative',
   },
-  heroPlaceholder: { ...StyleSheet.absoluteFillObject, backgroundColor: colors.surfaceMuted },
+  heroPlaceholder: { ...StyleSheet.absoluteFill, backgroundColor: colors.surfaceMuted },
   giBadge: {
     position: 'absolute', bottom: 12, left: 12,
     flexDirection: 'row', alignItems: 'center', gap: 6,

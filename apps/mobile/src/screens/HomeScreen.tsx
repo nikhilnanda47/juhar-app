@@ -226,11 +226,11 @@ const createStyles = (colors: ColorPalette) => StyleSheet.create({
     position: 'relative',
   },
   heroPlaceholder: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: colors.placeholder,
   },
   heroOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     justifyContent: 'flex-end',
     padding: spacing.md,
     backgroundColor: 'transparent',
@@ -296,7 +296,7 @@ const createStyles = (colors: ColorPalette) => StyleSheet.create({
     position: 'relative',
   },
   collectionImage: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: colors.placeholder,
   },
   collectionGradient: {

@@ -384,7 +384,7 @@ const createStyles = (colors: ColorPalette) => StyleSheet.create({
     marginBottom: 10,
   },
   cardImage: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: colors.placeholder,
   },
 
