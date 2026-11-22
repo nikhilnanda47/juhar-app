@@ -128,7 +128,7 @@ Open items as of 2026-11-22, grouped by urgency. The team tracker holds owners a
 - A few mobile screens (product detail, welcome) use fixed colours that need a visual check in dark mode.
 
 ### Engineering hygiene
-- No automated tests exist (the CI test step passes with none).
+- Test coverage is just starting: only the order state machine has tests (`npm test -w apps/api`). Stock reservation, checkout totals and the rest of the API are not covered yet.
 - No ESLint configuration, so the `lint` scripts do not run.
 - Some mobile and web screens call the API with raw `fetch` and their own copy of `API_BASE` instead of the shared API client.
 - The cart badge polls the server every 2–3 seconds.
@@ -523,6 +523,7 @@ Check what changed (`git diff HEAD@{1} --stat`), then use this table. Dev server
 | `cd apps/mobile && npx expo start --web --clear` | Root | Mobile with cleared cache |
 | `npm run build -w packages/shared` | Root | Rebuild the shared package after editing it |
 | `npm run typecheck -w apps/web` (or `apps/admin`, `apps/api`) | Root | Typecheck one app |
+| `npm test -w apps/api` | Root | Run the API unit tests (Jest, no database needed) |
 | `npm run build:web` | Root | Production build of the website (catches errors dev mode hides) |
 
 ### Service ports
