@@ -25,12 +25,15 @@ info:
     - Admin endpoints: Bearer JWT with admin role claim
 
     ## Rate Limits
-    - OTP request: 3/phone/10min, 10/IP/hour
-    - Authenticated APIs: 100 req/min/user
-    - Public APIs: 30 req/min/IP
+    Enforced since 2026-11-22. Every attempt counts, including ones that fail validation.
+    - `POST /auth/otp/request`: 3 per phone and 10 per IP, per 10 minutes
+    - `POST /auth/otp/verify`: 5 per phone and 20 per IP, per 10 minutes (right or wrong)
+    - Every endpoint: 100 requests per minute per logged-in user, or per IP when logged out
+    - `GET /health` is not limited
 
-    These are the target limits. As of 2026-11-22 they are **not enforced**: the throttler is
-    configured but no throttler guard is registered, so no request is currently rate limited.
+    A blocked call returns **429** with error code `RATE_LIMITED` and a standard `Retry-After`
+    header (seconds). Counters are kept in the API process's memory, so they reset on restart
+    and are per instance.
   version: 1.0.0
   contact:
     name: Juhar Tech Team
@@ -1508,7 +1511,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/ValidationError'
         "429":
-          description: Rate limited
+          description: Rate limited (`RATE_LIMITED`). Retry after the number of seconds in `Retry-After`.
+          headers:
+            Retry-After:
+              description: Seconds until the caller may try again
+              schema:
+                type: integer
           content:
             application/json:
               schema:

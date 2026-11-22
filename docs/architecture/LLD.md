@@ -1760,7 +1760,14 @@ class GlobalExceptionFilter implements ExceptionFilter {
 
 ### 5.3 Rate Limiting
 
-> **Implementation status (2026-11-22):** The limits in this table are **not enforced**. `ThrottlerModule.forRoot` defines a global `short` bucket (100 requests/min) and `POST /auth/otp/request` carries `@Throttle({ short: { ttl: 600000, limit: 3 } })`, but no `ThrottlerGuard` is registered (no `APP_GUARD`, no `@UseGuards(ThrottlerGuard)`), so neither takes effect. Even once registered, `@nestjs/throttler` tracks by client IP by default, so the per-phone limit would need a custom tracker. The `RATE_LIMITS` constants in `packages/shared` are unused. What is enforced today is the OTP verify limit (5 attempts per OTP) and a 30-second OTP resend cooldown, both held in memory in `AuthService`.
+> **Implementation status (2026-11-22):** Rate limiting is enforced by `ThrottlingModule` (`apps/api/src/common/throttling/`), which `AppModule` imports and which registers `AppThrottlerGuard` as a global guard. The limits live in `throttler.config.ts` (`THROTTLE_LIMITS`; the `RATE_LIMITS` constants in `packages/shared` are the original design values and are not used). Differences from the table below:
+> - **Counting:** every endpoint allows 100 requests a minute **per logged-in user** (the user ID from the verified access token, so customers who share an IP do not block each other). Callers with no valid token (logged out, expired, forged) are counted **per IP**. There is no separate 30 per minute public limit. `GET /health` is not limited.
+> - **OTP endpoints** (`@OtpThrottle()`) also have two window counters of 10 minutes each, one per phone number (taken from the request body) and one per IP: `POST /auth/otp/request` 3 per phone and 10 per IP; `POST /auth/otp/verify` 5 per phone and 20 per IP. The per-IP request limit is 10 minutes, not 1 hour. The limit applies before validation, so malformed requests count, and a correct code is refused while the phone is blocked.
+> - **Blocked calls** return 429 with code `RATE_LIMITED`, the message "Too many attempts. Please wait a few minutes and try again." and a `Retry-After` header. The web and mobile login screens show that message.
+> - **Client IP:** the limits read `req.ip`. Behind a proxy set `TRUST_PROXY` (number of proxies, for example `1`), otherwise every caller shares the proxy's address and the per-IP limits would block everyone together. In production the API logs a warning at startup if it is not set. `X-Forwarded-For` is ignored when it is not set, so it cannot be spoofed.
+> - **Storage:** counters are in memory, so they reset on restart and are per instance. Moving them to Redis belongs with the OTP store (step 26).
+> - Also enforced in `AuthService`: 5 attempts per OTP and a 30-second resend cooldown, held in memory.
+> - Known trade-off: someone who knows a phone number can use up its OTP allowance and delay that person's login for up to 10 minutes.
 
 | Endpoint | Limit | Window |
 |---|---|---|

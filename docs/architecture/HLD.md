@@ -485,13 +485,13 @@ Push → Lint + Typecheck + Test (parallel) → Build → Deploy Staging (auto) 
 | Uploads | Signed URLs with content-type restriction; max 10MB images, 50MB video |
 | Secrets | Environment variables only; .env in .gitignore |
 | HTTPS | TLS enforced; platform handles certs |
-| Rate limiting | OTP: 3/phone/10min, 10/IP/hour, 5 verify attempts per OTP; API: 100 req/min/user; Public: 30 req/min/IP |
+| Rate limiting | OTP: 3/phone/10min, 10/IP/hour, 5 verify attempts per OTP; API: 100 req/min/user; Public: 30 req/min/IP (design target; the enforced limits are listed below) |
 | Audit | All admin mutations logged in audit_events table |
 
 > **Implementation status (2026-11-22):** The rows above are the design target. Gaps in the code today:
 > - **OTP provider:** `AuthModule` always uses `MockOtpProvider` (fixed OTP `123456`, logged to the console). `OTP_PROVIDER` in `.env` is not read. Anyone can log in as any phone number, including the seeded admin, so this must be replaced before any real use.
 > - **OTP store:** hashed OTPs and attempt counts live in an in-memory map, so they reset on restart and do not work across multiple instances.
-> - **Rate limiting:** `ThrottlerModule` is configured and `POST /auth/otp/request` carries a `@Throttle` decorator, but no `ThrottlerGuard` is registered, so none of the limits above are enforced. The OTP per-attempt limit (5 per OTP) is enforced in `AuthService`.
+> - **Rate limiting:** enforced since 2026-11-22 by a global `AppThrottlerGuard`. OTP request: 3/phone and 10/IP per 10 minutes; OTP verify: 5/phone and 20/IP per 10 minutes; all other endpoints: 100 req/min per logged-in user (per IP when logged out). Blocked calls get 429 `RATE_LIMITED`. Behind a proxy the API needs `TRUST_PROXY`. Counters are in memory (per instance, reset on restart). Details are in LLD section 5.3.
 > - **Refresh tokens:** the API issues and verifies them (`POST /auth/refresh`), and the admin, web and mobile clients all use it (on a 401 the client refreshes once and repeats the request; a rejected refresh token ends the session and shows the login screen), so sessions last up to 7 days. Refresh tokens cannot be revoked.
 > - **Startup checks:** the API now refuses to start unless `DATABASE_URL`, `JWT_SECRET` and `JWT_REFRESH_SECRET` are set (`src/config/env.validation.ts`), naming the missing variables. `CORS_ORIGINS`, when set, replaces the built-in local origin list entirely.
 

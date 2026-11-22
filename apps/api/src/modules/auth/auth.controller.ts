@@ -1,6 +1,7 @@
 import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards, Get } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
+import { OtpThrottle, THROTTLE_LIMITS } from '../../common/throttling/throttler.config';
 import { AuthService } from './auth.service';
 import { RequestOtpDto, VerifyOtpDto, RefreshTokenDto } from './dto';
 import { JwtAuthGuard } from './guards';
@@ -14,7 +15,11 @@ export class AuthController {
   @Post('otp/request')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Request OTP' })
-  @Throttle({ short: { ttl: 600000, limit: 3 } }) // 3 per 10 minutes
+  @OtpThrottle()
+  @Throttle({
+    'otp-phone': { ttl: THROTTLE_LIMITS.otpWindowMs, limit: THROTTLE_LIMITS.otpRequestPerPhone },
+    'otp-ip': { ttl: THROTTLE_LIMITS.otpWindowMs, limit: THROTTLE_LIMITS.otpRequestPerIp },
+  })
   async requestOtp(@Body() dto: RequestOtpDto) {
     return this.authService.requestOtp(dto);
   }
@@ -22,6 +27,7 @@ export class AuthController {
   @Post('otp/verify')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Verify OTP and get tokens' })
+  @OtpThrottle()
   async verifyOtp(@Body() dto: VerifyOtpDto) {
     return this.authService.verifyOtp(dto);
   }

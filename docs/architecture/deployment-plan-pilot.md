@@ -334,6 +334,7 @@ MSG91_TEMPLATE_ID=<msg91-template-id>                 # not read by the code yet
 # ── Server ──
 PORT=3000
 NODE_ENV=production
+TRUST_PROXY=1                                         # proxies in front of the API; needed so rate limits see each caller's real IP (see the security checklist)
 CORS_ORIGINS=https://juhar.co.in,https://www.juhar.co.in,https://admin.juhar.co.in   # replaces the built-in local origins
 
 # ── Storage ──   (planned: no code reads these yet)
@@ -406,13 +407,12 @@ PAYMENT_GATEWAY=mock
 - [ ] JWT secrets are strong random strings (64+ characters)
 - [ ] R2 bucket is private (images served via public URL prefix, not direct bucket access)
 - [ ] CORS restricted to production domains only
-- [ ] Rate limiting enabled on OTP endpoints
+- [x] Rate limiting enabled on OTP endpoints (done in code 2026-11-22). After the first deploy, check it counts each customer separately: set `TRUST_PROXY=1`, ask for OTPs for 11 different numbers from one network (the 11th must be blocked), then try from a different network such as mobile data (must NOT be blocked). If the second network is blocked too, the API is seeing the proxy's address and `TRUST_PROXY` has the wrong value
 - [ ] No secrets in code — all in environment variables
 - [ ] Admin panel behind OTP auth (no password-based login)
 - [ ] Webhook signatures verified (when payments added)
 
-> **Implementation status (2026-11-22):** Three items above are **not yet true in the code** and block a real launch:
-> - **Rate limiting on OTP endpoints:** configured but not enforced, because no throttler guard is registered.
+> **Implementation status (2026-11-22):** Two items above are **not yet true in the code** and block a real launch (rate limiting is now enforced):
 > - **OTP login:** the mock provider accepts the fixed code `123456` for any phone number, including admin numbers.
 > - **Sessions:** the admin, web and mobile apps all renew their login automatically with the refresh token, so sessions last up to 7 days. After that, or if the refresh token is rejected, the user signs in again.
 >
