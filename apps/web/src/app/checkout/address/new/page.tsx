@@ -22,8 +22,21 @@ export default function AddAddressPage() {
 
   const update = (key: string, value: string | boolean) => setForm(f => ({ ...f, [key]: value }));
 
-  const isValid = form.recipientName.length >= 2 && form.recipientPhone.length === 10 &&
-    form.line1.length >= 5 && form.city.length >= 2 && form.district.length >= 2 && /^[1-9]\d{5}$/.test(form.pinCode);
+  const problems: string[] = [];
+  if (form.recipientName.length < 2) problems.push('full name');
+  if (form.recipientPhone.length !== 10) problems.push('10-digit phone number');
+  else if (!/^[6-9]/.test(form.recipientPhone)) problems.push('phone number starting with 6, 7, 8 or 9');
+  if (form.line1.length < 5) problems.push('address line 1 (at least 5 characters)');
+  if (form.city.length < 2) problems.push('city');
+  if (form.district.length < 2) problems.push('district');
+  if (!/^[1-9]\d{5}$/.test(form.pinCode)) problems.push('6-digit PIN code (cannot start with 0)');
+  const isValid = problems.length === 0;
+
+  const started = ['recipientName', 'recipientPhone', 'line1', 'city', 'district', 'pinCode']
+    .some((k) => form[k as keyof typeof form]);
+  const hint = started && !isValid
+    ? <p className="font-sans text-body-sm text-text-secondary mb-3">Still needed to save: {problems.join(', ')}.</p>
+    : null;
 
   const handleSave = async () => {
     if (!isValid) return;
@@ -143,6 +156,7 @@ export default function AddAddressPage() {
 
           {/* Mobile CTA */}
           <div className="lg:hidden">
+            {hint}
             {error && <p className="font-sans text-body-sm text-error mb-3">{error}</p>}
             <button onClick={handleSave} disabled={!isValid || saving}
               className="btn-primary w-full !h-14 !rounded-xl !text-title-sm disabled:opacity-40">
@@ -197,6 +211,7 @@ export default function AddAddressPage() {
           </div>
 
           {/* CTA */}
+          {hint}
           {error && <p className="font-sans text-body-sm text-error">{error}</p>}
           <button onClick={handleSave} disabled={!isValid || saving}
             className="btn-primary w-full !h-14 !rounded-xl !text-title-sm disabled:opacity-40">
