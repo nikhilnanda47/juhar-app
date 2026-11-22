@@ -43,7 +43,11 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   };
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
   const json = await res.json();
-  if (!json.success) throw new Error(json.error?.message || 'Request failed');
+  if (!json.success) {
+    const message = json.error?.message || 'Request failed';
+    const details = Array.isArray(json.error?.details) ? json.error.details.join('; ') : '';
+    throw new Error(details ? `${message}: ${details}` : message);
+  }
   return json.data;
 }
 
