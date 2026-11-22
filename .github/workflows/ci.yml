@@ -2,13 +2,20 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'develop-*']
   pull_request:
     branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build:
+  api:
+    name: API
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     services:
       postgres:
@@ -34,11 +41,9 @@ jobs:
           node-version: 22
           cache: npm
 
+      # postinstall also builds packages/shared into dist/
       - name: Install dependencies
         run: npm ci
-
-      - name: Build shared package
-        run: npm run build -w packages/shared
 
       - name: Generate Prisma client
         run: npx prisma generate
@@ -59,3 +64,92 @@ jobs:
 
       - name: Build API
         run: npm run build -w apps/api
+
+  web:
+    name: Web
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck -w apps/web
+
+      - name: Build
+        run: npm run build -w apps/web
+
+  admin:
+    name: Admin
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck -w apps/admin
+
+      - name: Build
+        run: npm run build -w apps/admin
+
+  mobile:
+    name: Mobile
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: apps/mobile
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+
+      # apps/mobile is not in the root workspaces, so it has its own install
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+  # The "main-protection" ruleset requires a check named "build".
+  # This gate reports it and fails unless every job above succeeded.
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    needs: [api, web, admin, mobile]
+    if: always()
+
+    steps:
+      - name: Require all jobs to pass
+        run: |
+          echo "api=${{ needs.api.result }} web=${{ needs.web.result }} admin=${{ needs.admin.result }} mobile=${{ needs.mobile.result }}"
+          [ "${{ needs.api.result }}" = "success" ] &&
+          [ "${{ needs.web.result }}" = "success" ] &&
+          [ "${{ needs.admin.result }}" = "success" ] &&
+          [ "${{ needs.mobile.result }}" = "success" ]

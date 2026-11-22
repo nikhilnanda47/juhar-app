@@ -3,6 +3,7 @@
 **Version:** 1.0  
 **Date:** 13 November 2026  
 **Status:** Draft for review  
+**Last synced with code:** 22 November 2026 (see "Implementation status" notes)  
 **Scope:** Pilot launch — Sambalpur / Western Odisha, ~20–30 SKUs, 5–6 pieces per design
 
 ---
@@ -22,6 +23,8 @@
 - Nationwide fulfillment
 - Wishlist, reviews, personalization, loyalty, push campaigns
 
+> **Implementation status (2026-11-22):** The responsive customer website (`apps/web`, Next.js 14) was added after this scope was written (see 3.2). It is a storefront without dedicated SEO work. Everything else in the list above remains out of scope.
+
 **Pilot constraints:**
 - ~20–30 designs, ~5–6 pieces each from a single relative-owned manufacturing unit
 - Sambalpur and Western Odisha delivery area
@@ -34,8 +37,8 @@
 
 | Layer | Technology | Rationale |
 |---|---|---|
-| Mobile App | React Native + Expo + TypeScript | Cross-platform Android/iOS from one codebase |
-| Web App | Next.js 14 + Tailwind CSS + TypeScript | Customer-facing website, responsive, SEO-ready |
+| Mobile App | React Native 0.88 + Expo SDK 58 + React 19 + React Navigation 7 + TypeScript | Cross-platform Android/iOS from one codebase |
+| Web App | Next.js 14 + React 18 + Tailwind CSS 3.4 + TypeScript | Customer-facing website, responsive, SEO-ready |
 | Backend API | NestJS + TypeScript | Modular, typed, OpenAPI generation |
 | ORM | Prisma | Type-safe queries, versioned migrations |
 | Database | PostgreSQL 16 | ACID for inventory reservations, JSONB for attributes |
@@ -49,6 +52,13 @@
 | Monorepo | npm workspaces | Shared types across apps |
 | CI/CD | GitHub Actions | Lint → test → build → deploy |
 | Hosting | Railway / Render / AWS (TBD) | Managed PostgreSQL + container hosting |
+
+> **Implementation status (2026-11-22):** The table above is the target stack. In the code today:
+> - **OTP:** a mock provider with a fixed code (`123456`); no SMS provider is wired (see section 9).
+> - **Payments:** not integrated. Only Cash on Delivery works.
+> - **Object storage / CDN:** not integrated. Products use placeholder images; there is no Media module.
+> - **Notifications / WhatsApp:** not built. WhatsApp integration is pending, and the web order page still contains a placeholder support number.
+> - **CI/CD:** GitHub Actions runs typecheck/test/build for API, web, admin and mobile (section 8). There is no lint step (no ESLint config yet) and no automated deploy.
 
 ---
 
@@ -73,7 +83,7 @@ Login Phone, OTP Verify, and Name Capture are inline states within the Profile/A
 |---|---|
 | Home | Sub-header "Juhar ଜୁହାର୍" + "WESTERN ODISHA", 16:9 hero with gradient overlay, 2×2 collection grid with gradient name overlay, horizontal New Arrivals with low stock text |
 | Explore | "Shop" title (Noto Serif 22px), search bar with shadow + filter icon, category chips, count row, product cards with wishlist heart overlay, origin badge, stock status |
-| Product Detail | 3:4 hero with "GI CERTIFIED LOOM" badge, dot pagination, scarcity pill, price + discount pill, color swatches, PIN code check, details table, delivery items, "You may also like" scroll, sticky Add to Bag (green on success). Redirects to login if not authenticated |
+| Product Detail | 3:4 hero with "GI CERTIFIED LOOM" badge, dot pagination, scarcity pill, price + discount pill, color swatches, PIN code check, details table, delivery items, "You may also like" scroll, sticky Add to Bag (green on success). Guests can add to bag (local guest cart, see 3.3); login is required at checkout |
 | Cart | Back circle + "My Bag (N)", free shipping progress meter, item cards with thumbnails + stepper (minus removes at qty 0) + "Save to Wishlist", coupon section, price details, sticky bar with savings |
 | Checkout — Address | "Saved Addresses" with count badge, address cards with radio + "Default" badge + delivery estimate, "Add New Address" button, assurance note, sticky "Deliver Here" |
 | Checkout — Add Address | Reassurance banner, shadow inputs (no border), +91 phone prefix, label chips (Home/Office/Other), custom checkbox, sticky "Save Address" |
@@ -98,6 +108,15 @@ Login Phone, OTP Verify, and Name Capture are inline states within the Profile/A
 No Internet, App Update Required, Maintenance, My Addresses (standalone), Search Results, FAQs (standalone). Login Phone / OTP / Name Capture are handled inline in Profile.
 
 **Total: 13 screens implemented**
+
+**Theming and dark mode (implemented)**
+
+- **Structure:** `src/theme/colors.ts` defines two full palettes (`lightColors`, `darkColors`) and the `ColorPalette` type. `ThemeProvider` (`src/theme/ThemeContext.tsx`) wraps the app in `App.tsx`; screens call `useTheme()` for `{ colors, isDark, toggleTheme }` and build styles with `createStyles(colors)` inside `useMemo`. Surfaces and text take their colours from the active palette rather than fixed values.
+- **Persistence:** the choice is stored in `AsyncStorage` under the key `juhar_theme` (`'light'` or `'dark'`).
+- **Toggle:** Profile screen menu card (a `Switch`, labelled "Dark Mode"/"Light Mode") when logged in, and a sun/moon icon button in the Account header on the login screen, so guests can switch too.
+- **Navigation chrome:** stack headers, the tab bar and the status bar (`light`/`dark` style) follow the active palette.
+
+> **Implementation status (2026-11-22):** The app always starts in light mode and applies the saved choice once `AsyncStorage` has loaded, so a brief light flash is possible on launch. System appearance is not read (`userInterfaceStyle` is `automatic` in `app.json`, but `ThemeProvider` does not follow it). No "follow system" option exists yet.
 
 ### 3.2 Web App (`apps/web`)
 
@@ -127,6 +146,18 @@ No Internet, App Update Required, Maintenance, My Addresses (standalone), Search
 - **Cart badge:** Count shown on cart icon in both Header and BottomNav via `CartProvider` context
 - **Same API:** Connects to same backend as mobile app (`localhost:3000`)
 - **Auth:** Split-panel login (burgundy brand panel + form), OTP verify, name capture
+- **Order states:** the order detail page shows a cancelled banner (date + reason) for cancelled orders and a return/refund notice above a completed timeline for post-delivery statuses; the orders list has a badge for each status
+- **Build constraint:** pages that call `useSearchParams()` (`/checkout/review`, `/order-success`) render their content inside a `<Suspense>` boundary, which `next build` requires for static prerendering
+- **Zoom:** pinch-zoom is allowed (the viewport does not disable scaling)
+
+**Theming and dark mode (implemented)**
+
+- **Tokens:** colours are CSS custom properties holding RGB channels (e.g. `--color-primary: 139 58 74`) in `src/app/globals.css`, defined under `:root` (light) and `.dark` (dark). `tailwind.config.ts` maps every colour to `rgb(var(--color-…) / <alpha-value>)`, so opacity modifiers such as `bg-surface/80` work in both themes. `darkMode: 'class'`.
+- **Provider:** `ThemeProvider` / `useTheme()` in `src/lib/theme-context.tsx` toggles the `dark` class on `<html>`, saves the choice in `localStorage` under `juhar_theme`, and updates the `theme-color` meta tag (`#FAFAF7` light, `#121212` dark).
+- **No flash on load:** an inline script in `src/app/layout.tsx` reads `juhar_theme` before first paint and adds the `dark` class; `<html>` uses `suppressHydrationWarning`.
+- **Toggle:** sun/moon button in the desktop Header, and a toggle row in the Account page menu (logged-in profile view).
+
+> **Implementation status (2026-11-22):** The default is light; the system preference is not detected. There is no toggle in the mobile-width layout for logged-out visitors (the Header toggle is desktop-only and the login panel has none). The admin panel has no dark mode.
 
 ### 3.3 Guest Cart Flow
 
@@ -161,6 +192,8 @@ Users can browse and add to cart without logging in:
 
 **Deferred modules (post-pilot):** Shipping API integration, Notifications service, Analytics/reporting engine
 
+> **Implementation status (2026-11-22):** 9 of the 12 modules are active: Auth, Users, Addresses, Categories, Products, Inventory, Cart, Checkout, Orders. **Media**, **Payments** and the standalone **Admin** module (reports, admin-user management) are not built. Admin endpoints for categories, products, inventory and orders live inside their feature modules, protected by `JwtAuthGuard` + `AdminAuthGuard` + `RolesGuard`. The stock reservation expiry worker is implemented (every minute). Known gaps in these modules (inventory settlement on confirm/ship, order-number generation, admin cancel reason, auth rate limiting) are tracked in the team tracker.
+
 ### 3.5 Admin Panel (`apps/admin`)
 
 | Section | P0 Scope |
@@ -173,12 +206,16 @@ Users can browse and add to cart without logging in:
 | Reports | Orders, GMV, COD pending, refunds, stock summary, top products |
 | Settings | Admin user management, role assignment |
 
+> **Implementation status (2026-11-22):** Built: OTP login, dashboard (stats + recent orders), categories (list/create/activate), product catalog (list, create with variants, publish/unpublish), inventory (view only) and orders (search/filter; confirm → pack → ship with tracking ID → deliver). **Not built:** product edit, manual stock adjustment UI (the API endpoint exists), order detail page, **cancelling an order** (the API supports it from placed/confirmed, but the panel has no cancel action and the API stores no admin cancellation reason), returns and refunds, customers, reports, settings/RBAC management. The panel is light-theme only.
+
 ### 3.6 Shared Package (`packages/shared`)
 
 - TypeScript DTOs and interfaces
-- Enums: `OrderStatus`, `PaymentStatus`, `ShipmentStatus`, `UserRole`
-- Constants: state machine transitions, validation rules
-- Utils: paise ↔ rupee formatting, slug generation
+- Enums: `OrderStatus`, `PaymentStatus`, `ShipmentStatus`, `AdminRole` (plus payment mode, reservation, publish, return, refund and stock-adjustment enums)
+- Constants: state machine transitions (`ORDER_TRANSITIONS`, `canTransitionOrder`), rate limits, auth/inventory/cart limits, order-number prefix
+- Utils: paise ↔ rupee formatting, slug generation, order-number generation, phone and PIN validation
+
+> **Implementation status (2026-11-22):** The package compiles to `packages/shared/dist/` (`main`/`types` point there). A root `postinstall` script (`npm run build -w packages/shared`) builds it after every `npm install` / `npm ci`, so a fresh clone can typecheck and run the API without a separate step. Compiled output is git-ignored and no longer committed next to the sources. The API imports it as `@juhar/shared`. The admin panel maps it to the source via a tsconfig path but does not import it yet. The order-number prefix constant is still `SAJ` (a rebrand leftover), so generated numbers read `SAJ-YYYYMMDD-XXXX`, while the data-model docs show `JUH-…`.
 
 ---
 
@@ -352,7 +389,9 @@ Key constraints: integer paise for money, UTC timestamps, UUID PKs, indexes on S
 | GET | /api/v1/admin/users | Admin (owner) | List admin users |
 | POST | /api/v1/admin/users | Admin (owner) | Create admin user |
 
-**38 endpoints total.** Errors: `{success, error: {code, message, details?}, requestId}` with 400/401/403/404/409/429 statuses. See `docs/api/openapi.yaml` for full request/response schemas.
+**46 endpoints in the table above.** `docs/api/openapi.yaml` is the detailed reference and lists 49 operations (35 implemented, 14 planned): it also documents `GET /auth/me`, `GET /admin/categories` and `GET /admin/inventory/{variantId}`, which are implemented but not in this table. Errors: `{success, error: {code, message, details?}, requestId}` with 400/401/403/404/409/429 statuses. See `docs/api/openapi.yaml` for full request/response schemas.
+
+> **Implementation status (2026-11-22):** The API implements the auth, profile, address, catalog, cart, checkout, customer-order and admin category/product/order endpoints in the table. **Not implemented yet:** `POST /orders/:id/return`, `POST /payments/:orderId/initiate`, `POST /webhooks/payments`, the three `/admin/media/*` endpoints, `GET /admin/orders/:id`, `POST /admin/orders/:id/refund`, the three `/admin/reports/*` endpoints and both `/admin/users` endpoints. **Differences:** inventory is exposed as `GET /admin/inventory/:variantId` and `POST /admin/inventory/adjust` (the table shows `GET /admin/inventory` and `POST /admin/inventory/adjustments`); `GET /admin/categories` and `GET /auth/me` exist but are not listed. The table above remains the design target.
 
 ---
 
@@ -414,6 +453,24 @@ Key constraints: integer paise for money, UTC timestamps, UUID PKs, indexes on S
 Push → Lint + Typecheck + Test (parallel) → Build → Deploy Staging (auto) → Deploy Prod (manual)
 ```
 
+> **Implementation status (2026-11-22):** The pipeline in `.github/workflows/ci.yml` runs four parallel jobs on Node 22. Deploy stages are not automated yet.
+>
+> ```
+> Triggers: push to main and develop-*  ·  pull request into main  ·  manual dispatch
+> (a newer run on the same ref cancels the older one; each job has a 15-minute timeout)
+>
+> API     npm ci → prisma generate → typecheck (shared + api) → test → build
+>         (Postgres 16 service container; JWT/DB env supplied for tests)
+> Web     npm ci → typecheck → next build
+> Admin   npm ci → typecheck → next build
+> Mobile  npm ci (inside apps/mobile) → tsc --noEmit
+> ```
+>
+> - `npm ci` at the repo root also runs the `postinstall` that builds `packages/shared` into `dist/`.
+> - Mobile has its own install because `apps/mobile` is not part of the root npm workspaces (Expo needs an isolated `node_modules`).
+> - There is no lint step (no ESLint config exists yet), and the API test job passes without running any tests (`jest --passWithNoTests`; no tests exist yet).
+> - A fifth job, `build`, depends on the four above and fails unless they all succeeded. The repository ruleset `main-protection` requires a check with exactly that name, plus a pull request with 1 approving review, and blocks deletion and force-pushes on `main`. Renaming or removing the `build` job would make pull requests unmergeable until the ruleset is updated.
+
 ---
 
 ## 9. Security (Pilot)
@@ -430,6 +487,13 @@ Push → Lint + Typecheck + Test (parallel) → Build → Deploy Staging (auto) 
 | Rate limiting | OTP: 3/phone/10min, 10/IP/hour, 5 verify attempts per OTP; API: 100 req/min/user; Public: 30 req/min/IP |
 | Audit | All admin mutations logged in audit_events table |
 
+> **Implementation status (2026-11-22):** The rows above are the design target. Gaps in the code today:
+> - **OTP provider:** `AuthModule` always uses `MockOtpProvider` (fixed OTP `123456`, logged to the console). `OTP_PROVIDER` in `.env` is not read. Anyone can log in as any phone number, including the seeded admin, so this must be replaced before any real use.
+> - **OTP store:** hashed OTPs and attempt counts live in an in-memory map, so they reset on restart and do not work across multiple instances.
+> - **Rate limiting:** `ThrottlerModule` is configured and `POST /auth/otp/request` carries a `@Throttle` decorator, but no `ThrottlerGuard` is registered, so none of the limits above are enforced. The OTP per-attempt limit (5 per OTP) is enforced in `AuthService`.
+> - **Refresh tokens:** the API issues and verifies them (`POST /auth/refresh`), but the web, mobile and admin clients store the refresh token without using it. A session therefore ends when the 15-minute access token expires.
+> - **Startup checks:** the API now refuses to start unless `DATABASE_URL`, `JWT_SECRET` and `JWT_REFRESH_SECRET` are set (`src/config/env.validation.ts`), naming the missing variables. `CORS_ORIGINS`, when set, replaces the built-in local origin list entirely.
+
 ---
 
 ## 10. Monorepo Structure
@@ -437,37 +501,55 @@ Push → Lint + Typecheck + Test (parallel) → Build → Deploy Staging (auto) 
 ```
 juhar-app/
 ├── apps/
-│   ├── mobile/              # React Native + Expo
+│   ├── mobile/              # React Native + Expo SDK 58 (own node_modules; not an npm workspace)
+│   │   ├── App.tsx          # ThemeProvider > navigation, splash/welcome gating
 │   │   └── src/
-│   │       ├── components/
-│   │       ├── screens/
-│   │       ├── navigation/
-│   │       ├── services/    # API client
-│   │       ├── hooks/
-│   │       ├── store/
-│   │       └── theme/       # Juhar brand colors/typography
-│   ├── api/                 # NestJS
-│   │   ├── src/modules/     # auth, users, addresses, categories,
-│   │   │                    # products, media, inventory, cart,
-│   │   │                    # checkout, orders, payments, admin
-│   │   ├── prisma/          # schema + migrations
-│   │   └── test/
-│   └── admin/               # Next.js
+│   │       ├── components/  # AnimatedUI, RefreshButton
+│   │       ├── screens/     # 13 screens
+│   │       ├── navigation/  # Tab + stack navigators
+│   │       ├── services/    # API client, local guest cart
+│   │       └── theme/       # colors (light + dark), ThemeContext, typography, spacing
+│   ├── web/                 # Next.js 14 customer website (port 3001)
+│   │   └── src/
+│   │       ├── app/         # 11 routes + globals.css (CSS-variable theme tokens)
+│   │       ├── components/  # Header, BottomNav
+│   │       ├── lib/         # api.ts, cart-context.tsx, theme-context.tsx
+│   │       └── fonts/
+│   ├── api/                 # NestJS (port 3000)
+│   │   ├── src/
+│   │   │   ├── modules/     # auth, users, addresses, categories, products,
+│   │   │   │                # inventory, cart, checkout, orders
+│   │   │   │                # (media, payments, admin: planned)
+│   │   │   ├── common/      # decorators, DTOs, filters, interceptors
+│   │   │   ├── config/      # env.validation.ts (required-variable check at startup)
+│   │   │   └── prisma/
+│   │   └── prisma/          # schema + migrations + seed
+│   └── admin/               # Next.js admin panel (port 3002)
 │       └── src/
 │           ├── app/
 │           ├── components/
 │           └── services/
 ├── packages/
 │   └── shared/              # Types, enums, constants, utils
-├── docs/architecture/
+│       ├── src/             # TypeScript sources only
+│       └── dist/            # build output (git-ignored); created by the root postinstall
+├── .github/workflows/ci.yml # API, web, admin and mobile jobs
+├── docs/
+│   ├── architecture/        # HLD, LLD, database design, deployment plan
+│   ├── api/                 # openapi.yaml
+│   └── design/              # UI specification
 ├── docker-compose.yml       # Local PostgreSQL
-├── package.json             # Workspace root
+├── package.json             # Workspace root (workspaces: packages/*, apps/api, apps/admin, apps/web)
 └── tsconfig.base.json
 ```
+
+> **Implementation status (2026-11-22):** The root `postinstall` script builds `packages/shared` into `dist/`. There are no automated tests yet (no `test/` directory, no spec files).
 
 ---
 
 ## 11. Open Decisions (Must Resolve Before Build)
+
+> Decisions 11 to 13 were added on 2026-11-22 from implementation findings. The owner column is still to be assigned.
 
 | # | Decision | Default Proposal | Owner |
 |---|---|---|---|
@@ -481,3 +563,6 @@ juhar-app/
 | 8 | Initial SKU count | ~20–30 designs from factory audit | Merchandising |
 | 9 | WhatsApp provider | Gupshup / Wati | Tech |
 | 10 | Stock ownership | Reserved allocation to Juhar (not shared) | Ops |
+| 11 | Unconfirmed COD orders: a COD reservation holds stock for 24 hours and the expiry worker then releases it, even though the order is still `placed`. What should happen to a COD order nobody confirms within that time? | Auto-cancel it and release the stock (tell the customer once notifications exist) | TBD |
+| 12 | Should admins be able to cancel an order after it is packed? The state machine allows cancellation only from `placed` and `confirmed`. | Keep as is; handle post-pack problems as returns | TBD |
+| 13 | Real customer support / WhatsApp number. WhatsApp integration is pending, and the web order page links to a placeholder number. | Use one business number once the integration exists; hide the link until then | TBD |

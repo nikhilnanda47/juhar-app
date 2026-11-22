@@ -16,7 +16,9 @@ Juhar is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce pl
 
 ## Current Status
 
-### Customer App (Mobile) — 23 features working
+> Status as of 2026-11-22. Open bugs and technical debt are listed under [Known Issues](#known-issues--technical-debt).
+
+### Customer App (Mobile) — 24 features working
 
 | # | Feature | Status |
 |---|---------|--------|
@@ -43,8 +45,9 @@ Juhar is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce pl
 | 21 | Order detail with status timeline | ✅ |
 | 22 | Pull-to-refresh + refresh button on all screens | ✅ |
 | 23 | Fade-in animations across screens | ✅ |
+| 24 | Light / dark mode — Switch on Profile when logged in, Sun/Moon button on Account when logged out; choice is remembered | ✅ |
 
-### Customer Website (Web) — 11 pages working
+### Customer Website (Web) — 11 pages + dark mode
 
 | # | Feature | Status |
 |---|---------|--------|
@@ -57,8 +60,9 @@ Juhar is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce pl
 | 7 | Select address — 2-col grid, delivery estimate, sticky sidebar | ✅ |
 | 8 | Add address — numbered sections, live preview, label cards | ✅ |
 | 9 | Order review — place order (COD) | ✅ |
-| 10 | Orders — table layout (desktop), card layout (mobile), filter chips | ✅ |
+| 10 | Orders — table layout (desktop), card layout (mobile), filter chips; order detail handles cancelled, return and refund states | ✅ |
 | 11 | Account — split-panel login, profile with sidebar (desktop) | ✅ |
+| 12 | Light / dark mode — toggle in the desktop header and the Account menu; choice is remembered, no flash on load | ✅ |
 
 ### Admin Panel (Web) — 14 features working
 
@@ -83,6 +87,9 @@ Juhar is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce pl
 
 | Feature | Planned Phase |
 |---------|--------------|
+| Real OTP/SMS provider (login currently uses a mock that accepts `123456`) | Before launch |
+| Admin: cancel an order (UI + cancellation reason) | Phase 3.5 |
+| Dark mode for the admin panel; follow the device's light/dark setting | Post-pilot |
 | Real product images (using placeholders) | Phase 5 |
 | UPI/online payment | Phase 4 |
 | Text search | Phase 5 |
@@ -98,12 +105,43 @@ Juhar is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce pl
 | WhatsApp support integration | Phase 5 |
 | No internet / force update screens | Phase 5 |
 
+## Known Issues & Technical Debt
+
+Open items as of 2026-11-22, grouped by urgency. The team tracker holds owners and deadlines; this list is the code-level summary.
+
+### Security and reliability — fix before real users
+- **Mock login.** OTP login uses a mock provider that always accepts `123456`, so anyone can sign in as any phone number, including the seeded admin. The `OTP_PROVIDER` environment variable is not read yet, and OTP codes are kept in server memory (lost on restart, not shared across instances).
+- **Rate limiting is not enforced.** The throttler is configured, and the OTP endpoint is annotated, but no throttler guard is registered.
+- **Sessions end after 15 minutes.** Web, mobile and admin store the refresh token but never call `/auth/refresh`.
+- **Stock does not settle.** Reservations are never committed and `on_hand` is not decremented when an order ships, while the expiry job releases held reservations (24 hours for COD) even for live orders. This risks overselling.
+
+### Orders and catalog
+- **Order numbers.** Generated from `count() + 1`, which can collide under concurrent orders, and still use the prefix `SAJ-` (the design specifies `JUH-`).
+- **Price sorting** (`price_asc` / `price_desc`) only sorts within each page of results.
+- **Cancellations.** Customer cancellations write no audit event. Admins cannot cancel from the admin panel, and the API stores no cancellation reason for admin cancels.
+- **Support number.** The "Need help?" link on the web order page uses a placeholder WhatsApp number (WhatsApp integration is pending).
+- **Database `CHECK` constraints** described in `docs/architecture/database-design.md` (non-negative stock, positive quantities) are not in the migration; they are enforced in application code only.
+
+### Dark mode follow-ups
+- Web: visitors who are logged out on a phone-width screen have no theme toggle (the header toggle is desktop-only and the Account menu only appears after login).
+- Both apps always start in light mode and ignore the device setting; the admin panel has no dark mode.
+- A few mobile screens (product detail, welcome) use fixed colours that need a visual check in dark mode.
+
+### Engineering hygiene
+- No automated tests exist (the CI test step passes with none).
+- No ESLint configuration, so the `lint` scripts do not run.
+- Some mobile and web screens call the API with raw `fetch` and their own copy of `API_BASE` instead of the shared API client.
+- The cart badge polls the server every 2–3 seconds.
+- The shipping rate and free-shipping threshold are duplicated between the API and the mobile cart screen.
+- `apps/mobile/src/navigation/TabNavigator.tsx` has `@ts-nocheck`.
+
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Mobile App | React Native + Expo SDK 52 + TypeScript |
+| Mobile App | React Native 0.88 + Expo SDK 58 + React 19 + TypeScript |
 | Customer Website | Next.js 14 (App Router) + Tailwind CSS + TypeScript |
+| Theming | Light/dark mode on mobile and web (shared token names; see [Theming](#theming-light--dark-mode)) |
 | Backend API | NestJS + TypeScript (modular monolith) |
 | Database | PostgreSQL 16 + Prisma ORM |
 | Admin Panel | Next.js 14 (App Router) + TypeScript |
@@ -111,7 +149,7 @@ Juhar is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce pl
 | Payments | COD (pilot); Razorpay/Cashfree planned |
 | Shipping | Manual entry (pilot); no courier API |
 | Monorepo | npm workspaces |
-| CI/CD | GitHub Actions |
+| CI/CD | GitHub Actions — API, Web, Admin and Mobile jobs (see [Continuous Integration](#continuous-integration)) |
 
 ## Project Structure
 
@@ -126,7 +164,8 @@ juhar-app/
 │   │       ├── navigation/  # Tab (5 tabs) + Stack navigators
 │   │       ├── services/    # API client, local guest cart
 │   │       ├── components/  # AnimatedUI, RefreshButton
-│   │       └── theme/       # Design tokens (colors, typography, spacing)
+│   │       └── theme/       # Design tokens + dark mode (light/dark colors,
+│   │                        #   ThemeContext, typography, spacing)
 │   ├── web/                 # Next.js customer website (responsive)
 │   │   └── src/
 │   │       ├── app/         # 11 pages (/, /shop, /shop/[slug], /cart,
@@ -134,9 +173,10 @@ juhar-app/
 │   │       │                #   /checkout/review, /order-success,
 │   │       │                #   /orders, /orders/[id], /account)
 │   │       ├── components/  # Header, BottomNav
-│   │       └── lib/         # API client, cart context
+│   │       └── lib/         # API client, cart context, theme context
 │   ├── api/                 # NestJS backend
-│   │   ├── src/modules/     # 10 active modules (see below)
+│   │   ├── src/modules/     # 9 active modules (see below)
+│   │   ├── src/config/      # Startup environment validation
 │   │   ├── prisma/          # Schema + migrations (18 tables) + seed data
 │   │   └── test/
 │   └── admin/               # Next.js admin panel
@@ -146,13 +186,18 @@ juhar-app/
 │           └── services/    # API client
 ├── packages/
 │   └── shared/              # Enums, constants (state machine), types, utils
+│                            #   (built into dist/ by `npm install`)
 ├── docs/
 │   ├── architecture/
-│   │   ├── HLD.md           # High-Level Design (21 mobile screens)
+│   │   ├── HLD.md           # High-Level Design
 │   │   ├── LLD.md           # Low-Level Design (modules, DTOs, state machines)
-│   │   └── database-design.md  # 18 tables, ER diagram, constraints
+│   │   ├── database-design.md  # 18 tables, ER diagram, constraints
+│   │   └── deployment-plan-pilot.md  # Hosting, costs, environment variables
+│   ├── design/
+│   │   └── ui-specification.md  # Design system, components, screens, theming
 │   └── api/
-│       └── openapi.yaml     # OpenAPI 3.0 spec (38 endpoints)
+│       └── openapi.yaml     # OpenAPI 3.0 spec (implemented + planned endpoints)
+├── .github/workflows/ci.yml # CI: API, Web, Admin, Mobile jobs
 ├── docker-compose.yml       # Local PostgreSQL
 ├── package.json             # Workspace root
 └── tsconfig.base.json
@@ -181,9 +226,9 @@ juhar-app/
 
 `users` · `addresses` · `categories` · `products` · `product_variants` · `product_media` · `inventory` · `inventory_reservations` · `cart_items` · `orders` · `order_items` · `payments` · `shipments` · `returns` · `refunds` · `admin_users` · `audit_events` · `webhook_events`
 
-### API (38 endpoints)
+### API (35 implemented endpoints, 14 more planned)
 
-Public (catalog, auth) · Customer (cart, checkout, orders, addresses, profile) · Admin (catalog CRUD, inventory, orders) · Webhooks (payments)
+Public (catalog, auth) · Customer (cart, checkout, orders, addresses, profile) · Admin (catalog CRUD, inventory, orders). Planned: payments and webhooks (Phase 4), media uploads, reports and admin users (Phase 5).
 
 Full spec: [`docs/api/openapi.yaml`](docs/api/openapi.yaml)
 
@@ -202,6 +247,38 @@ Full spec: [`docs/api/openapi.yaml`](docs/api/openapi.yaml)
 - **RBAC guards** — owner bypasses all, role-specific access for others
 - **Reservation expiry** — cron releases held stock every minute
 
+## Theming (Light / Dark Mode)
+
+Both apps start in light mode; the user's choice is remembered under the key `juhar_theme` (AsyncStorage on mobile, `localStorage` on web).
+
+- **Mobile** — `src/theme/colors.ts` defines `lightColors` and `darkColors` with identical keys. Components call `const { colors, isDark, toggleTheme } = useTheme()` and build styles with `createStyles(colors)` inside `useMemo`, so styles update when the theme changes.
+- **Web** — colours are CSS variables holding RGB channels (for example `--color-surface: 30 30 30`) defined in `globals.css` under `:root` and `.dark`. `tailwind.config.ts` maps each name to `rgb(var(--color-…) / <alpha-value>)`, so opacity classes such as `bg-surface/80` work in both themes. `ThemeProvider` (`src/lib/theme-context.tsx`) toggles the `dark` class on `<html>`, an inline script in `layout.tsx` applies the saved theme before first paint, and the browser's `theme-color` follows the toggle.
+- **Rule of thumb** — for anything that holds text, use semantic tokens (`bg-surface`, `text-text-primary`), not `bg-white` or hard-coded hex values. A fixed white is only safe on coloured fills, such as text on `bg-primary`.
+
+## Continuous Integration
+
+GitHub Actions (`.github/workflows/ci.yml`) runs four jobs in parallel on Node 22:
+
+| Job | What it checks |
+|-----|----------------|
+| API | Install, Prisma generate, typecheck (shared + API), tests, build — with a Postgres service |
+| Web | Typecheck and `next build` |
+| Admin | Typecheck and `next build` |
+| Mobile | `npm ci` inside `apps/mobile` (it is not an npm workspace), then typecheck |
+
+It runs on pushes to `main` and `develop-*`, on pull requests into `main`, and manually from the Actions tab. A newer push cancels the older run on the same branch. A fifth job named `build` is a gate that depends on the other four and fails unless they all pass.
+
+`main` is protected by a repository ruleset (`main-protection`): changes must come through a pull request with 1 approving review and a passing `build` check, and `main` cannot be deleted or force-pushed. The gate job exists because the ruleset requires a check with exactly that name; if you rename or remove it, pull requests can no longer be merged until the ruleset is updated.
+
+To run the same checks locally:
+
+```bash
+npm run typecheck -w apps/web && npm run build -w apps/web
+npm run typecheck -w apps/admin && npm run build -w apps/admin
+npm run typecheck -w apps/api
+(cd apps/mobile && npm run typecheck)
+```
+
 ## Development Roadmap
 
 | Phase | Scope | Status |
@@ -210,7 +287,8 @@ Full spec: [`docs/api/openapi.yaml`](docs/api/openapi.yaml)
 | 1 — Foundations | Monorepo, NestJS skeleton, Prisma schema, Expo shell, CI | ✅ Complete |
 | 2 — Catalog | Auth, categories, products, admin + mobile screens | ✅ Complete |
 | 3 — Cart & Checkout | Addresses, inventory, cart, checkout, orders, mobile + admin UI | ✅ Complete |
-| 4 — Payments | Gateway integration, webhooks, refunds, UPI flow | 🔲 Next |
+| 3.5 — Hardening | Fix the [Known Issues](#known-issues--technical-debt): stock settlement, token refresh, rate limiting, order numbers, tests | 🔶 In progress |
+| 4 — Payments | Gateway integration, webhooks, refunds, UPI flow | 🔲 After 3.5 |
 | 5 — Launch Prep | Images, reports, notifications, real data, deploy | 🔲 Planned |
 
 ## Getting Started
@@ -317,7 +395,8 @@ docker compose up -d
 ### 3. Install dependencies
 
 ```bash
-# Root workspace (API, admin, shared)
+# Root workspace (API, web, admin, shared).
+# Also builds packages/shared into dist/ automatically (postinstall).
 npm install
 
 # Mobile app (separate — Expo requires isolated node_modules)
@@ -335,6 +414,8 @@ cp apps/api/.env.example apps/api/.env
 # Defaults work for local dev
 ```
 
+The API checks its environment at startup and refuses to start, naming the variable, if `DATABASE_URL`, `JWT_SECRET` or `JWT_REFRESH_SECRET` is missing. If you set `CORS_ORIGINS`, it **replaces** the built-in list, so include every app that calls the API: web (`http://localhost:3001`), admin (`http://localhost:3002`) and the mobile web preview (`http://localhost:8081`).
+
 > **Windows (if `cp` not available):**
 > ```powershell
 > Copy-Item apps\api\.env.example apps\api\.env
@@ -350,12 +431,13 @@ npx ts-node prisma/seed.ts    # Seeds 4 categories, 8 products, 11 variants, 1 a
 cd ../..
 ```
 
-### 6. Build the shared package
+### 6. The shared package
+
+`npm install` (step 3) already builds `packages/shared` into `packages/shared/dist/`, which the API reads. After you edit anything under `packages/shared/src`, rebuild it and restart the API:
 
 ```bash
-cd packages/shared
-npx tsc
-cd ../..
+npm run build -w packages/shared      # one-off
+npm run dev -w packages/shared        # or keep rebuilding on change
 ```
 
 ### 7. Start development servers
@@ -411,6 +493,20 @@ cd apps/api && npx prisma studio
 - **Admin Panel**: `localhost:3002` → same phone/OTP
 - Dev mode always accepts OTP `123456`
 
+### After you `git pull`
+
+Check what changed (`git diff HEAD@{1} --stat`), then use this table. Dev servers can stay running unless the first row applies.
+
+| If the pull changed… | Do this | Restart |
+|----------------------|---------|---------|
+| Dependencies (`package.json`, `package-lock.json`) | Stop the dev servers, run `npm install` at the root (and in `apps/mobile` if its `package.json` changed) | Everything you stopped |
+| `packages/shared/src` | `npm run build -w packages/shared` | API |
+| `apps/api/prisma/schema.prisma` or a new migration | `cd apps/api && npx prisma migrate dev && npx prisma generate` | API and Prisma Studio |
+| `apps/api/.env.example` (new variables) | Copy the new variables into your own `apps/api/.env` | API |
+| `tsconfig.json`, `next.config.js`, `tailwind.config.ts` or `layout.tsx` in `apps/web` / `apps/admin` | — | That app's dev server |
+| Source files only in `apps/web`, `apps/admin`, `apps/mobile` | — | Nothing (hot reload) |
+| Docs or CI files only | — | Nothing |
+
 ### Useful commands
 
 | Command | Where to run | Description |
@@ -425,6 +521,9 @@ cd apps/api && npx prisma studio
 | `cd apps/api && npx ts-node prisma/seed.ts` | Root | Re-seed database |
 | `psql -U juhar -d juhar_dev` | Anywhere | Connect to database CLI |
 | `cd apps/mobile && npx expo start --web --clear` | Root | Mobile with cleared cache |
+| `npm run build -w packages/shared` | Root | Rebuild the shared package after editing it |
+| `npm run typecheck -w apps/web` (or `apps/admin`, `apps/api`) | Root | Typecheck one app |
+| `npm run build:web` | Root | Production build of the website (catches errors dev mode hides) |
 
 ### Service ports
 
@@ -445,7 +544,9 @@ cd apps/api && npx prisma studio
 | [HLD](docs/architecture/HLD.md) | System architecture, 13 mobile screens + 11 web pages, tech decisions |
 | [Database Design](docs/architecture/database-design.md) | 18 tables, ER diagram, constraints, indexes |
 | [LLD](docs/architecture/LLD.md) | Module designs, DTOs, state machines, navigation tree |
-| [OpenAPI Spec](docs/api/openapi.yaml) | 38 REST endpoints with full schemas |
+| [Deployment Plan](docs/architecture/deployment-plan-pilot.md) | Hosting choices, costs, production environment variables |
+| [UI Specification](docs/design/ui-specification.md) | Design system, components, screen designs, light/dark theming |
+| [OpenAPI Spec](docs/api/openapi.yaml) | 35 implemented + 14 planned REST operations with full schemas (planned ones are marked `x-status: planned`) |
 | [UI/UX Designs](https://drive.google.com/drive/folders/1VGF8a_wP-hkXg4s66_ixaiOxPvS10jpX?usp=sharing) | Mobile app screen designs |
 
 ## Guiding Principles

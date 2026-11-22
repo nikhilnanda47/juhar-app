@@ -6,6 +6,12 @@ info:
     Pilot scope: catalog browsing, cart/checkout, UPI + COD payments,
     inventory management, order lifecycle, and admin operations.
 
+    ## Implementation status
+    Operations marked `x-status: planned` are part of the target design but are **not implemented yet**
+    (Phase 4: payments, webhooks, returns, refunds; Phase 5: media uploads, reports, admin users,
+    admin order detail, admin inventory list). This spec lists **35 implemented** and
+    **14 planned** operations (49 in total). Unmarked operations match the code in `apps/api`.
+
     ## Conventions
     - All monetary values are in **integer paise** (1 INR = 100 paise)
     - All timestamps are **UTC ISO 8601**
@@ -22,6 +28,9 @@ info:
     - OTP request: 3/phone/10min, 10/IP/hour
     - Authenticated APIs: 100 req/min/user
     - Public APIs: 30 req/min/IP
+
+    These are the target limits. As of 2026-11-22 they are **not enforced**: the throttler is
+    configured but no throttler guard is registered, so no request is currently rate limited.
   version: 1.0.0
   contact:
     name: Juhar Tech Team
@@ -220,6 +229,27 @@ components:
       properties:
         accessToken:
           type: string
+
+    # ── Authenticated identity (GET /auth/me) ──
+    AuthenticatedUser:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        phone:
+          type: string
+          example: "+919876543210"
+        name:
+          type: string
+          nullable: true
+        type:
+          type: string
+          enum: [customer, admin]
+        role:
+          type: string
+          enum: [owner, catalog_editor, fulfillment_operator, support]
+          description: Present only when type = admin
 
     # ── User ──
     UserProfile:
@@ -1159,8 +1189,10 @@ components:
           format: uuid
         sku:
           type: string
+          description: Planned — not returned by the implemented endpoints yet
         productTitle:
           type: string
+          description: Planned — not returned by the implemented endpoints yet
         onHand:
           type: integer
         reserved:
@@ -1170,6 +1202,9 @@ components:
         available:
           type: integer
           description: "on_hand - reserved - unavailable"
+        version:
+          type: integer
+          description: Optimistic-lock counter, incremented on every stock change
 
     AdjustStockBody:
       type: object
@@ -1192,24 +1227,22 @@ components:
     # ── Admin Order ──
     UpdateOrderStatusBody:
       type: object
+      description: |
+        Only `status`, `trackingId` and `courierName` are accepted; unknown fields are rejected with 400.
+        Planned additions: `cancellationReason`, `trackingUrl`, `adminNotes`.
       required: [status]
       properties:
         status:
           type: string
           enum: [confirmed, packed, shipped, delivered, cancelled, return_approved, return_rejected, returned, refund_pending, refunded]
-        carrier:
-          type: string
-          description: Required when status = shipped
         trackingId:
           type: string
-          description: Required when status = shipped
-        trackingUrl:
+          maxLength: 100
+          description: Creates a shipment record when status = shipped
+        courierName:
           type: string
-        cancellationReason:
-          type: string
-          description: Required when status = cancelled
-        adminNotes:
-          type: string
+          maxLength: 100
+          description: Carrier name for the shipment (defaults to "Manual")
 
     InitiateRefundBody:
       type: object
@@ -1536,6 +1569,34 @@ paths:
                         $ref: '#/components/schemas/RefreshTokenResponse'
         "401":
           description: Invalid or expired refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/auth/me:
+    get:
+      tags: [Auth]
+      summary: Get current authenticated user
+      description: |
+        Returns the identity decoded from the access token (no database lookup).
+        Used by the admin panel to learn whether the logged-in user is an admin and which role they hold.
+      operationId: getAuthenticatedUser
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/AuthenticatedUser'
+        "401":
+          description: Not authenticated
           content:
             application/json:
               schema:
@@ -2121,7 +2182,10 @@ paths:
     post:
       tags: [Orders]
       summary: Request return
+      x-status: planned
       description: |
+        **Planned (Phase 4)** — not implemented yet.
+
         Request return for a delivered order. Must be within 7-day return window.
         Specify which item and quantity to return.
       operationId: requestReturn
@@ -2156,7 +2220,10 @@ paths:
     post:
       tags: [Payments]
       summary: Initiate UPI payment
+      x-status: planned
       description: |
+        **Planned (Phase 4)** — not implemented yet.
+
         Creates a payment order with the gateway and returns checkout options
         for the mobile SDK. Only for orders with paymentMode = upi.
       operationId: initiatePayment
@@ -2197,7 +2264,10 @@ paths:
     post:
       tags: [Payments]
       summary: Payment gateway webhook
+      x-status: planned
       description: |
+        **Planned (Phase 4)** — not implemented yet.
+
         Receives payment events from the gateway. Verifies HMAC signature,
         deduplicates by event ID, validates amount, and updates order/payment status.
 
@@ -2232,6 +2302,32 @@ paths:
   # ADMIN: CATEGORIES
   # ────────────────────────────────────────────
   /api/v1/admin/categories:
+    get:
+      tags: ["Admin: Catalog"]
+      summary: List all categories (including inactive)
+      description: Unlike the public `GET /categories`, this also returns categories with `active = false`. Any admin role may call it.
+      operationId: adminListCategories
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: All categories sorted by sortOrder
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Category'
+        "403":
+          description: Not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     post:
       tags: ["Admin: Catalog"]
       summary: Create category
@@ -2497,7 +2593,11 @@ paths:
     post:
       tags: ["Admin: Catalog"]
       summary: Request signed upload URL
-      description: Returns a signed S3 PUT URL for direct image/video upload.
+      x-status: planned
+      description: |
+        **Planned (Phase 5)** — not implemented yet.
+
+        Returns a signed S3 PUT URL for direct image/video upload.
       operationId: adminRequestUploadUrl
       security:
         - BearerAuth: []
@@ -2523,7 +2623,11 @@ paths:
     post:
       tags: ["Admin: Catalog"]
       summary: Confirm upload and create media record
-      description: Verifies the upload exists, generates thumbnails, and saves the media record.
+      x-status: planned
+      description: |
+        **Planned (Phase 5)** — not implemented yet.
+
+        Verifies the upload exists, generates thumbnails, and saves the media record.
       operationId: adminConfirmUpload
       security:
         - BearerAuth: []
@@ -2549,6 +2653,8 @@ paths:
     delete:
       tags: ["Admin: Catalog"]
       summary: Delete media
+      x-status: planned
+      description: "**Planned (Phase 5)** — not implemented yet."
       operationId: adminDeleteMedia
       security:
         - BearerAuth: []
@@ -2569,6 +2675,8 @@ paths:
     get:
       tags: ["Admin: Inventory"]
       summary: List all stock levels
+      x-status: planned
+      description: "**Planned (Phase 5)** — not implemented yet."
       operationId: adminListInventory
       security:
         - BearerAuth: []
@@ -2602,13 +2710,13 @@ paths:
                           hasMore:
                             type: boolean
 
-  /api/v1/admin/inventory/adjustments:
+  /api/v1/admin/inventory/adjust:
     post:
       tags: ["Admin: Inventory"]
       summary: Adjust stock
       description: |
         Add or remove stock with an audited reason. Creates an audit_events record
-        with before/after state.
+        with before/after state. Roles: `owner`, `catalog_editor`.
       operationId: adminAdjustStock
       security:
         - BearerAuth: []
@@ -2631,6 +2739,39 @@ paths:
                         $ref: '#/components/schemas/StockResponse'
         "400":
           description: Adjustment would make stock negative
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/admin/inventory/{variantId}:
+    get:
+      tags: ["Admin: Inventory"]
+      summary: Get stock for one variant
+      description: Any admin role may call it. Returns 404 if the variant has no inventory row.
+      operationId: adminGetVariantStock
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: variantId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Stock levels for the variant
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/StockResponse'
+        "404":
+          description: Variant not found
           content:
             application/json:
               schema:
@@ -2700,7 +2841,11 @@ paths:
     get:
       tags: ["Admin: Orders"]
       summary: Get order detail (admin view)
-      description: Includes customer info, full payment history, and audit trail.
+      x-status: planned
+      description: |
+        **Planned (Phase 5)** — not implemented yet.
+
+        Includes customer info, full payment history, and audit trail.
       operationId: adminGetOrder
       security:
         - BearerAuth: []
@@ -2723,11 +2868,22 @@ paths:
       tags: ["Admin: Orders"]
       summary: Update order status
       description: |
-        Validates state transition and executes side effects:
-        - shipped: requires carrier + trackingId
-        - cancelled: releases inventory, initiates refund
-        - returned: restocks inventory
-        - refund_pending: triggers gateway refund
+        Validates the transition against the order state machine
+        (`ORDER_TRANSITIONS` in `packages/shared`) and executes side effects.
+        Roles: `owner`, `fulfillment_operator`. An audit event is written for every change.
+
+        Implemented side effects:
+        - shipped: when `trackingId` is sent, creates a shipment (carrier = `courierName`, default "Manual")
+        - delivered: marks the shipment delivered
+        - cancelled: releases the held inventory reservations
+
+        **Cancellation:** allowed only from `placed` or `confirmed` (the state machine has no
+        cancel transition from `packed` onwards). The request currently has **no reason field**,
+        so an admin cancel stores `cancelled_at` but no `cancellation_reason`
+        (customer cancels via `POST /orders/{id}/cancel` do store one).
+
+        Planned (not implemented yet): refund initiation on cancel, restocking on `returned`,
+        gateway refund on `refund_pending`, and the return/refund transitions' side effects (Phase 4).
       operationId: adminUpdateOrderStatus
       security:
         - BearerAuth: []
@@ -2761,7 +2917,11 @@ paths:
     post:
       tags: ["Admin: Orders"]
       summary: Initiate refund
-      description: Creates a refund via payment gateway. Amount defaults to full payment if omitted.
+      x-status: planned
+      description: |
+        **Planned (Phase 4)** — not implemented yet.
+
+        Creates a refund via payment gateway. Amount defaults to full payment if omitted.
       operationId: adminInitiateRefund
       security:
         - BearerAuth: []
@@ -2793,6 +2953,8 @@ paths:
     get:
       tags: ["Admin: Reports"]
       summary: Orders & revenue report
+      x-status: planned
+      description: "**Planned (Phase 5)** — not implemented yet."
       operationId: adminOrdersReport
       security:
         - BearerAuth: []
@@ -2825,6 +2987,8 @@ paths:
     get:
       tags: ["Admin: Reports"]
       summary: Stock summary report
+      x-status: planned
+      description: "**Planned (Phase 5)** — not implemented yet."
       operationId: adminStockReport
       security:
         - BearerAuth: []
@@ -2844,6 +3008,8 @@ paths:
     get:
       tags: ["Admin: Reports"]
       summary: Top selling products
+      x-status: planned
+      description: "**Planned (Phase 5)** — not implemented yet."
       operationId: adminTopProductsReport
       security:
         - BearerAuth: []
@@ -2882,6 +3048,8 @@ paths:
     get:
       tags: ["Admin: Users"]
       summary: List admin users
+      x-status: planned
+      description: "**Planned (Phase 5)** — not implemented yet."
       operationId: adminListUsers
       security:
         - BearerAuth: []
@@ -2901,7 +3069,11 @@ paths:
     post:
       tags: ["Admin: Users"]
       summary: Create admin user
-      description: Owner-only. Creates a new admin with the specified role.
+      x-status: planned
+      description: |
+        **Planned (Phase 5)** — not implemented yet.
+
+        Owner-only. Creates a new admin with the specified role.
       operationId: adminCreateUser
       security:
         - BearerAuth: []

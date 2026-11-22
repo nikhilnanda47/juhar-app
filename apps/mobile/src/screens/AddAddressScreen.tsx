@@ -1,15 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, Alert,
 } from 'react-native';
 import { Truck, Check } from 'lucide-react-native';
-import { colors, spacing, borderRadius } from '../theme';
+import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
 import { createAddress } from '../services/api';
 
 interface Props { navigation: any; }
 
 export default function AddAddressScreen({ navigation }: Props) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [recipientName, setRecipientName] = useState('');
   const [recipientPhone, setRecipientPhone] = useState('');
   const [line1, setLine1] = useState('');
@@ -49,16 +51,13 @@ export default function AddAddressScreen({ navigation }: Props) {
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-        {/* Reassurance Banner */}
         <View style={styles.banner}>
           <Truck size={18} color={colors.accent} strokeWidth={2} />
           <Text style={styles.bannerText}>Handcrafted weaves are shipped with insured, climate-safe packaging.</Text>
         </View>
 
-        {/* Full Name */}
-        <Field label="FULL NAME" value={recipientName} onChangeText={setRecipientName} placeholder="e.g. Priya Mohanty" />
+        <Field label="FULL NAME" value={recipientName} onChangeText={setRecipientName} placeholder="e.g. Priya Mohanty" colors={colors} />
 
-        {/* Phone */}
         <View style={styles.fieldWrap}>
           <Text style={styles.fieldLabel}>PHONE NUMBER</Text>
           <View style={styles.inputBox}>
@@ -76,36 +75,28 @@ export default function AddAddressScreen({ navigation }: Props) {
           </View>
         </View>
 
-        {/* Address Line 1 */}
-        <Field label="ADDRESS LINE 1 (HOUSE NO., BUILDING, STREET)" value={line1} onChangeText={setLine1} placeholder="House / Flat No., Street name" />
+        <Field label="ADDRESS LINE 1 (HOUSE NO., BUILDING, STREET)" value={line1} onChangeText={setLine1} placeholder="House / Flat No., Street name" colors={colors} />
+        <Field label="ADDRESS LINE 2 (APARTMENT, SUITE, AREA)" value={line2} onChangeText={setLine2} placeholder="Near Shanti Temple" optional colors={colors} />
+        <Field label="LANDMARK" value={landmark} onChangeText={setLandmark} placeholder="Opposite Government Girls High School" optional colors={colors} />
 
-        {/* Address Line 2 */}
-        <Field label="ADDRESS LINE 2 (APARTMENT, SUITE, AREA)" value={line2} onChangeText={setLine2} placeholder="Near Shanti Temple" optional />
-
-        {/* Landmark */}
-        <Field label="LANDMARK" value={landmark} onChangeText={setLandmark} placeholder="Opposite Government Girls High School" optional />
-
-        {/* City & District */}
         <View style={styles.row}>
           <View style={{ flex: 1 }}>
-            <Field label="CITY" value={city} onChangeText={setCity} placeholder="Sambalpur" />
+            <Field label="CITY" value={city} onChangeText={setCity} placeholder="Sambalpur" colors={colors} />
           </View>
           <View style={{ flex: 1 }}>
-            <Field label="DISTRICT" value={district} onChangeText={setDistrict} placeholder="Sambalpur" />
+            <Field label="DISTRICT" value={district} onChangeText={setDistrict} placeholder="Sambalpur" colors={colors} />
           </View>
         </View>
 
-        {/* State & PIN */}
         <View style={styles.row}>
           <View style={{ flex: 1 }}>
-            <Field label="STATE" value={state} onChangeText={setState} placeholder="Odisha" />
+            <Field label="STATE" value={state} onChangeText={setState} placeholder="Odisha" colors={colors} />
           </View>
           <View style={{ flex: 1 }}>
-            <Field label="PIN CODE" value={pinCode} onChangeText={(t: string) => setPinCode(t.replace(/[^0-9]/g, ''))} placeholder="768001" keyboardType="number-pad" maxLength={6} />
+            <Field label="PIN CODE" value={pinCode} onChangeText={(t: string) => setPinCode(t.replace(/[^0-9]/g, ''))} placeholder="768001" keyboardType="number-pad" maxLength={6} colors={colors} />
           </View>
         </View>
 
-        {/* Address Type Chips */}
         <View style={styles.fieldWrap}>
           <Text style={styles.fieldLabel}>SAVE ADDRESS AS</Text>
           <View style={styles.chipRow}>
@@ -121,7 +112,6 @@ export default function AddAddressScreen({ navigation }: Props) {
           </View>
         </View>
 
-        {/* Default Checkbox */}
         <TouchableOpacity style={styles.checkboxRow} onPress={() => setIsDefault(!isDefault)}>
           <View style={[styles.checkbox, isDefault && styles.checkboxActive]}>
             {isDefault && <Check size={14} color={colors.white} strokeWidth={3} />}
@@ -132,7 +122,6 @@ export default function AddAddressScreen({ navigation }: Props) {
         <View style={{ height: 80 }} />
       </ScrollView>
 
-      {/* Sticky Save Button */}
       <View style={styles.stickyBar}>
         <TouchableOpacity
           style={[styles.saveBtn, (!isValid || saving) && styles.saveBtnDisabled]}
@@ -147,7 +136,8 @@ export default function AddAddressScreen({ navigation }: Props) {
   );
 }
 
-function Field({ label, value, onChangeText, placeholder, keyboardType, maxLength, optional }: any) {
+function Field({ label, value, onChangeText, placeholder, keyboardType, maxLength, optional, colors }: any) {
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.fieldWrap}>
       <View style={styles.labelRow}>
@@ -169,11 +159,10 @@ function Field({ label, value, onChangeText, placeholder, keyboardType, maxLengt
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ColorPalette) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   scrollContent: { padding: spacing.margin, paddingBottom: 100 },
 
-  // Banner
   banner: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     backgroundColor: colors.surface, paddingHorizontal: spacing.md, paddingVertical: 10,
@@ -182,7 +171,6 @@ const styles = StyleSheet.create({
   },
   bannerText: { fontFamily: 'DMSans-Regular', fontSize: 12, color: colors.textSecondary, flex: 1 },
 
-  // Field
   fieldWrap: { marginBottom: spacing.lg },
   labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
   fieldLabel: {
@@ -199,16 +187,14 @@ const styles = StyleSheet.create({
     flex: 1, fontFamily: 'DMSans-Regular', fontSize: 14, color: colors.textPrimary,
   },
 
-  // Phone
   phonePrefix: { fontFamily: 'DMSans-Medium', fontSize: 14, color: colors.textSecondary, marginRight: 8 },
-  phoneDivider: { width: 1, height: 16, backgroundColor: '#E2E3E0', marginRight: 10 },
+  phoneDivider: { width: 1, height: 16, backgroundColor: colors.borderMedium, marginRight: 10 },
   phoneInput: {
     flex: 1, fontFamily: 'DMSans-Regular', fontSize: 14, color: colors.textPrimary, letterSpacing: 0.5,
   },
 
   row: { flexDirection: 'row', gap: spacing.gutter },
 
-  // Chips
   chipRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
   chip: {
     height: 36, paddingHorizontal: 20, borderRadius: borderRadius.full,
@@ -219,7 +205,6 @@ const styles = StyleSheet.create({
   chipText: { fontFamily: 'DMSans-Medium', fontSize: 13, color: colors.textSecondary, letterSpacing: 0.3 },
   chipTextActive: { color: colors.white, fontFamily: 'DMSans-SemiBold' },
 
-  // Checkbox
   checkboxRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 4 },
   checkbox: {
     width: 20, height: 20, borderRadius: 6, backgroundColor: colors.surface,
@@ -229,10 +214,9 @@ const styles = StyleSheet.create({
   checkboxActive: { backgroundColor: colors.primary },
   checkboxLabel: { fontFamily: 'DMSans-Regular', fontSize: 14, color: colors.textPrimary },
 
-  // Sticky
   stickyBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: 'rgba(255,255,255,0.95)',
+    backgroundColor: colors.stickyBar,
     paddingHorizontal: spacing.margin, paddingVertical: 12, paddingBottom: 28,
     shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.03, shadowRadius: 20, elevation: 5,
   },

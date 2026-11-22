@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
   Alert,
 } from 'react-native';
-import { Check, Truck, MessageSquare, ShieldCheck, ArrowRight, Copy } from 'lucide-react-native';
-import { colors, spacing, borderRadius } from '../theme';
+import { Check, Truck, Package, ShieldCheck, ArrowRight, Copy } from 'lucide-react-native';
+import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
 import { formatPaise } from '../services/api';
 import { BounceIn, FadeInUp } from '../components/AnimatedUI';
 
@@ -14,6 +14,8 @@ interface Props {
 }
 
 export default function OrderSuccessScreen({ navigation, route }: Props) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { order } = route.params;
   const firstItem = order.items?.[0];
 
@@ -29,7 +31,7 @@ export default function OrderSuccessScreen({ navigation, route }: Props) {
         {/* Checkmark */}
         <BounceIn delay={200}>
           <View style={styles.checkCircle}>
-            <Check size={32} color="#3D8B63" strokeWidth={2.5} />
+            <Check size={32} color={colors.success} strokeWidth={2.5} />
           </View>
         </BounceIn>
 
@@ -74,11 +76,9 @@ export default function OrderSuccessScreen({ navigation, route }: Props) {
             <Truck size={20} color={colors.accent} strokeWidth={1.5} />
           </View>
 
-          <View style={styles.smsRow}>
-            <MessageSquare size={16} color={colors.textSecondary} strokeWidth={1.5} />
-            <Text style={styles.smsText}>
-              Updates sent to <Text style={styles.smsPhone}>{order.addressSnapshot?.recipientPhone || '+91 XXXXXXXXXX'}</Text>
-            </Text>
+          <View style={styles.trackRow}>
+            <Package size={16} color={colors.textSecondary} strokeWidth={1.5} />
+            <Text style={styles.trackText}>Track this order anytime in the Orders tab</Text>
           </View>
         </View>
         </FadeInUp>
@@ -125,20 +125,17 @@ export default function OrderSuccessScreen({ navigation, route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ColorPalette) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   content: { paddingHorizontal: spacing.margin, paddingBottom: spacing.xl },
   centerContent: { alignItems: 'center', maxWidth: 400, alignSelf: 'center', width: '100%' },
 
-  // Checkmark
   checkCircle: {
     width: 64, height: 64, borderRadius: 32,
-    backgroundColor: 'rgba(61,139,99,0.1)',
-    justifyContent: 'center', alignItems: 'center',
-    marginBottom: spacing.md,
+    backgroundColor: colors.successBg,
+    justifyContent: 'center', alignItems: 'center', marginBottom: spacing.md,
   },
 
-  // Text
   title: {
     fontFamily: 'NotoSerif-Regular', fontSize: 22, lineHeight: 28,
     color: colors.textPrimary, marginBottom: spacing.xs,
@@ -148,29 +145,24 @@ const styles = StyleSheet.create({
     textAlign: 'center', marginBottom: spacing.md,
   },
 
-  // Order Ref
   refBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: '#EEEEEB', paddingHorizontal: 14, paddingVertical: 6,
+    backgroundColor: colors.surfaceMuted, paddingHorizontal: 14, paddingVertical: 6,
     borderRadius: borderRadius.full, marginBottom: spacing.xl,
   },
   refLabel: {
     fontFamily: 'DMSans-SemiBold', fontSize: 11, color: colors.textSecondary,
     letterSpacing: 1.5, textTransform: 'uppercase',
   },
-  refNumber: {
-    fontFamily: 'DMSans-SemiBold', fontSize: 16, color: colors.primary,
-    letterSpacing: -0.2,
-  },
+  refNumber: { fontFamily: 'DMSans-SemiBold', fontSize: 16, color: colors.primary, letterSpacing: -0.2 },
 
-  // Preview Card
   previewCard: {
     width: '100%', backgroundColor: colors.surface, borderRadius: borderRadius.md,
     padding: spacing.md, marginBottom: spacing.md,
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
   },
   previewTop: { flexDirection: 'row', gap: 12, marginBottom: spacing.md },
-  previewThumb: { width: 56, height: 72, borderRadius: 8, backgroundColor: '#E0DDD8' },
+  previewThumb: { width: 56, height: 72, borderRadius: 8, backgroundColor: colors.placeholder },
   previewInfo: { flex: 1, justifyContent: 'center' },
   previewLabel: {
     fontFamily: 'DMSans-SemiBold', fontSize: 11, color: colors.accent,
@@ -178,30 +170,25 @@ const styles = StyleSheet.create({
   },
   previewName: { fontFamily: 'DMSans-Medium', fontSize: 14, color: colors.textPrimary, marginTop: 2 },
   previewMeta: { fontFamily: 'DMSans-Regular', fontSize: 12, color: colors.textSecondary, marginTop: 2 },
-  previewDivider: { height: 1, backgroundColor: '#EEEEEB', marginBottom: spacing.md },
-  deliveryInfo: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
-  },
+  previewDivider: { height: 1, backgroundColor: colors.surfaceMuted, marginBottom: spacing.md },
+  deliveryInfo: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   deliveryLabel: { fontFamily: 'DMSans-Regular', fontSize: 12, color: colors.textSecondary },
   deliveryDate: { fontFamily: 'DMSans-SemiBold', fontSize: 16, color: colors.textPrimary, letterSpacing: -0.2 },
-  smsRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
-  smsText: { fontFamily: 'DMSans-Regular', fontSize: 12, color: colors.textSecondary },
-  smsPhone: { fontFamily: 'DMSans-Medium', fontSize: 12, color: colors.textPrimary },
+  trackRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
+  trackText: { fontFamily: 'DMSans-Regular', fontSize: 12, color: colors.textSecondary },
 
-  // Assurance
   assuranceCard: {
     width: '100%', flexDirection: 'row', gap: 10,
-    backgroundColor: '#F4F4F1', borderRadius: borderRadius.md,
+    backgroundColor: colors.surfaceAlt, borderRadius: borderRadius.md,
     padding: spacing.md, marginBottom: spacing.xl,
   },
   assuranceTitle: { fontFamily: 'DMSans-Medium', fontSize: 13, color: colors.textPrimary, letterSpacing: 0.2 },
   assuranceSub: { fontFamily: 'DMSans-Regular', fontSize: 12, color: colors.textSecondary, marginTop: 2 },
 
-  // Actions
   actions: { width: '100%', gap: spacing.md },
   primaryBtn: {
     width: '100%', height: 48, borderRadius: 8,
-    backgroundColor: '#6E2334', justifyContent: 'center', alignItems: 'center',
+    backgroundColor: colors.primaryDark, justifyContent: 'center', alignItems: 'center',
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
   },
   primaryBtnText: { fontFamily: 'DMSans-SemiBold', fontSize: 14, color: colors.white },

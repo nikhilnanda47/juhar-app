@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Phone, ArrowRight, Package, Handshake } from 'lucide-react';
 import { loadToken, getAddresses, getCart, formatPaise, type Address, type CartResponse } from '@/lib/api';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
-export default function OrderReviewPage() {
+function OrderReviewContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const addressId = searchParams.get('addressId');
@@ -140,5 +140,13 @@ export default function OrderReviewPage() {
         {placing ? 'Securing Order...' : `Place Order (${formatPaise(totalPaise)})`}
       </button>
     </div>
+  );
+}
+
+export default function OrderReviewPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-[60vh]"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>}>
+      <OrderReviewContent />
+    </Suspense>
   );
 }

@@ -8,23 +8,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import TabNavigator from './src/navigation/TabNavigator';
 import SplashScreen from './src/screens/SplashScreen';
 import WelcomeScreen from './src/screens/WelcomeScreen';
-import { colors } from './src/theme';
+import { ThemeProvider, useTheme, colors } from './src/theme';
 
 const ONBOARDING_KEY = 'juhar_onboarding_done';
 
-export default function App() {
+function AppInner() {
+  const { colors: theme, isDark } = useTheme();
   const [showSplash, setShowSplash] = useState(true);
   const [showWelcome, setShowWelcome] = useState<boolean | null>(null);
-  const [fontsLoaded] = useFonts({
-    'NotoSerif-Regular': require('./assets/fonts/NotoSerif-Regular.ttf'),
-    'NotoSerif-Medium': require('./assets/fonts/NotoSerif-Medium.ttf'),
-    'DMSans-Regular': require('./assets/fonts/DMSans-Regular.ttf'),
-    'DMSans-Medium': require('./assets/fonts/DMSans-Medium.ttf'),
-    'DMSans-SemiBold': require('./assets/fonts/DMSans-SemiBold.ttf'),
-    'DMSans-Bold': require('./assets/fonts/DMSans-Bold.ttf'),
-  });
 
-  // Check onboarding status when splash finishes — must be before any early returns
   useEffect(() => {
     if (!showSplash && showWelcome === null) {
       AsyncStorage.getItem(ONBOARDING_KEY).then((val) => {
@@ -33,20 +25,16 @@ export default function App() {
     }
   }, [showSplash]);
 
-  if (!fontsLoaded) {
-    return (
-      <View style={styles.loading}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
-  }
-
   if (showSplash) {
     return <SplashScreen onFinish={() => setShowSplash(false)} />;
   }
 
   if (showWelcome === null) {
-    return <View style={styles.loading}><ActivityIndicator size="large" color={colors.primary} /></View>;
+    return (
+      <View style={[styles.loading, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
+      </View>
+    );
   }
 
   if (showWelcome) {
@@ -59,11 +47,36 @@ export default function App() {
   }
 
   return (
+    <NavigationContainer>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
+      <TabNavigator />
+    </NavigationContainer>
+  );
+}
+
+export default function App() {
+  const [fontsLoaded] = useFonts({
+    'NotoSerif-Regular': require('./assets/fonts/NotoSerif-Regular.ttf'),
+    'NotoSerif-Medium': require('./assets/fonts/NotoSerif-Medium.ttf'),
+    'DMSans-Regular': require('./assets/fonts/DMSans-Regular.ttf'),
+    'DMSans-Medium': require('./assets/fonts/DMSans-Medium.ttf'),
+    'DMSans-SemiBold': require('./assets/fonts/DMSans-SemiBold.ttf'),
+    'DMSans-Bold': require('./assets/fonts/DMSans-Bold.ttf'),
+  });
+
+  if (!fontsLoaded) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
+  return (
     <SafeAreaProvider>
-      <NavigationContainer>
-        <StatusBar style="dark" />
-        <TabNavigator />
-      </NavigationContainer>
+      <ThemeProvider>
+        <AppInner />
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }

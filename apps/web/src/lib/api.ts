@@ -70,8 +70,8 @@ export interface Product {
   shortDescription: string | null;
   origin: string | null; fabric: string | null; weaveMethod: string | null;
   careInstructions: string | null;
-  blousePiece: boolean | null; length: string | null; width: string | null;
-  weight: number | null; occasion: string | null; tags: string[];
+  blousePiece: string | null; length: string | null; width: string | null;
+  weight: string | null; occasion: string[] | null; tags: string[];
   // List view fields
   startingPricePaise: number; compareAtPaise: number | null;
   totalStock: number;

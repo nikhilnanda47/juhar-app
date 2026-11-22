@@ -66,6 +66,7 @@
 | Item | Detail |
 |------|--------|
 | **Service** | Expo EAS (Expo Application Services) |
+| **App SDK** | Expo SDK 58 (React Native 0.88, React 19). `apps/mobile` is not an npm workspace: install with `npm install` inside `apps/mobile` |
 | **What it does** | Builds APK/AAB (Android) and IPA (iOS) in the cloud from our React Native code |
 | **Plan** | Free tier — 30 builds/month |
 | **Cost** | ₹0 |
@@ -105,6 +106,8 @@
 4. Add custom domain `juhar.co.in` and `www.juhar.co.in`
 5. Every push to `main` auto-deploys
 
+> **Build note (2026-11-22):** `next build` for this app passes in CI (it needed `<Suspense>` around pages that use `useSearchParams()`, now done). See the monorepo install note in 2.4 for how `packages/shared` is built.
+
 ---
 
 ### 2.3 Admin Panel — Vercel
@@ -126,6 +129,8 @@
 3. Set env variable: `NEXT_PUBLIC_API_URL=https://api.juhar.co.in`
 4. Add custom domain `admin.juhar.co.in`
 5. Every push to `main` auto-deploys
+
+> **Build note (2026-11-22):** CI typechecks and builds this app. The admin panel has no dark mode and does not import `packages/shared` yet. See the monorepo install note in 2.4.
 
 ---
 
@@ -156,6 +161,8 @@
 3. Add build command: `npm run build`
 4. Add start command: `node dist/main.js`
 5. Set env variables (DATABASE_URL, JWT secrets, etc.)
+
+> **Monorepo install note (2026-11-22):** The API imports `@juhar/shared`, which resolves to `packages/shared/dist/`. The repo root `package.json` has a `postinstall` script (`npm run build -w packages/shared`), so any install run from the **repository root** (`npm ci`) builds the shared package automatically and no separate build step is needed for it. If a host installs only inside `apps/api`, the workspace link and `dist/` will be missing, so keep the install at the repo root. CI also runs `npx prisma generate` in `apps/api` before typechecking and building; the production build should do the same, since no install hook generates the Prisma client. The same root-install rule applies to the Vercel projects for `apps/web` and `apps/admin`.
 
 ---
 
@@ -315,32 +322,39 @@
 
 ```env
 # ── Database ──
-DATABASE_URL=postgresql://postgres.[project-ref]:[password]@aws-0-ap-south-1.pooler.supabase.com:6543/postgres
+DATABASE_URL=postgresql://postgres.[project-ref]:[password]@aws-0-ap-south-1.pooler.supabase.com:6543/postgres   # REQUIRED
 
 # ── Auth ──
-JWT_SECRET=<random-64-char-string>
-JWT_REFRESH_SECRET=<different-random-64-char-string>
-OTP_PROVIDER=msg91
-MSG91_AUTH_KEY=<msg91-auth-key>
-MSG91_TEMPLATE_ID=<msg91-template-id>
+JWT_SECRET=<random-64-char-string>                    # REQUIRED
+JWT_REFRESH_SECRET=<different-random-64-char-string>  # REQUIRED
+OTP_PROVIDER=msg91                                    # not read by the code yet (mock provider is hard-wired)
+MSG91_AUTH_KEY=<msg91-auth-key>                       # not read by the code yet
+MSG91_TEMPLATE_ID=<msg91-template-id>                 # not read by the code yet
 
 # ── Server ──
 PORT=3000
 NODE_ENV=production
-CORS_ORIGINS=https://juhar.co.in,https://www.juhar.co.in,https://admin.juhar.co.in
+CORS_ORIGINS=https://juhar.co.in,https://www.juhar.co.in,https://admin.juhar.co.in   # replaces the built-in local origins
 
-# ── Storage ──
+# ── Storage ──   (planned: no code reads these yet)
 R2_ACCOUNT_ID=<cloudflare-account-id>
 R2_ACCESS_KEY=<r2-access-key>
 R2_SECRET_KEY=<r2-secret-key>
 R2_BUCKET=juhar-media
 R2_PUBLIC_URL=https://images.juhar.co.in
 
-# ── Payments (Phase 4) ──
+# ── Payments (Phase 4) ──   (planned: no code reads these yet)
 PAYMENT_GATEWAY=mock
 # RAZORPAY_KEY_ID=<key>
 # RAZORPAY_KEY_SECRET=<secret>
 ```
+
+> **Implementation status (2026-11-22):** The API reads only `DATABASE_URL`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, `CORS_ORIGINS` and `PORT`.
+> - **Required at startup:** `DATABASE_URL`, `JWT_SECRET` and `JWT_REFRESH_SECRET` are checked when the API boots (`apps/api/src/config/env.validation.ts`). If any is missing or blank, the process exits and the error names the missing variables. A missing refresh secret used to be silently replaced by `JWT_SECRET`; that is no longer possible.
+> - **CORS:** when `CORS_ORIGINS` is set, it **replaces** the built-in list of local origins (`localhost:3001`, `3002` and `8081`), it does not add to it. Production must therefore list every browser origin that calls the API (customer website, `www`, admin panel, and any others).
+> - **OTP:** `OTP_PROVIDER` and the `MSG91_*` values have no effect yet. `AuthModule` always uses the mock provider with the fixed code `123456`. Production must not go live until a real provider is wired (see HLD section 9).
+> - **Storage and payments:** the `R2_*`, `PAYMENT_GATEWAY` and `RAZORPAY_*` values belong to modules that are not built yet.
+> - **Web and admin:** `NEXT_PUBLIC_API_URL` (set in the Vercel projects, see 2.2 and 2.3) is the only variable these apps read.
 
 ---
 
@@ -362,6 +376,8 @@ PAYMENT_GATEWAY=mock
 - [ ] Run `prisma migrate deploy` against Supabase DB
 - [ ] Run seed script for initial admin user
 - [ ] Configure CORS origins for production domains
+
+> **CI note (2026-11-22):** GitHub Actions already typechecks and builds the API, web, admin and mobile apps on every push to `main` or `develop-*` and on pull requests into `main`. It does not deploy. The `build` gate job is a required check on `main` through the `main-protection` ruleset (which also requires a pull request with 1 approving review). See HLD section 8 for the job details. Before each release, confirm the latest CI run on the commit is green.
 
 ### Per-Release Deployment
 
@@ -394,6 +410,13 @@ PAYMENT_GATEWAY=mock
 - [ ] No secrets in code — all in environment variables
 - [ ] Admin panel behind OTP auth (no password-based login)
 - [ ] Webhook signatures verified (when payments added)
+
+> **Implementation status (2026-11-22):** Three items above are **not yet true in the code** and block a real launch:
+> - **Rate limiting on OTP endpoints:** configured but not enforced, because no throttler guard is registered.
+> - **OTP login:** the mock provider accepts the fixed code `123456` for any phone number, including admin numbers.
+> - **Sessions:** web, mobile and admin do not use the refresh token, so logins end after the 15-minute access token.
+>
+> Required secrets are now enforced at startup: the API will not boot without `DATABASE_URL`, `JWT_SECRET` and `JWT_REFRESH_SECRET` (the 64+ character guidance above is still advice only; length is not checked).
 
 ---
 

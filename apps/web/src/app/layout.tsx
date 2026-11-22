@@ -4,6 +4,7 @@ import './globals.css';
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import { CartProvider } from '@/lib/cart-context';
+import { ThemeProvider } from '@/lib/theme-context';
 
 const notoSerif = localFont({
   src: [
@@ -34,22 +35,34 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
   themeColor: '#FAFAF7',
 };
 
+const themeScript = `
+(function(){
+  try {
+    var t = localStorage.getItem('juhar_theme');
+    if (t === 'dark') document.documentElement.classList.add('dark');
+  } catch(e) {}
+})();
+`;
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${notoSerif.variable} ${dmSans.variable}`}>
+    <html lang="en" className={`${notoSerif.variable} ${dmSans.variable}`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body className="min-h-screen flex flex-col">
-        <CartProvider>
-          <Header />
-          <main className="flex-1 pb-20 lg:pb-0">
-            {children}
-          </main>
-          <BottomNav />
-        </CartProvider>
+        <ThemeProvider>
+          <CartProvider>
+            <Header />
+            <main className="flex-1 pb-20 lg:pb-0">
+              {children}
+            </main>
+            <BottomNav />
+          </CartProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

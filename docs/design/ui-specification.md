@@ -93,9 +93,81 @@ Tight palette — 3 brand colors + neutrals. No rainbow.
 
 - Primary burgundy appears on **maximum 2 elements per screen** (typically: CTA button + one highlight)
 - Everything else is neutral (greys, whites)
-- Background is always `#FAFAF7`, never pure white `#FFFFFF`
-- Cards are `#FFFFFF` to create subtle contrast against the warm background
+- Background is always `#FAFAF7` in the light theme, never pure white `#FFFFFF`
+- Cards are `#FFFFFF` in the light theme to create subtle contrast against the warm background
 - No color used purely for decoration
+- The values in this section are the **light theme**. Every neutral and status token also has a dark value; see section 3a
+
+---
+
+## 3a. Theming & Dark Mode
+
+> **Implementation status (2026-11-22):** Implemented in the mobile app and the customer website. The admin panel is light-only. The default is always light; the OS appearance setting is not followed yet.
+
+Every colour is a **semantic token** with a light value and a dark value. Screens ask for the token (`surface`, `text-primary`, `border`, ...) and never for a literal colour, so a theme switch changes every screen at once. The brand colours and the functional colours (success, warning, error) are identical in both themes.
+
+### Token values
+
+| Token | Light | Dark | Notes |
+|-------|-------|------|-------|
+| Background | `#FAFAF7` | `#121212` | App/page background |
+| Surface | `#FFFFFF` | `#1E1E1E` | Cards, inputs, modals, tab bar, header |
+| Surface alt | `#F4F4F1` | `#1A1A1A` | Item previews, summary banners. Web: `surface-container-low` |
+| Surface muted | `#E8E8E5` | `#2C2C2C` | Dividers, placeholder pills, toggle track. Web: `surface-container-high` |
+| Text primary | `#1A1A1A` | `#EAEAEA` | Headings, product names |
+| Text secondary | `#6B6B6B` | `#A0A0A0` | Descriptions, metadata |
+| Text tertiary | `#999999` | `#666666` | Timestamps, hints, placeholders |
+| Border | `#EEEEEE` | `#2C2C2C` | Hairlines, card borders |
+| Primary / Primary Dark / Accent | `#8B3A4A` / `#6B1D2A` / `#B5956B` | same | Brand: unchanged |
+| Success / Warning / Error | `#3D8B63` / `#D4923A` / `#C44A4A` | same | Functional: unchanged |
+| Accent text on tint (`accentDark`) | `#795E38` | `#C4A060` | Delivered/COD badge text |
+| Toast background | `#1A1A2E` | `#2A2A3E` | |
+
+Status pills use paired background/text tokens in both themes:
+
+| Status token | Light (bg / text) | Dark (bg / text) |
+|--------------|-------------------|------------------|
+| Confirmed | `#FFF8E1` / `#F57F17` | `#2D2A1A` / `#FFD54F` |
+| Packed, Shipped | `#FFF3E0` / `#E65100` | `#2D2316` / `#FFB74D` |
+| Delivered | `#E8F5E9` / `#2E7D32` | `#1A2D1E` / `#66BB6A` |
+| Cancelled | `#FCE4EC` / `#C62828` | `#2D1A1E` / `#EF5350` |
+
+Source of truth: mobile `apps/mobile/src/theme/colors.ts` (`lightColors`, `darkColors`); web `apps/web/src/app/globals.css` (`:root` and `.dark`).
+
+### Mechanism
+
+| | Mobile | Web |
+|---|--------|-----|
+| Tokens | `lightColors` / `darkColors` objects | CSS variables holding RGB channels (e.g. `--color-primary: 139 58 74`) |
+| Usage | `const { colors } = useTheme()` and `createStyles(colors)` | Tailwind classes (`bg-surface`, `text-text-primary`, `border-border`), mapped to `rgb(var(--color-...) / <alpha-value>)` so opacity modifiers like `bg-surface/80` work |
+| Switching | `ThemeProvider` state | `dark` class on `<html>` (`darkMode: 'class'`) |
+| Persistence | `AsyncStorage` key `juhar_theme` | `localStorage` key `juhar_theme` |
+| First paint | Starts light, then applies the saved choice (a brief light flash is possible) | Inline script in `<head>` adds the `dark` class before first paint (no flash) |
+| Browser chrome | Status bar style follows the theme | `theme-color` meta follows the toggle (`#FAFAF7` / `#121212`) |
+
+### Where the toggle lives
+
+| Surface | Placement |
+|---------|-----------|
+| Mobile, logged in | Profile screen menu card: "Dark Mode" / "Light Mode" row with a switch |
+| Mobile, logged out | Sun/moon icon button at the right of the Account header, so guests can switch too |
+| Web, desktop | Sun/moon icon button in the Header actions |
+| Web, logged in | Toggle row in the Account page menu |
+
+### Rules for building screens
+
+1. **Use tokens, never literals, for surfaces and text.** No `bg-white`, `#fff` or hard-coded hex on a surface or text colour; both themes must stay readable.
+2. **Overlays on product photos** (wishlist/share buttons, origin and "GI CERTIFIED LOOM" badges) use the surface token with opacity (`bg-surface/80` to `bg-surface/90`; mobile `surfaceOverlay`), so their text stays readable in both themes. A fixed white overlay with token text becomes unreadable in dark mode.
+3. **Status colours** always come from the paired status tokens above.
+4. **Allowed fixed colours:** white text or icons on the burgundy primary, the white switch thumb, the WhatsApp green, and product colour swatches (they depict the real product colour).
+5. **Check both themes** before shipping a screen, including empty, error and loading states.
+
+### Known gaps
+
+- No "follow system appearance" default.
+- On mobile-width web, logged-out visitors have no toggle (the Header toggle is desktop-only and the login panel has none).
+- The admin panel has no dark mode.
+- A few mobile screens still carry local colours: the Welcome slides define their own light/dark background pairs, and the product screen maps colour names to swatch hex values.
 
 ---
 
@@ -306,6 +378,22 @@ LABEL                    ← 12px, text secondary, above input
 - Pill shape (full radius), 11px semibold uppercase text
 - Horizontal padding 8px, vertical 3px
 
+> **Implementation status (2026-11-22):** The table above is the original design. The shipped styles differ for two states and add the post-delivery states. Light values (dark values are in section 3a):
+>
+> | Status | Web list badge | Mobile list badge |
+> |--------|----------------|-------------------|
+> | Placed | `#E8E8E5` bg, `#8B3A4A` text (neutral + brand, not blue) | Same colours |
+> | Confirmed | `#FFF8E1` / `#F57F17` | Same |
+> | Packed | `#FFF3E0` / `#E65100` | Same |
+> | Shipped | Packed colours | `#FFF3E0` / `#E65100` (same values) |
+> | Delivered | Warm tint (`#FFDAAB` at 40%) bg, `#795E38` text (not green) | `accentBg` tint, `#795E38` text |
+> | Cancelled | `#FCE4EC` / `#C62828` | Same |
+> | Return requested, Return approved, Returned, Refund pending | Neutral placed style, labelled "Return requested", "Return approved", "Returned", "Refund pending" | No dedicated style: falls back to the Placed style with the status text (e.g. "RETURN REQUESTED") |
+> | Return rejected | Cancelled style, "Return rejected" | Falls back as above |
+> | Refunded | Delivered style, "Refunded" | Falls back as above |
+>
+> **Order detail (web):** a cancelled order shows a banner in the cancelled colours ("Order cancelled on {date}" plus the reason) instead of the progress timeline. A return or refund status shows a notice card (package icon + status label) above a timeline with all five delivery steps complete. The mobile order detail shows the cancelled banner but has no return/refund state yet.
+
 ### 9.7 Bottom Sheet
 
 Used for: filters, sort options, address selection on larger screens
@@ -432,9 +520,11 @@ The web app (`localhost:3001`) mirrors all mobile app features with responsive l
 
 ### 12.2 Web-specific Components
 
-- **Header** (`components/Header.tsx`): Sticky, brand + nav links (desktop), icons hidden on mobile (bottom nav handles it). Cart badge count.
+- **Header** (`components/Header.tsx`): Sticky, brand + nav links (desktop), icons hidden on mobile (bottom nav handles it). Cart badge count. The desktop actions include the dark-mode toggle (sun/moon icon) next to search, cart and account.
 - **BottomNav** (`components/BottomNav.tsx`): 5 tabs matching mobile app, hidden on desktop (`lg:hidden`). Cart badge count.
 - **CartProvider** (`lib/cart-context.tsx`): React context providing `itemCount` to Header and BottomNav. Polls every 2s, checks server cart (logged in) or localStorage guest cart.
+- **ThemeProvider** (`lib/theme-context.tsx`): React context providing `{ isDark, toggleTheme }`. Toggles the `dark` class on `<html>`, saves the choice in `localStorage` (`juhar_theme`) and updates the `theme-color` meta tag. See section 3a.
+- **Viewport:** pinch-zoom is allowed (the viewport sets only `width=device-width, initial-scale=1`; earlier it disabled scaling). The browser theme colour is `#FAFAF7` in light mode and `#121212` in dark mode.
 
 ### 12.3 Cart Badge Count
 

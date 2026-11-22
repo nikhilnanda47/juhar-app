@@ -83,7 +83,7 @@ export default function ProductDetailPage() {
     <>
       {/* Toast notification */}
       {showToast && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 animate-[slideDown_0.3s_ease] bg-[#1A1A2E] text-white px-5 py-3 rounded-xl shadow-lg flex items-center gap-2.5 text-sm font-semibold">
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 animate-[slideDown_0.3s_ease] bg-toast-bg text-white px-5 py-3 rounded-xl shadow-lg flex items-center gap-2.5 text-sm font-semibold">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
             <polyline points="22 4 12 14.01 9 11.01" />
@@ -122,17 +122,17 @@ export default function ProductDetailPage() {
           <div className="lg:sticky lg:top-20">
             {/* Main image */}
             <div className="relative aspect-[3/4] lg:aspect-[4/5] lg:rounded-2xl overflow-hidden bg-surface-container-low">
-              <div className="absolute bottom-4 left-4 px-3 py-1.5 rounded-full bg-white/90 backdrop-blur shadow-sm flex items-center gap-1.5">
+              <div className="absolute bottom-4 left-4 px-3 py-1.5 rounded-full bg-surface/90 backdrop-blur shadow-sm flex items-center gap-1.5">
                 <ShieldCheck size={14} className="text-accent" strokeWidth={2} />
                 <span className="font-sans text-label-sm text-text-primary font-semibold tracking-wide">GI CERTIFIED LOOM</span>
               </div>
               {/* Desktop actions */}
               <div className="hidden lg:flex absolute top-4 right-4 gap-2">
                 <button onClick={() => setWishlisted(!wishlisted)}
-                  className="w-10 h-10 rounded-full bg-white/80 backdrop-blur flex items-center justify-center hover:bg-white transition-colors">
+                  className="w-10 h-10 rounded-full bg-surface/80 backdrop-blur flex items-center justify-center hover:bg-surface transition-colors">
                   <Heart size={20} className={wishlisted ? 'text-primary fill-primary' : 'text-text-secondary'} strokeWidth={1.5} />
                 </button>
-                <button className="w-10 h-10 rounded-full bg-white/80 backdrop-blur flex items-center justify-center hover:bg-white transition-colors">
+                <button className="w-10 h-10 rounded-full bg-surface/80 backdrop-blur flex items-center justify-center hover:bg-surface transition-colors">
                   <Share2 size={20} className="text-text-secondary" strokeWidth={1.5} />
                 </button>
               </div>
@@ -295,9 +295,9 @@ export default function ProductDetailPage() {
                 ['Origin', product.origin],
                 ['Length', product.length],
                 ['Width', product.width],
-                ['Weight', product.weight ? `${product.weight}g` : null],
-                ['Occasion', product.occasion],
-                ['Blouse Piece', product.blousePiece === true ? 'Included' : product.blousePiece === false ? 'Not included' : null],
+                ['Weight', product.weight],
+                ['Occasion', product.occasion?.join(', ')],
+                ['Blouse Piece', product.blousePiece],
                 ['Care', product.careInstructions],
               ].filter(([, v]) => v).map(([label, value], idx) => (
                 <div key={label} className={`flex justify-between py-3 px-4 ${idx % 2 === 0 ? 'bg-surface-container-low/30' : ''}`}>

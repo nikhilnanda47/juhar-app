@@ -12,7 +12,7 @@ interface Variant {
   name: string | null;
   color: string | null;
   pricePaise: number;
-  inventory: { available: number } | null;
+  inventory: { onHand: number; reserved: number; unavailable: number } | null;
 }
 
 interface Product {
@@ -109,9 +109,10 @@ export default function CatalogPage() {
                 const prices = product.variants.map((v) => v.pricePaise);
                 const minPrice = Math.min(...prices);
                 const maxPrice = Math.max(...prices);
-                const totalStock = product.variants.reduce(
-                  (sum, v) => sum + (v.inventory?.available ?? 0), 0,
-                );
+                const totalStock = product.variants.reduce((sum, v) => {
+                  const inv = v.inventory;
+                  return sum + (inv ? inv.onHand - inv.reserved - inv.unavailable : 0);
+                }, 0);
 
                 return (
                   <tr key={product.id}>

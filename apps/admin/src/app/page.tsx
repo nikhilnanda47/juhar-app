@@ -67,7 +67,8 @@ export default function DashboardPage() {
       let lowStock = 0;
       (products.items || []).forEach((p: any) => {
         (p.variants || []).forEach((v: any) => {
-          const available = v.inventory?.available ?? v.inventory?.onHand ?? 0;
+          const inv = v.inventory;
+          const available = inv ? inv.onHand - inv.reserved - inv.unavailable : 0;
           if (available > 0 && available <= 3) lowStock++;
         });
       });

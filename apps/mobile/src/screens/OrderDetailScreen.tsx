@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, Linking, Alert, RefreshControl,
@@ -6,7 +6,7 @@ import {
 import {
   Check, Truck, MapPin, Phone, MessageCircle, ArrowRight, Copy, Info,
 } from 'lucide-react-native';
-import { colors, spacing, borderRadius } from '../theme';
+import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
 import { formatPaise } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -31,6 +31,8 @@ interface Props { navigation: any; route: { params: { orderId: string } }; }
 
 export default function OrderDetailScreen({ navigation, route }: Props) {
   const { orderId } = route.params;
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -72,7 +74,7 @@ export default function OrderDetailScreen({ navigation, route }: Props) {
       </View>
 
       {/* 1. Order Status */}
-      <SectionTitle title="Order Status" />
+      <Text style={styles.sectionTitle}>Order Status</Text>
       <View style={styles.card}>
         {isCancelled ? (
           <View style={styles.cancelledBanner}>
@@ -88,7 +90,6 @@ export default function OrderDetailScreen({ navigation, route }: Props) {
               const timestamp = order[`${step === 'placed' ? 'created' : step}At`];
               return (
                 <View key={step} style={styles.timelineRow}>
-                  {/* Left: node + line */}
                   <View style={styles.timelineLeft}>
                     <View style={[
                       styles.timelineNode,
@@ -101,7 +102,6 @@ export default function OrderDetailScreen({ navigation, route }: Props) {
                       <View style={[styles.timelineLine, isDone && styles.timelineLineDone]} />
                     )}
                   </View>
-                  {/* Right: details */}
                   <View style={[styles.timelineContent, isFuture && { opacity: 0.5 }]}>
                     <View style={styles.timelineContentRow}>
                       <Text style={[styles.stepLabel, (idx === currentIdx) && styles.stepLabelCurrent]}>
@@ -124,7 +124,7 @@ export default function OrderDetailScreen({ navigation, route }: Props) {
       {/* 2. Tracking */}
       {order.shipments?.length > 0 && (
         <>
-          <SectionTitle title="Tracking Information" />
+          <Text style={styles.sectionTitle}>Tracking Information</Text>
           <View style={styles.card}>
             {order.shipments.map((s: any) => (
               <View key={s.id}>
@@ -157,7 +157,7 @@ export default function OrderDetailScreen({ navigation, route }: Props) {
       )}
 
       {/* 3. Items */}
-      <SectionTitle title={`Items (${order.items?.length || 0})`} />
+      <Text style={styles.sectionTitle}>{`Items (${order.items?.length || 0})`}</Text>
       <View style={styles.card}>
         {order.items?.map((item: any, idx: number) => (
           <View key={item.id}>
@@ -180,7 +180,7 @@ export default function OrderDetailScreen({ navigation, route }: Props) {
       {/* 4. Delivery Address */}
       {addr && (
         <>
-          <SectionTitle title="Delivery Address" />
+          <Text style={styles.sectionTitle}>Delivery Address</Text>
           <View style={styles.card}>
             <View style={styles.addrRow}>
               <View style={styles.addrIconWrap}>
@@ -210,7 +210,7 @@ export default function OrderDetailScreen({ navigation, route }: Props) {
       )}
 
       {/* 5. Payment Summary */}
-      <SectionTitle title="Payment Summary" />
+      <Text style={styles.sectionTitle}>Payment Summary</Text>
       <View style={styles.card}>
         <View style={styles.payModeRow}>
           <Text style={styles.payModeLabel}>Payment Method</Text>
@@ -245,7 +245,7 @@ export default function OrderDetailScreen({ navigation, route }: Props) {
       <View style={styles.supportCard}>
         <View style={styles.supportLeft}>
           <View style={styles.supportIconWrap}>
-            <MessageCircle size={24} color="#128C7E" strokeWidth={1.5} />
+            <MessageCircle size={24} color={colors.whatsapp} strokeWidth={1.5} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.supportTitle}>Need help with this order?</Text>
@@ -266,23 +266,16 @@ export default function OrderDetailScreen({ navigation, route }: Props) {
   );
 }
 
-function SectionTitle({ title }: { title: string }) {
-  return (
-    <Text style={styles.sectionTitle}>{title}</Text>
-  );
-}
-
-const styles = StyleSheet.create({
+const createStyles = (colors: ColorPalette) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   scrollContent: { paddingHorizontal: spacing.margin, paddingBottom: 100 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
   errorText: { fontFamily: 'DMSans-Regular', fontSize: 14, color: colors.error },
 
-  // Sub-bar
   subBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 8, paddingBottom: 4 },
   subBarLeft: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  codBadge: { backgroundColor: 'rgba(255,218,171,0.4)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: borderRadius.full },
-  codText: { fontFamily: 'DMSans-SemiBold', fontSize: 11, color: '#795E38', letterSpacing: 0.5 },
+  codBadge: { backgroundColor: colors.accentBg, paddingHorizontal: 8, paddingVertical: 2, borderRadius: borderRadius.full },
+  codText: { fontFamily: 'DMSans-SemiBold', fontSize: 11, color: colors.accentDark, letterSpacing: 0.5 },
   subBarDot: { fontFamily: 'DMSans-Regular', fontSize: 12, color: colors.textTertiary },
   subBarDate: { fontFamily: 'DMSans-Regular', fontSize: 12, color: colors.textTertiary },
 
@@ -299,37 +292,33 @@ const styles = StyleSheet.create({
   timelineRow: { flexDirection: 'row', minHeight: 52 },
   timelineLeft: { width: 24, alignItems: 'center' },
   timelineNode: {
-    width: 24, height: 24, borderRadius: 12, backgroundColor: '#EEEEEB',
+    width: 24, height: 24, borderRadius: 12, backgroundColor: colors.surfaceMuted,
     justifyContent: 'center', alignItems: 'center', zIndex: 1,
   },
-  nodeComplete: { backgroundColor: '#3D8B63' },
-  nodeCurrent: { backgroundColor: 'rgba(255,210,221,1)' },
-  nodePulse: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary },
-  nodeFutureDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#D9C1C3' },
-  timelineLine: { flex: 1, width: 2, backgroundColor: '#E8E8E5', marginVertical: 2 },
-  timelineLineDone: { backgroundColor: '#3D8B63' },
+  nodeComplete: { backgroundColor: colors.success },
+  nodeFutureDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.borderMedium },
+  timelineLine: { flex: 1, width: 2, backgroundColor: colors.surfaceMuted, marginVertical: 2 },
+  timelineLineDone: { backgroundColor: colors.success },
   timelineContent: { flex: 1, paddingLeft: 12, paddingBottom: 12 },
   timelineContentRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   stepLabel: { fontFamily: 'DMSans-SemiBold', fontSize: 16, color: colors.textPrimary, letterSpacing: -0.2 },
   stepLabelCurrent: { color: colors.primary },
   stepTime: { fontFamily: 'DMSans-Regular', fontSize: 12, color: colors.textTertiary },
 
-  // Cancelled
-  cancelledBanner: { backgroundColor: '#FCE4EC', borderRadius: 8, padding: 12 },
-  cancelledText: { fontFamily: 'DMSans-Medium', fontSize: 14, color: '#C62828' },
-  cancelReason: { fontFamily: 'DMSans-Regular', fontSize: 13, color: '#C62828', marginTop: 4 },
+  cancelledBanner: { backgroundColor: colors.statusCancelledBg, borderRadius: 8, padding: 12 },
+  cancelledText: { fontFamily: 'DMSans-Medium', fontSize: 14, color: colors.statusCancelledText },
+  cancelReason: { fontFamily: 'DMSans-Regular', fontSize: 13, color: colors.statusCancelledText, marginTop: 4 },
 
-  // Tracking
   trackingHeader: { flexDirection: 'row', gap: 12, marginBottom: 12 },
   trackingIconWrap: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: '#F4F4F1',
+    width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surfaceAlt,
     justifyContent: 'center', alignItems: 'center',
   },
   trackingLabel: { fontFamily: 'DMSans-Medium', fontSize: 13, color: colors.textTertiary, letterSpacing: 0.2 },
   trackingCarrier: { fontFamily: 'DMSans-SemiBold', fontSize: 16, color: colors.textPrimary, letterSpacing: -0.2 },
   trackingIdBox: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    backgroundColor: '#F4F4F1', borderRadius: borderRadius.md, padding: 10,
+    backgroundColor: colors.surfaceAlt, borderRadius: borderRadius.md, padding: 10,
   },
   trackingIdLabel: { fontFamily: 'DMSans-SemiBold', fontSize: 11, color: colors.textTertiary, letterSpacing: 1.5 },
   trackingId: { fontFamily: 'DMSans-SemiBold', fontSize: 16, color: colors.textPrimary, letterSpacing: 1, marginTop: 2 },
@@ -341,51 +330,47 @@ const styles = StyleSheet.create({
   },
   copyBtnText: { fontFamily: 'DMSans-Medium', fontSize: 13, color: colors.primary },
 
-  // Items
   itemRow: { flexDirection: 'row', gap: 12, paddingVertical: 10 },
-  itemThumb: { width: 60, height: 80, borderRadius: 8, backgroundColor: '#E0DDD8' },
+  itemThumb: { width: 60, height: 80, borderRadius: 8, backgroundColor: colors.placeholder },
   itemDetails: { flex: 1, justifyContent: 'space-between' },
   itemName: { fontFamily: 'DMSans-Medium', fontSize: 16, color: colors.textPrimary },
   itemMeta: { fontFamily: 'DMSans-Regular', fontSize: 12, color: colors.textTertiary, marginTop: 2 },
   itemFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 },
   itemQty: { fontFamily: 'DMSans-Regular', fontSize: 12, color: colors.textSecondary },
   itemPrice: { fontFamily: 'DMSans-SemiBold', fontSize: 16, color: colors.primary, letterSpacing: -0.3 },
-  itemDivider: { height: 1, backgroundColor: '#EEEEEB' },
+  itemDivider: { height: 1, backgroundColor: colors.surfaceMuted },
 
-  // Address
   addrRow: { flexDirection: 'row', gap: 12 },
   addrIconWrap: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: '#F4F4F1',
+    width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surfaceAlt,
     justifyContent: 'center', alignItems: 'center',
   },
   addrNameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   addrName: { fontFamily: 'DMSans-SemiBold', fontSize: 16, color: colors.textPrimary, letterSpacing: -0.2 },
-  addrLabelBadge: { backgroundColor: '#EEEEEB', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
+  addrLabelBadge: { backgroundColor: colors.surfaceMuted, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
   addrLabelText: { fontFamily: 'DMSans-SemiBold', fontSize: 10, color: colors.textTertiary, letterSpacing: 1 },
   addrLine: { fontFamily: 'DMSans-Regular', fontSize: 14, color: colors.textSecondary, marginTop: 4, lineHeight: 22 },
   addrPhoneRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
   addrPhone: { fontFamily: 'DMSans-Regular', fontSize: 12, color: colors.textTertiary },
 
-  // Payment
   payModeRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 8 },
   payModeLabel: { fontFamily: 'DMSans-Regular', fontSize: 12, color: colors.textTertiary },
   payModeBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: 'rgba(255,218,171,0.4)', paddingHorizontal: 10, paddingVertical: 4,
+    backgroundColor: colors.accentBg, paddingHorizontal: 10, paddingVertical: 4,
     borderRadius: borderRadius.full,
   },
-  payModeText: { fontFamily: 'DMSans-SemiBold', fontSize: 11, color: '#795E38', letterSpacing: 0.3 },
-  payDivider: { height: 1, backgroundColor: '#EEEEEB', marginVertical: 8 },
+  payModeText: { fontFamily: 'DMSans-SemiBold', fontSize: 11, color: colors.accentDark, letterSpacing: 0.3 },
+  payDivider: { height: 1, backgroundColor: colors.surfaceMuted, marginVertical: 8 },
   payRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
   payLabel: { fontFamily: 'DMSans-Regular', fontSize: 14, color: colors.textSecondary },
   payValue: { fontFamily: 'DMSans-Regular', fontSize: 14, color: colors.textPrimary },
-  payFree: { fontFamily: 'DMSans-Medium', fontSize: 12, color: '#3D8B63', letterSpacing: 1, textTransform: 'uppercase' },
+  payFree: { fontFamily: 'DMSans-Medium', fontSize: 12, color: colors.success, letterSpacing: 1, textTransform: 'uppercase' },
   payTotalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingTop: 4 },
   payTotalLabel: { fontFamily: 'DMSans-SemiBold', fontSize: 16, color: colors.textPrimary, letterSpacing: -0.2 },
   payTotalSub: { fontFamily: 'DMSans-Regular', fontSize: 12, color: colors.textTertiary, marginTop: 2 },
   payTotalValue: { fontFamily: 'DMSans-Bold', fontSize: 20, color: colors.primary, letterSpacing: -0.4 },
 
-  // Support
   supportCard: {
     backgroundColor: colors.surface, borderRadius: borderRadius.md, padding: spacing.md,
     marginTop: spacing.lg,
@@ -394,14 +379,14 @@ const styles = StyleSheet.create({
   },
   supportLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
   supportIconWrap: {
-    width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(37,211,102,0.1)',
+    width: 44, height: 44, borderRadius: 22, backgroundColor: colors.successBg,
     justifyContent: 'center', alignItems: 'center',
   },
   supportTitle: { fontFamily: 'DMSans-Medium', fontSize: 16, color: colors.textPrimary, letterSpacing: -0.2 },
   supportSub: { fontFamily: 'DMSans-Regular', fontSize: 12, color: colors.textTertiary },
   supportBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: '#F4F4F1', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 8,
+    backgroundColor: colors.surfaceAlt, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 8,
   },
   supportBtnText: { fontFamily: 'DMSans-SemiBold', fontSize: 13, color: colors.primary },
 });

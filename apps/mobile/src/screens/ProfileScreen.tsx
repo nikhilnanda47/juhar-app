@@ -1,13 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
-  ActivityIndicator, ScrollView, Alert, Platform, RefreshControl,
+  ActivityIndicator, ScrollView, Alert, Platform, RefreshControl, Switch,
 } from 'react-native';
 import {
   User, MapPin, Heart, Package, HelpCircle, MessageCircle,
-  LogOut, ChevronRight, FileText, Settings,
+  LogOut, ChevronRight, FileText, Settings, Sun, Moon,
 } from 'lucide-react-native';
-import { colors, spacing, borderRadius } from '../theme';
+import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
 import {
   isLoggedIn, loadToken, requestOtp, verifyOtp, clearTokens,
   getProfile, updateProfile, getAddresses, type UserProfile,
@@ -24,6 +24,9 @@ type Screen = 'loading' | 'login' | 'otp' | 'profile' | 'editName';
 
 export default function ProfileScreen() {
   const navigation = useNavigation<any>();
+  const { colors, isDark, toggleTheme } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const [screen, setScreen] = useState<Screen>('loading');
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
@@ -149,7 +152,16 @@ export default function ProfileScreen() {
   if (screen === 'login') {
     return (
       <View style={styles.authContainer}>
-        <Text style={styles.authPageTitle}>Account</Text>
+        <View style={styles.authHeader}>
+          <Text style={styles.authPageTitle}>Account</Text>
+          <TouchableOpacity style={styles.themeToggleBtn} onPress={toggleTheme} activeOpacity={0.7}>
+            {isDark ? (
+              <Sun size={20} color={colors.textSecondary} strokeWidth={1.5} />
+            ) : (
+              <Moon size={20} color={colors.textSecondary} strokeWidth={1.5} />
+            )}
+          </TouchableOpacity>
+        </View>
         <View style={styles.authContent}>
           <User size={48} color={colors.textTertiary} strokeWidth={1.5} />
           <Text style={styles.authTitle}>Log in to your account</Text>
@@ -358,21 +370,41 @@ export default function ProfileScreen() {
           activeOpacity={0.7}
         >
           <View style={styles.menuLeft}>
-            <User size={20} color="#877274" strokeWidth={1.5} />
+            <User size={20} color={colors.textBrandLight} strokeWidth={1.5} />
             <Text style={styles.menuLabel}>Edit Profile</Text>
           </View>
-          <ChevronRight size={18} color="rgba(135,114,116,0.6)" strokeWidth={2} />
+          <ChevronRight size={18} color={colors.textBrandLight} strokeWidth={2} />
         </TouchableOpacity>
+
+        <View style={styles.menuDivider} />
+
+        {/* Dark Mode Toggle */}
+        <View style={styles.menuItem}>
+          <View style={styles.menuLeft}>
+            {isDark ? (
+              <Moon size={20} color={colors.textBrandLight} strokeWidth={1.5} />
+            ) : (
+              <Sun size={20} color={colors.textBrandLight} strokeWidth={1.5} />
+            )}
+            <Text style={styles.menuLabel}>{isDark ? 'Dark Mode' : 'Light Mode'}</Text>
+          </View>
+          <Switch
+            value={isDark}
+            onValueChange={toggleTheme}
+            trackColor={{ false: colors.surfaceMuted, true: colors.primary }}
+            thumbColor={colors.white}
+          />
+        </View>
 
         <View style={styles.menuDivider} />
 
         {/* FAQs */}
         <TouchableOpacity style={styles.menuItem} activeOpacity={0.7}>
           <View style={styles.menuLeft}>
-            <HelpCircle size={20} color="#877274" strokeWidth={1.5} />
+            <HelpCircle size={20} color={colors.textBrandLight} strokeWidth={1.5} />
             <Text style={styles.menuLabel}>FAQs</Text>
           </View>
-          <ChevronRight size={18} color="rgba(135,114,116,0.6)" strokeWidth={2} />
+          <ChevronRight size={18} color={colors.textBrandLight} strokeWidth={2} />
         </TouchableOpacity>
 
         <View style={styles.menuDivider} />
@@ -380,14 +412,14 @@ export default function ProfileScreen() {
         {/* Help & Support */}
         <TouchableOpacity style={styles.menuItem} activeOpacity={0.7}>
           <View style={styles.menuLeft}>
-            <MessageCircle size={20} color="#877274" strokeWidth={1.5} />
+            <MessageCircle size={20} color={colors.textBrandLight} strokeWidth={1.5} />
             <Text style={styles.menuLabel}>Help & Support</Text>
           </View>
           <View style={styles.menuRight}>
             <View style={styles.whatsappBadge}>
               <Text style={styles.whatsappText}>WhatsApp 24/7</Text>
             </View>
-            <ChevronRight size={18} color="rgba(135,114,116,0.6)" strokeWidth={2} />
+            <ChevronRight size={18} color={colors.textBrandLight} strokeWidth={2} />
           </View>
         </TouchableOpacity>
 
@@ -396,10 +428,10 @@ export default function ProfileScreen() {
         {/* Terms & Privacy */}
         <TouchableOpacity style={styles.menuItem} activeOpacity={0.7}>
           <View style={styles.menuLeft}>
-            <FileText size={20} color="#877274" strokeWidth={1.5} />
+            <FileText size={20} color={colors.textBrandLight} strokeWidth={1.5} />
             <Text style={styles.menuLabel}>Terms & Privacy</Text>
           </View>
-          <ChevronRight size={18} color="rgba(135,114,116,0.6)" strokeWidth={2} />
+          <ChevronRight size={18} color={colors.textBrandLight} strokeWidth={2} />
         </TouchableOpacity>
       </View>
       </FadeInUp>
@@ -407,7 +439,7 @@ export default function ProfileScreen() {
       {/* Log Out Button */}
       <FadeInUp delay={360} duration={500}>
       <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.7}>
-        <LogOut size={20} color="#C44A4A" strokeWidth={1.5} />
+        <LogOut size={20} color={colors.error} strokeWidth={1.5} />
         <Text style={styles.logoutText}>Log Out</Text>
       </TouchableOpacity>
       </FadeInUp>
@@ -422,12 +454,17 @@ export default function ProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ColorPalette) => StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
 
   // ── Auth screens ──
   authContainer: { flex: 1, backgroundColor: colors.background, paddingHorizontal: spacing.margin },
-  authPageTitle: { fontFamily: 'NotoSerif-Medium', fontSize: 20, color: colors.textPrimary, paddingTop: 56, lineHeight: 26 },
+  authHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 56 },
+  authPageTitle: { fontFamily: 'NotoSerif-Medium', fontSize: 20, color: colors.textPrimary, lineHeight: 26 },
+  themeToggleBtn: {
+    width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surfaceAlt,
+    justifyContent: 'center', alignItems: 'center',
+  },
   authContent: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingBottom: 80 },
   authTitle: { fontFamily: 'NotoSerif-Regular', fontSize: 24, color: colors.textPrimary, marginTop: spacing.md },
   authSubtext: { fontFamily: 'DMSans-Regular', fontSize: 14, color: colors.textSecondary, textAlign: 'center', marginTop: spacing.sm, marginBottom: spacing.lg },
@@ -474,21 +511,21 @@ const styles = StyleSheet.create({
   // Profile Card
   profileCard: {
     marginTop: spacing.md, padding: spacing.md, borderRadius: 12,
-    backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#EEEEEE',
+    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 1,
   },
   profileLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, flex: 1, minWidth: 0 },
   avatar: {
-    width: 56, height: 56, borderRadius: 28, backgroundColor: '#8B3A4A',
+    width: 56, height: 56, borderRadius: 28, backgroundColor: colors.primary,
     justifyContent: 'center', alignItems: 'center',
   },
   avatarText: { fontFamily: 'DMSans-Medium', fontSize: 18, color: colors.white, letterSpacing: 0.5 },
   profileInfo: { flex: 1, minWidth: 0 },
   profileName: { fontFamily: 'DMSans-Medium', fontSize: 18, color: colors.textPrimary, lineHeight: 22 },
-  profilePhone: { fontFamily: 'DMSans-Regular', fontSize: 14, color: '#877274', lineHeight: 22, marginTop: 1 },
+  profilePhone: { fontFamily: 'DMSans-Regular', fontSize: 14, color: colors.textBrandLight, lineHeight: 22, marginTop: 1 },
   settingsBtn: {
-    width: 36, height: 36, borderRadius: 18, backgroundColor: '#F4F4F1',
+    width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surfaceAlt,
     justifyContent: 'center', alignItems: 'center',
   },
 
@@ -496,21 +533,21 @@ const styles = StyleSheet.create({
   tilesRow: { flexDirection: 'row', marginTop: spacing.lg, gap: spacing.gutter },
   tile: {
     flex: 1, padding: spacing.md, borderRadius: 12,
-    backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#EEEEEE',
+    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
     alignItems: 'center', justifyContent: 'center',
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 1,
   },
   tileIconWrap: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: '#F4F4F1',
+    width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surfaceAlt,
     justifyContent: 'center', alignItems: 'center', marginBottom: 4,
   },
   tileLabel: { fontFamily: 'DMSans-Medium', fontSize: 13, color: colors.textPrimary, letterSpacing: 0.26 },
-  tileSub: { fontFamily: 'DMSans-SemiBold', fontSize: 11, color: '#877274', letterSpacing: 0.66, marginTop: 2 },
+  tileSub: { fontFamily: 'DMSans-SemiBold', fontSize: 11, color: colors.textBrandLight, letterSpacing: 0.66, marginTop: 2 },
 
   // Menu Card
   menuCard: {
     marginTop: spacing.lg, borderRadius: 12,
-    backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#EEEEEE',
+    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
     overflow: 'hidden',
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 1,
   },
@@ -521,25 +558,25 @@ const styles = StyleSheet.create({
   menuLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minWidth: 0 },
   menuLabel: { fontFamily: 'DMSans-Regular', fontSize: 14, color: colors.textPrimary, lineHeight: 22 },
   menuRight: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  menuDivider: { height: 1, backgroundColor: '#E8E8E5', marginHorizontal: spacing.md },
+  menuDivider: { height: 1, backgroundColor: colors.surfaceMuted, marginHorizontal: spacing.md },
 
   // WhatsApp badge
   whatsappBadge: {
     paddingHorizontal: 8, paddingVertical: 2, borderRadius: borderRadius.full,
-    backgroundColor: '#E8F5E9',
+    backgroundColor: colors.statusDeliveredBg,
   },
-  whatsappText: { fontFamily: 'DMSans-SemiBold', fontSize: 11, color: '#2E7D32', letterSpacing: -0.1 },
+  whatsappText: { fontFamily: 'DMSans-SemiBold', fontSize: 11, color: colors.statusDeliveredText, letterSpacing: -0.1 },
 
   // Log Out
   logoutBtn: {
     marginTop: spacing.lg, height: 52, borderRadius: 12,
-    backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#EEEEEE',
+    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 1,
   },
-  logoutText: { fontFamily: 'DMSans-SemiBold', fontSize: 16, color: '#C44A4A', letterSpacing: -0.16 },
+  logoutText: { fontFamily: 'DMSans-SemiBold', fontSize: 16, color: colors.error, letterSpacing: -0.16 },
 
   // Version
   versionWrap: { marginTop: spacing.xl, alignItems: 'center' },
-  versionText: { fontFamily: 'DMSans-Regular', fontSize: 12, color: '#999999' },
+  versionText: { fontFamily: 'DMSans-Regular', fontSize: 12, color: colors.textTertiary },
 });

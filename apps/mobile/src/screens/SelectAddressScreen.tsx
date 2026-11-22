@@ -1,16 +1,18 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { MapPin, Plus, Phone, Pencil, ShieldCheck, ArrowRight, Leaf } from 'lucide-react-native';
-import { colors, spacing, borderRadius } from '../theme';
+import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
 import { getAddresses, type Address } from '../services/api';
 
 interface Props { navigation: any; route: any; }
 
 export default function SelectAddressScreen({ navigation }: Props) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -64,12 +66,9 @@ export default function SelectAddressScreen({ navigation }: Props) {
                 activeOpacity={0.85}
               >
                 <View style={styles.addrRow}>
-                  {/* Radio */}
                   <View style={[styles.radio, isSelected && styles.radioActive]}>
                     {isSelected && <View style={styles.radioDot} />}
                   </View>
-
-                  {/* Details */}
                   <View style={{ flex: 1 }}>
                     <View style={styles.labelRow}>
                       <Text style={styles.addrLabel}>{addr.label || 'Address'}</Text>
@@ -91,14 +90,11 @@ export default function SelectAddressScreen({ navigation }: Props) {
                       <Text style={styles.phoneText}>{addr.recipientPhone}</Text>
                     </View>
                   </View>
-
-                  {/* Edit */}
                   <TouchableOpacity style={styles.editBtn}>
                     <Pencil size={16} color={colors.textTertiary} strokeWidth={1.5} />
                   </TouchableOpacity>
                 </View>
 
-                {/* Delivery Estimate Strip */}
                 <View style={styles.deliveryStrip}>
                   <View style={styles.deliveryStripLeft}>
                     <Leaf size={14} color={colors.accent} strokeWidth={2} />
@@ -111,7 +107,6 @@ export default function SelectAddressScreen({ navigation }: Props) {
           })
         )}
 
-        {/* Add New Address */}
         <TouchableOpacity
           style={styles.addBtn}
           onPress={() => navigation.navigate('AddAddress')}
@@ -120,7 +115,6 @@ export default function SelectAddressScreen({ navigation }: Props) {
           <Text style={styles.addBtnText}>Add New Address</Text>
         </TouchableOpacity>
 
-        {/* Assurance Note */}
         <View style={styles.assuranceNote}>
           <ShieldCheck size={20} color={colors.accent} strokeWidth={1.5} />
           <View style={{ flex: 1 }}>
@@ -134,7 +128,6 @@ export default function SelectAddressScreen({ navigation }: Props) {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* Sticky Bottom Bar */}
       {selected && (
         <View style={styles.stickyBar}>
           <View style={styles.stickyInfo}>
@@ -155,17 +148,15 @@ export default function SelectAddressScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ColorPalette) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   scrollContent: { padding: spacing.margin, paddingBottom: 140 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
 
-  // Empty
   empty: { alignItems: 'center', paddingVertical: 60, gap: 8 },
   emptyTitle: { fontFamily: 'NotoSerif-Regular', fontSize: 20, color: colors.textPrimary, marginTop: spacing.md },
   emptySubtext: { fontFamily: 'DMSans-Regular', fontSize: 14, color: colors.textSecondary },
 
-  // Section Header
   sectionHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
     marginBottom: spacing.md,
@@ -173,38 +164,33 @@ const styles = StyleSheet.create({
   sectionTitle: { fontFamily: 'DMSans-SemiBold', fontSize: 16, color: colors.textPrimary, letterSpacing: -0.2 },
   sectionSub: { fontFamily: 'DMSans-Regular', fontSize: 12, color: colors.textSecondary, marginTop: 2 },
   countBadge: {
-    backgroundColor: 'rgba(255,218,171,0.3)', paddingHorizontal: 8, paddingVertical: 4,
+    backgroundColor: colors.accentBg, paddingHorizontal: 8, paddingVertical: 4,
     borderRadius: borderRadius.full,
   },
   countText: { fontFamily: 'DMSans-SemiBold', fontSize: 11, color: colors.accent, letterSpacing: 1.5 },
 
-  // Address Card
   addrCard: {
     backgroundColor: colors.surface, borderRadius: borderRadius.md, padding: spacing.md,
     marginBottom: spacing.md,
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
   },
-  addrCardSelected: {
-    // subtle highlight — no border change needed, radio indicates selection
-  },
+  addrCardSelected: {},
   addrRow: { flexDirection: 'row', gap: 12 },
 
-  // Radio
   radio: {
     width: 20, height: 20, borderRadius: 10, borderWidth: 2,
-    borderColor: '#E2E3E0', justifyContent: 'center', alignItems: 'center',
+    borderColor: colors.borderMedium, justifyContent: 'center', alignItems: 'center',
     marginTop: 2,
   },
   radioActive: { borderColor: colors.primary },
   radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary },
 
-  // Labels
   labelRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   addrLabel: { fontFamily: 'DMSans-SemiBold', fontSize: 16, color: colors.textPrimary, letterSpacing: -0.2 },
   defaultBadge: {
-    backgroundColor: '#E8F5E9', paddingHorizontal: 8, paddingVertical: 2, borderRadius: borderRadius.full,
+    backgroundColor: colors.statusDeliveredBg, paddingHorizontal: 8, paddingVertical: 2, borderRadius: borderRadius.full,
   },
-  defaultText: { fontFamily: 'DMSans-SemiBold', fontSize: 11, color: '#2E7D32', letterSpacing: 0.8, textTransform: 'uppercase' },
+  defaultText: { fontFamily: 'DMSans-SemiBold', fontSize: 11, color: colors.statusDeliveredText, letterSpacing: 0.8, textTransform: 'uppercase' },
 
   addrName: { fontFamily: 'DMSans-Medium', fontSize: 14, color: colors.textPrimary, marginBottom: 4 },
   addrLine: { fontFamily: 'DMSans-Regular', fontSize: 14, color: colors.textSecondary, lineHeight: 22 },
@@ -213,37 +199,33 @@ const styles = StyleSheet.create({
 
   editBtn: { padding: 4 },
 
-  // Delivery Strip
   deliveryStrip: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     marginTop: 14, paddingTop: 10, paddingHorizontal: 10, paddingVertical: 6,
-    backgroundColor: 'rgba(244,244,241,0.7)', borderRadius: 8,
+    backgroundColor: colors.surfaceAlt, borderRadius: 8,
   },
   deliveryStripLeft: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   deliveryStripText: { fontFamily: 'DMSans-SemiBold', fontSize: 11, color: colors.textSecondary, letterSpacing: 0.3 },
   deliveryEst: { fontFamily: 'DMSans-SemiBold', fontSize: 11, color: colors.primary },
 
-  // Add Button
   addBtn: {
     width: '100%', height: 48, flexDirection: 'row',
     justifyContent: 'center', alignItems: 'center', gap: 8,
-    backgroundColor: '#F4F4F1', borderRadius: 8,
+    backgroundColor: colors.surfaceAlt, borderRadius: 8,
     marginBottom: spacing.md,
   },
   addBtnText: { fontFamily: 'DMSans-SemiBold', fontSize: 16, color: colors.primary, letterSpacing: -0.2 },
 
-  // Assurance
   assuranceNote: {
     flexDirection: 'row', gap: 12, padding: spacing.md,
-    backgroundColor: '#F4F4F1', borderRadius: borderRadius.md,
+    backgroundColor: colors.surfaceAlt, borderRadius: borderRadius.md,
   },
   assuranceTitle: { fontFamily: 'DMSans-SemiBold', fontSize: 13, color: colors.textPrimary, letterSpacing: 0.2 },
   assuranceSub: { fontFamily: 'DMSans-Regular', fontSize: 12, color: colors.textSecondary, marginTop: 2, lineHeight: 18 },
 
-  // Sticky Bar
   stickyBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: 'rgba(255,255,255,0.95)',
+    backgroundColor: colors.stickyBar,
     paddingHorizontal: spacing.margin, paddingTop: 10, paddingBottom: 28,
     shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.04, shadowRadius: 16, elevation: 5,
   },

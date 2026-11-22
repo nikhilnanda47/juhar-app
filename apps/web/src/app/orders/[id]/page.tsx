@@ -10,6 +10,10 @@ const STEPS = ['placed', 'confirmed', 'packed', 'shipped', 'delivered'];
 const STEP_LABELS: Record<string, string> = {
   placed: 'Order Placed', confirmed: 'Confirmed', packed: 'Packed', shipped: 'Shipped', delivered: 'Delivered',
 };
+const POST_DELIVERY_LABELS: Record<string, string> = {
+  return_requested: 'Return requested', return_approved: 'Return approved', return_rejected: 'Return rejected',
+  returned: 'Returned', refund_pending: 'Refund pending', refunded: 'Refunded',
+};
 const STEP_DESC: Record<string, string> = {
   placed: 'Your order has been received', confirmed: 'Artisan has confirmed your order',
   packed: 'Handpacked in kora cloth', shipped: 'On its way to you', delivered: 'Delivered to your doorstep',
@@ -33,7 +37,9 @@ export default function OrderDetailPage() {
   if (loading) return <div className="flex items-center justify-center min-h-[60vh]"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
   if (!order) return <div className="flex items-center justify-center min-h-[60vh]"><p className="text-text-secondary">Order not found</p></div>;
 
-  const currentIdx = STEPS.indexOf(order.status);
+  const isCancelled = order.status === 'cancelled';
+  const postDeliveryLabel = POST_DELIVERY_LABELS[order.status];
+  const currentIdx = postDeliveryLabel ? STEPS.length - 1 : STEPS.indexOf(order.status);
   const addr = order.addressSnapshot;
 
   return (
@@ -45,7 +51,9 @@ export default function OrderDetailPage() {
             Order {order.publicNumber}
           </h1>
           <div className="flex items-center gap-2 mt-2">
-            <span className="badge bg-secondary-container/40 text-[#795E38]">COD Order</span>
+            <span className="badge bg-secondary-container/40 text-accent-dark">
+              {order.paymentMode === 'cod' ? 'COD Order' : 'UPI Order'}
+            </span>
             <span className="text-text-tertiary">·</span>
             <span className="font-sans text-body-sm text-text-tertiary">
               {new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
@@ -72,6 +80,26 @@ export default function OrderDetailPage() {
           {/* Timeline — horizontal on desktop, vertical on mobile */}
           <h2 className="font-sans text-title-sm text-text-primary mb-4">Order Status</h2>
 
+          {isCancelled && (
+            <div className="card mb-6 !bg-status-cancelled-bg">
+              <p className="font-sans text-title-sm text-status-cancelled-text">
+                Order cancelled
+                {order.cancelledAt && ` on ${new Date(order.cancelledAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`}
+              </p>
+              {order.cancellationReason && (
+                <p className="font-sans text-body-sm text-status-cancelled-text mt-1">{order.cancellationReason}</p>
+              )}
+            </div>
+          )}
+
+          {postDeliveryLabel && (
+            <div className="card mb-4 !bg-surface-container-low flex items-center gap-2">
+              <Package size={18} className="text-accent" strokeWidth={1.5} />
+              <p className="font-sans text-title-sm text-text-primary">{postDeliveryLabel}</p>
+            </div>
+          )}
+
+          {!isCancelled && (<>
           {/* Desktop: horizontal timeline */}
           <div className="hidden lg:block card mb-6">
             <div className="flex items-start justify-between">
@@ -127,6 +155,7 @@ export default function OrderDetailPage() {
               );
             })}
           </div>
+          </>)}
 
           {/* Tracking */}
           {order.shipments?.length > 0 && (
@@ -221,7 +250,7 @@ export default function OrderDetailPage() {
             <div className="card">
               <div className="flex justify-between items-center mb-3">
                 <span className="font-sans text-body-sm text-text-tertiary">Payment Method</span>
-                <span className="badge bg-secondary-container/40 text-[#795E38]">
+                <span className="badge bg-secondary-container/40 text-accent-dark">
                   {order.paymentMode === 'cod' ? 'Cash on Delivery' : 'UPI'}
                 </span>
               </div>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
@@ -9,7 +9,7 @@ import {
   ChevronLeft, Heart, Share as ShareIcon, Check, CheckCircle,
   Package, RefreshCw, Banknote, ShoppingBag, Zap,
 } from 'lucide-react-native';
-import { colors, spacing, borderRadius, elevation } from '../theme';
+import { useTheme, type ColorPalette, spacing, borderRadius, elevation } from '../theme';
 import { FadeInUp } from '../components/AnimatedUI';
 import { addToLocalCart, type LocalCartItem } from '../services/localCart';
 import {
@@ -26,6 +26,8 @@ interface Props {
 
 export default function ProductDetailScreen({ route, navigation }: Props) {
   const { slug } = route.params;
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [product, setProduct] = useState<Product | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
@@ -51,7 +53,6 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
 
   useEffect(() => { loadProduct(); }, [slug]);
 
-  // Reset "Go to Bag" state when screen regains focus (e.g. user removed item from cart and came back)
   useFocusEffect(
     useCallback(() => {
       setAddedToCart(false);
@@ -102,7 +103,6 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
       if (isLoggedIn()) {
         await addToCart(selectedVariant.id, 1);
       } else {
-        // Guest: add to local cart
         await addToLocalCart({
           variantId: selectedVariant.id,
           quantity: 1,
@@ -161,13 +161,11 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
         <View style={styles.heroWrap}>
           <View style={styles.heroImage}>
             <View style={styles.heroPlaceholder} />
-            {/* GI Badge */}
             <View style={styles.giBadge}>
               <View style={styles.giDot} />
               <Text style={styles.giText}>GI CERTIFIED LOOM</Text>
             </View>
           </View>
-          {/* Dot Pagination */}
           <View style={styles.dotRow}>
             <View style={[styles.dot, styles.dotActive]} />
             <View style={styles.dot} />
@@ -194,7 +192,6 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
             )}
           </View>
 
-          {/* Price */}
           {selectedVariant && (
             <View style={styles.priceRow}>
               <Text style={styles.mainPrice}>{formatPaise(selectedVariant.pricePaise)}</Text>
@@ -272,11 +269,11 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
           {pinChecked && (
             <View style={styles.pinResults}>
               <View style={styles.pinResultRow}>
-                <CheckCircle size={16} color="#3D8B63" strokeWidth={2} />
-                <Text style={styles.pinResultText}>Delivery in 5–7 days</Text>
+                <CheckCircle size={16} color={colors.success} strokeWidth={2} />
+                <Text style={styles.pinResultText}>Delivery in 5-7 days</Text>
               </View>
               <View style={styles.pinResultRow}>
-                <CheckCircle size={16} color="#3D8B63" strokeWidth={2} />
+                <CheckCircle size={16} color={colors.success} strokeWidth={2} />
                 <Text style={styles.pinResultText}>Cash on delivery available</Text>
               </View>
             </View>
@@ -288,14 +285,12 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
         {/* Details Table */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Details</Text>
-          <View style={styles.detailsTable}>
-            {product.fabric && <DetailRow label="Fabric" value={product.fabric} even={false} />}
-            {product.weaveMethod && <DetailRow label="Weave" value={product.weaveMethod} even={true} />}
-            {product.origin && <DetailRow label="Origin" value={product.origin} even={false} />}
-            {product.length && <DetailRow label="Length" value={product.length} even={true} />}
-            {product.blousePiece && <DetailRow label="Blouse Piece" value={product.blousePiece} even={false} />}
-            {product.careInstructions && <DetailRow label="Wash Care" value={product.careInstructions} even={true} />}
-          </View>
+          <DetailRow label="Fabric" value={product.fabric} even={false} colors={colors} />
+          <DetailRow label="Weave" value={product.weaveMethod} even={true} colors={colors} />
+          <DetailRow label="Origin" value={product.origin} even={false} colors={colors} />
+          <DetailRow label="Length" value={product.length} even={true} colors={colors} />
+          <DetailRow label="Blouse Piece" value={product.blousePiece} even={false} colors={colors} />
+          <DetailRow label="Wash Care" value={product.careInstructions} even={true} colors={colors} />
         </View>
 
         <View style={styles.divider} />
@@ -303,9 +298,9 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
         {/* Delivery & Returns */}
         <View style={styles.section}>
           <View style={styles.deliveryItems}>
-            <DeliveryItem icon={<Package size={18} color={colors.textPrimary} strokeWidth={1.5} />} title="5–7 business days" sub="Hand-packed securely in reusable muslin" />
-            <DeliveryItem icon={<RefreshCw size={18} color={colors.textPrimary} strokeWidth={1.5} />} title="7-day hassle-free returns" sub="No questions asked pick-up" />
-            <DeliveryItem icon={<Banknote size={18} color={colors.textPrimary} strokeWidth={1.5} />} title="Cash on delivery" sub="Inspect before payment" />
+            <DeliveryItem icon={<Package size={18} color={colors.textPrimary} strokeWidth={1.5} />} title="5-7 business days" sub="Hand-packed securely in reusable muslin" colors={colors} />
+            <DeliveryItem icon={<RefreshCw size={18} color={colors.textPrimary} strokeWidth={1.5} />} title="7-day hassle-free returns" sub="No questions asked pick-up" colors={colors} />
+            <DeliveryItem icon={<Banknote size={18} color={colors.textPrimary} strokeWidth={1.5} />} title="Cash on delivery" sub="Inspect before payment" colors={colors} />
           </View>
         </View>
 
@@ -316,7 +311,7 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
           <View style={styles.relatedSection}>
             <View style={styles.relatedHeader}>
               <Text style={styles.relatedTitle}>You may also like</Text>
-              <Text style={styles.relatedMeta}>RELATED WEAVES</Text>
+              <Text style={styles.relatedMetaLabel}>RELATED WEAVES</Text>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.relatedScroll}>
               {relatedProducts.map((p: any) => (
@@ -387,7 +382,9 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
   );
 }
 
-function DetailRow({ label, value, even }: { label: string; value: string; even: boolean }) {
+function DetailRow({ label, value, even, colors }: { label: string; value: string | null | undefined; even: boolean; colors: ColorPalette }) {
+  if (!value) return null;
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={[styles.detailRow, even && styles.detailRowEven]}>
       <Text style={styles.detailLabel}>{label}</Text>
@@ -396,7 +393,8 @@ function DetailRow({ label, value, even }: { label: string; value: string; even:
   );
 }
 
-function DeliveryItem({ icon, title, sub }: { icon: React.ReactNode; title: string; sub: string }) {
+function DeliveryItem({ icon, title, sub, colors }: { icon: React.ReactNode; title: string; sub: string; colors: ColorPalette }) {
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.deliveryItem}>
       <View style={styles.deliveryIcon}>{icon}</View>
@@ -418,7 +416,7 @@ function getColorHex(colorName: string): string {
   return map[colorName.toLowerCase()] || '#CCCCCC';
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ColorPalette) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   scrollContent: {},
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
@@ -433,27 +431,27 @@ const styles = StyleSheet.create({
   topBarRight: { flexDirection: 'row', gap: 8 },
   circleBtn: {
     width: 40, height: 40, borderRadius: 20,
-    backgroundColor: '#F4F4F1', justifyContent: 'center', alignItems: 'center',
+    backgroundColor: colors.surfaceAlt, justifyContent: 'center', alignItems: 'center',
   },
 
   // Hero
   heroWrap: { paddingHorizontal: spacing.margin, paddingBottom: spacing.sm },
   heroImage: {
     width: '100%', aspectRatio: 3 / 4, borderRadius: borderRadius.md,
-    overflow: 'hidden', backgroundColor: '#E0DDD8', position: 'relative',
+    overflow: 'hidden', backgroundColor: colors.placeholder, position: 'relative',
   },
-  heroPlaceholder: { ...StyleSheet.absoluteFillObject, backgroundColor: '#D5CFC9' },
+  heroPlaceholder: { ...StyleSheet.absoluteFill, backgroundColor: colors.surfaceMuted },
   giBadge: {
     position: 'absolute', bottom: 12, left: 12,
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: 'rgba(249,249,246,0.9)', paddingHorizontal: 10, paddingVertical: 4,
+    backgroundColor: colors.surfaceOverlay, paddingHorizontal: 10, paddingVertical: 4,
     borderRadius: borderRadius.full,
   },
-  giDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#3D8B63' },
+  giDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.success },
   giText: { fontFamily: 'DMSans-SemiBold', fontSize: 11, color: colors.textPrimary, letterSpacing: 1 },
 
   dotRow: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: 12 },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#E2E3E0' },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.borderMedium },
   dotActive: { backgroundColor: colors.primary, transform: [{ scale: 1.25 }] },
 
   // Info
@@ -469,7 +467,7 @@ const styles = StyleSheet.create({
   },
   scarcityBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: '#FFDAD6', paddingHorizontal: 10, paddingVertical: 4,
+    backgroundColor: colors.errorBg, paddingHorizontal: 10, paddingVertical: 4,
     borderRadius: borderRadius.full, flexShrink: 0,
   },
   scarcityText: { fontFamily: 'DMSans-SemiBold', fontSize: 11, color: colors.error },
@@ -481,14 +479,14 @@ const styles = StyleSheet.create({
     textDecorationLine: 'line-through',
   },
   discountPill: {
-    backgroundColor: '#FFDAAB', paddingHorizontal: 8, paddingVertical: 2,
+    backgroundColor: colors.warningBg, paddingHorizontal: 8, paddingVertical: 2,
     borderRadius: borderRadius.full,
   },
-  discountText: { fontFamily: 'DMSans-SemiBold', fontSize: 11, color: '#795E38' },
+  discountText: { fontFamily: 'DMSans-SemiBold', fontSize: 11, color: colors.accentDark },
   taxNote: { fontFamily: 'DMSans-Regular', fontSize: 12, color: colors.textSecondary, marginTop: 6 },
 
   // Shared
-  divider: { height: 1, backgroundColor: '#E2E3E0' },
+  divider: { height: 1, backgroundColor: colors.borderMedium },
   section: { paddingHorizontal: spacing.margin, paddingVertical: spacing.md },
   sectionHeaderRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12,
@@ -518,14 +516,14 @@ const styles = StyleSheet.create({
   },
   pinCheckBtn: {
     height: 48, paddingHorizontal: 16, justifyContent: 'center', alignItems: 'center',
-    borderRadius: 8, backgroundColor: '#E8E8E5',
+    borderRadius: 8, backgroundColor: colors.surfaceMuted,
   },
   pinCheckText: { fontFamily: 'DMSans-Medium', fontSize: 13, color: colors.textPrimary },
   pinResults: {
-    marginTop: 12, padding: 12, borderRadius: 8, backgroundColor: '#F4F4F1', gap: 6,
+    marginTop: 12, padding: 12, borderRadius: 8, backgroundColor: colors.surfaceAlt, gap: 6,
   },
   pinResultRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  pinResultText: { fontFamily: 'DMSans-Medium', fontSize: 12, color: '#3D8B63' },
+  pinResultText: { fontFamily: 'DMSans-Medium', fontSize: 12, color: colors.success },
 
   // Details Table
   detailsTable: {
@@ -536,7 +534,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: 14, paddingVertical: 10,
   },
-  detailRowEven: { backgroundColor: 'rgba(244,244,241,0.5)' },
+  detailRowEven: { backgroundColor: colors.surfaceAlt },
   detailLabel: { fontFamily: 'DMSans-Regular', fontSize: 12, color: colors.textSecondary },
   detailValue: { fontFamily: 'DMSans-Medium', fontSize: 12, color: colors.textPrimary },
 
@@ -544,7 +542,7 @@ const styles = StyleSheet.create({
   deliveryItems: { gap: 12 },
   deliveryItem: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   deliveryIcon: {
-    width: 36, height: 36, borderRadius: 18, backgroundColor: '#F4F4F1',
+    width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surfaceAlt,
     justifyContent: 'center', alignItems: 'center',
   },
   deliveryTitle: { fontFamily: 'DMSans-Medium', fontSize: 14, color: colors.textPrimary },
@@ -557,14 +555,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.margin, marginBottom: 12,
   },
   relatedTitle: { fontFamily: 'NotoSerif-Regular', fontSize: 17, color: colors.textPrimary },
-  relatedMeta: { fontFamily: 'DMSans-SemiBold', fontSize: 11, color: colors.accent, letterSpacing: 1.5 },
+  relatedMetaLabel: { fontFamily: 'DMSans-SemiBold', fontSize: 11, color: colors.accent, letterSpacing: 1.5 },
   relatedScroll: { paddingHorizontal: spacing.margin, gap: 12 },
   relatedCard: {
     width: 160, backgroundColor: colors.surface, borderRadius: borderRadius.md,
     overflow: 'hidden',
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 1,
   },
-  relatedImage: { width: '100%', aspectRatio: 3 / 4, backgroundColor: '#E0DDD8' },
+  relatedImage: { width: '100%', aspectRatio: 3 / 4, backgroundColor: colors.placeholder },
   relatedMeta2: { padding: 10 },
   relatedOrigin: {
     fontFamily: 'DMSans-SemiBold', fontSize: 10, color: colors.textSecondary,
@@ -576,7 +574,7 @@ const styles = StyleSheet.create({
   // Toast
   toast: {
     position: 'absolute', bottom: 100, left: spacing.margin, right: spacing.margin,
-    backgroundColor: '#1A1A2E',
+    backgroundColor: colors.toastBg,
     borderRadius: 10, paddingVertical: 12, paddingHorizontal: 16,
     flexDirection: 'row', alignItems: 'center', gap: 8,
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 8,
@@ -585,10 +583,11 @@ const styles = StyleSheet.create({
   toastText: {
     fontFamily: 'DMSans-SemiBold', fontSize: 14, color: '#fff', letterSpacing: -0.1,
   },
+
   // Sticky Bar
   stickyBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: 'rgba(255,255,255,0.95)',
+    backgroundColor: colors.stickyBar,
     paddingHorizontal: spacing.margin, paddingVertical: 12, paddingBottom: 28,
     flexDirection: 'row', alignItems: 'center', gap: 12,
     shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 5,
@@ -601,10 +600,10 @@ const styles = StyleSheet.create({
   stickyPrice: { fontFamily: 'DMSans-SemiBold', fontSize: 20, color: colors.textPrimary, letterSpacing: -0.4 },
   addToCartBtn: {
     flex: 1, height: 48, borderRadius: 6,
-    backgroundColor: '#6E2334', flexDirection: 'row',
+    backgroundColor: colors.primaryDark, flexDirection: 'row',
     justifyContent: 'center', alignItems: 'center', gap: 8,
   },
-  addToCartSuccess: { backgroundColor: '#3D8B63' },
+  addToCartSuccess: { backgroundColor: colors.success },
   addToCartDisabled: { opacity: 0.4 },
   addToCartText: { fontFamily: 'DMSans-SemiBold', fontSize: 16, color: colors.white, letterSpacing: -0.2 },
 });
