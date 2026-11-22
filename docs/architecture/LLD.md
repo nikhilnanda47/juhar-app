@@ -506,7 +506,7 @@ class VariantResponse {
 | SLUG_ALREADY_EXISTS | 409 | PROD_002 |
 | SKU_ALREADY_EXISTS | 409 | PROD_003 |
 | CATEGORY_NOT_FOUND | 400 | PROD_004 |
-| COMPARE_PRICE_INVALID | 400 | PROD_005 |
+| COMPARE_PRICE_INVALID | 400 | PROD_005 (on create, add variant and update variant; update checks the values the variant will have after the change, for example raising the price above the stored compare-at price is refused) |
 
 ---
 
@@ -570,7 +570,7 @@ Admin                    API                           S3
 > **Implementation status (2026-11-22):** `getStock`, `getStockBulk`, `adjustStock` (audited), `reserve` (row lock via `SELECT … FOR UPDATE`), `releaseReservation`, `commitOrderReservations`, `settleShipment` and the every-minute expiry cron exist in `inventory.service.ts` and `reservation-expiry.cron.ts`. There is no separate `reservation.service.ts`. Stock lifecycle as built:
 > - **Place order:** units are reserved (`reserved += qty`), reservation `held`.
 > - **Confirm** (`OrdersService.updateStatus`): `commitOrderReservations` turns the order's `held` reservations into `committed`. Numbers do not change.
-> - **Ship:** `settleShipment` runs inside the status transaction, before the shipment row is created. Per order line it locks the stock row, then `on_hand -= qty` and `reserved -= quantity still held` (0 if the hold had already expired or been released), and marks the holds `fulfilled`. If `on_hand` is lower than the line quantity it throws `409 STOCK_MISMATCH` and the whole status change rolls back (the order stays `packed`), so the admin must correct the stock count first.
+> - **Ship:** `settleShipment` runs inside the status transaction, before the shipment row is created. Per order line it locks the stock row, then `on_hand -= qty` and `reserved -= quantity still held` (0 if the hold had already expired or been released), and marks the holds `fulfilled`. If `on_hand` is lower than the line quantity it throws `409 STOCK_MISMATCH` and the whole status change rolls back (the order stays `packed`), so the admin must correct the stock count first. Since migration `20261122150000_check_constraints` the database also refuses any write that leaves `reserved + unavailable` above `on_hand`, so a wrong shelf count can no longer be saved in the first place and `STOCK_MISMATCH` is a second line of defence. `settleShipment` changes `on_hand` and `reserved` in a single `UPDATE`, which the constraint requires.
 > - **Cancel** (placed or confirmed only): `releaseReservation` gives back every `held`/`committed` hold (`reserved -= qty`), status `released`.
 > - **Expiry job:** expires `held` reservations past `expires_at` **except those of cash-on-delivery orders**, which stay until an admin confirms, ships or cancels the order (decision, 2026-11-22). Reservations with no order and non-COD holds (the future UPI flow) still expire. Expiring a UPI hold does not yet cancel its order; Phase 4 payments should do that.
 > - **Known limits:** an unconfirmed COD order holds its stock indefinitely and nothing flags stale ones; `commitReservation(reservationId, orderId)` (single hold) exists but the order flow uses `commitOrderReservations`.

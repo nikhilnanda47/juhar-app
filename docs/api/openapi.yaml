@@ -2605,6 +2605,15 @@ paths:
                   - properties:
                       data:
                         $ref: '#/components/schemas/Variant'
+        "400":
+          description: >-
+            `PROD_005`: the compare-at price must be greater than the price, checked against the
+            values the variant will have after the update (for example a new price at or above the
+            stored compare-at price is refused; raise or remove the compare-at price).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   # ── Media Upload ──
   /api/v1/admin/media/upload-url:

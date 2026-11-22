@@ -469,7 +469,7 @@ Push → Lint + Typecheck + Test (parallel) → Build → Deploy Staging (auto) 
 >
 > - `npm ci` at the repo root also runs the `postinstall` that builds `packages/shared` into `dist/`.
 > - Mobile has its own install because `apps/mobile` is not part of the root npm workspaces (Expo needs an isolated `node_modules`).
-> - There is no lint step (no ESLint config exists yet), and the API test job runs Jest (`npm test -w apps/api`); it now fails if no tests are found. Covered so far: the order state machine, stock reservation and checkout (fake database, no Postgres needed).
+> - There is no lint step (no ESLint config exists yet), and the API test job runs Jest (`npm test -w apps/api`); it now fails if no tests are found. Covered so far: the order state machine, stock reservation and checkout (fake database, no Postgres needed), plus the database `CHECK` constraints, which are tested against the migrated Postgres service (`DB_TESTS=1`).
 > - A fifth job, `build`, depends on the four above and fails unless they all succeeded. The repository ruleset `main-protection` requires a check with exactly that name, plus a pull request with 1 approving review, and blocks deletion and force-pushes on `main`. Renaming or removing the `build` job would make pull requests unmergeable until the ruleset is updated.
 
 ---

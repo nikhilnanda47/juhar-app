@@ -118,7 +118,6 @@ Open items as of 2026-11-22, grouped by urgency. The team tracker holds owners a
 - **Order numbers can skip.** They come from a database sequence (`order_number_seq`), so a number used by an order that then fails is not reused. Orders placed before the `JUH-` rename keep their old `SAJ-` numbers.
 - **Cancellations.** Customer-side order cancellation is out of scope for now (in discovery). An API endpoint for it exists but no app uses it, and it writes no audit entry (admin cancellations do).
 - **Support number.** The "Need help?" link on the web order page uses a placeholder WhatsApp number (WhatsApp integration is pending).
-- **Database `CHECK` constraints** described in `docs/architecture/database-design.md` (non-negative stock, positive quantities) are not in the migration; they are enforced in application code only.
 
 ### Dark mode follow-ups
 - Web: visitors who are logged out on a phone-width screen have no theme toggle (the header toggle is desktop-only and the Account menu only appears after login).
@@ -126,7 +125,7 @@ Open items as of 2026-11-22, grouped by urgency. The team tracker holds owners a
 - A few mobile screens (product detail, welcome) use fixed colours that need a visual check in dark mode.
 
 ### Engineering hygiene
-- Test coverage is early: the order state machine, stock (reserve, release, commit, ship, adjust, expiry job), admin order status changes, checkout (quote, order placement, shipping and totals) and rate limiting have tests (`npm test -w apps/api`). The automatic token refresh in the admin, web and mobile API clients is also tested (`npm test -w apps/admin`, `npm test -w apps/web`, and `npm test` inside `apps/mobile`). Auth, cart, the orders service, products and the web and mobile screens are not covered yet. These tests use a fake database, so they cannot prove real concurrent locking or real SQL; that needs a test against Postgres.
+- Test coverage is early: the order state machine, stock (reserve, release, commit, ship, adjust, expiry job), admin order status changes, checkout (quote, order placement, shipping and totals) and rate limiting have tests (`npm test -w apps/api`). The automatic token refresh in the admin, web and mobile API clients is also tested (`npm test -w apps/admin`, `npm test -w apps/web`, and `npm test` inside `apps/mobile`). Auth, cart, the orders service, products and the web and mobile screens are not covered yet. Most of these tests use a fake database, so they cannot prove real concurrent locking or real SQL. The one exception is the test of the database `CHECK` constraints (`apps/api/src/database/check-constraints.spec.ts`), which runs against a real migrated Postgres only when you set `DB_TESTS=1` (CI does): `cd apps/api && npx prisma migrate deploy && DB_TESTS=1 npm test -- check-constraints`.
 - No ESLint configuration, so the `lint` scripts do not run.
 - The cart badge polls the server every 2–3 seconds.
 - The shipping rate and free-shipping threshold are duplicated between the API and the mobile cart screen.
@@ -427,6 +426,8 @@ npx prisma migrate deploy
 npx ts-node prisma/seed.ts    # Seeds 4 categories, 8 products, 11 variants, 1 admin
 cd ../..
 ```
+
+> **If `prisma migrate deploy` fails with a message starting "Cannot add the CHECK constraints":** some rows already in your database break a rule (for example stock reserved beyond what is on hand). The message lists each problem and the `SELECT` that finds the rows; nothing was changed. Fix or delete those rows, then run `npx prisma migrate resolve --rolled-back 20261122150000_check_constraints` (Prisma refuses to continue after a failed migration until you do) and `npx prisma migrate deploy` again. If you do not need the data, `npx prisma migrate reset` rebuilds the local database from scratch (it deletes everything, so then run the seed again).
 
 > **If `prisma migrate dev` fails with `P3014` ("could not create the shadow database"):** your database user is not allowed to create databases, and `migrate dev` needs that to compare migrations against a temporary database. To apply existing migrations, use `npx prisma migrate deploy` instead (it needs no extra permission). To create new migrations yourself, grant the permission once: `psql postgres -c "ALTER USER juhar CREATEDB;"` (run as your Postgres superuser).
 
