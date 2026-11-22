@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Truck, Phone, ArrowRight, Package, BadgeCheck, Handshake } from 'lucide-react-native';
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
@@ -35,6 +35,7 @@ export default function OrderReviewScreen({ navigation, route }: Props) {
   const [cart, setCart] = useState<CartResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [placing, setPlacing] = useState(false);
+  const [error, setError] = useState('');
   const [paymentMode] = useState<'cod'>('cod');
 
   useEffect(() => { loadData(); }, []);
@@ -53,6 +54,7 @@ export default function OrderReviewScreen({ navigation, route }: Props) {
 
   const handlePlaceOrder = async () => {
     setPlacing(true);
+    setError('');
     try {
       const idempotencyKey = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
       const order = await apiRequest<any>('/api/v1/orders', {
@@ -61,7 +63,7 @@ export default function OrderReviewScreen({ navigation, route }: Props) {
       });
       navigation.replace('OrderSuccess', { order });
     } catch (err: any) {
-      Alert.alert('Order Failed', err.message || 'Could not place order. Please try again.');
+      setError(err.message || 'Could not place order. Please try again.');
     } finally {
       setPlacing(false);
     }
@@ -202,6 +204,12 @@ export default function OrderReviewScreen({ navigation, route }: Props) {
         <View style={{ height: 100 }} />
       </ScrollView>
 
+      {error ? (
+        <View style={styles.errorBanner}>
+          <Text style={styles.errorBannerText}>{`Order failed: ${error}`}</Text>
+        </View>
+      ) : null}
+
       {/* Sticky Bottom */}
       <View style={styles.stickyBar}>
         <View>
@@ -314,6 +322,11 @@ const createStyles = (colors: ColorPalette) => StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 12,
     shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.03, shadowRadius: 16, elevation: 5,
   },
+  errorBanner: {
+    position: 'absolute', bottom: 96, left: 0, right: 0,
+    backgroundColor: colors.statusCancelledBg, paddingHorizontal: spacing.margin, paddingVertical: 8,
+  },
+  errorBannerText: { fontFamily: 'DMSans-Medium', fontSize: 13, color: colors.statusCancelledText },
   stickyLabel: { fontFamily: 'DMSans-SemiBold', fontSize: 11, color: colors.textTertiary, letterSpacing: 1 },
   stickyPrice: { fontFamily: 'DMSans-Bold', fontSize: 20, color: colors.textPrimary, letterSpacing: -0.4 },
   placeBtn: {
