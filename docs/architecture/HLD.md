@@ -459,8 +459,9 @@ Push → Lint + Typecheck + Test (parallel) → Build → Deploy Staging (auto) 
 > Triggers: push to main and develop-*  ·  pull request into main  ·  manual dispatch
 > (a newer run on the same ref cancels the older one; each job has a 15-minute timeout)
 >
-> API     npm ci → prisma generate → typecheck (shared + api) → test → build
->         (Postgres 16 service container; JWT/DB env supplied for tests)
+> API     npm ci → prisma generate → migrate deploy → schema check → typecheck (shared + api) → test → build
+>         (Postgres 16 service container; JWT/DB env supplied for tests; migrations are applied to it
+>         and `prisma migrate diff` fails the job if schema.prisma has a change with no migration)
 > Web     npm ci → typecheck → next build
 > Admin   npm ci → typecheck → test (Jest) → next build
 > Mobile  npm ci (inside apps/mobile) → tsc --noEmit
