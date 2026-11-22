@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, Alert,
+  TextInput,
 } from 'react-native';
 import { Truck, Check } from 'lucide-react-native';
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
@@ -24,13 +24,23 @@ export default function AddAddressScreen({ navigation }: Props) {
   const [label, setLabel] = useState('Home');
   const [isDefault, setIsDefault] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const problems: string[] = [];
+  if (recipientName.length < 2) problems.push('full name');
+  if (recipientPhone.length !== 10) problems.push('10-digit phone number');
+  else if (!/^[6-9]/.test(recipientPhone)) problems.push('phone number starting with 6, 7, 8 or 9');
+  if (line1.length < 5) problems.push('address line 1 (at least 5 characters)');
+  if (city.length < 2) problems.push('city');
+  if (district.length < 2) problems.push('district');
+  if (!/^[1-9][0-9]{5}$/.test(pinCode)) problems.push('6-digit PIN code (cannot start with 0)');
+  const isValid = problems.length === 0;
+  const started = !!(recipientName || recipientPhone || line1 || city || district || pinCode);
 
   const handleSave = async () => {
-    if (!recipientName || !recipientPhone || !line1 || !city || !district || !pinCode) {
-      Alert.alert('Missing Fields', 'Please fill all required fields');
-      return;
-    }
+    if (!isValid) return;
     setSaving(true);
+    setError('');
     try {
       await createAddress({
         recipientName, recipientPhone: '+91' + recipientPhone, line1,
@@ -39,14 +49,11 @@ export default function AddAddressScreen({ navigation }: Props) {
       });
       navigation.goBack();
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to save address');
+      setError(err.message || 'Failed to save address');
     } finally {
       setSaving(false);
     }
   };
-
-  const isValid = recipientName.length >= 2 && recipientPhone.length === 10 &&
-    line1.length >= 5 && city.length >= 2 && district.length >= 2 && /^[1-9][0-9]{5}$/.test(pinCode);
 
   return (
     <View style={styles.container}>
@@ -119,10 +126,14 @@ export default function AddAddressScreen({ navigation }: Props) {
           <Text style={styles.checkboxLabel}>Set as default delivery address</Text>
         </TouchableOpacity>
 
-        <View style={{ height: 80 }} />
+        <View style={{ height: 110 }} />
       </ScrollView>
 
       <View style={styles.stickyBar}>
+        {started && !isValid && (
+          <Text style={styles.hintText}>Still needed to save: {problems.join(', ')}.</Text>
+        )}
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
         <TouchableOpacity
           style={[styles.saveBtn, (!isValid || saving) && styles.saveBtnDisabled]}
           onPress={handleSave}
@@ -227,5 +238,7 @@ const createStyles = (colors: ColorPalette) => StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
   },
   saveBtnDisabled: { opacity: 0.4 },
+  hintText: { fontFamily: 'DMSans-Regular', fontSize: 12, color: colors.textSecondary, marginBottom: 8 },
+  errorText: { fontFamily: 'DMSans-Regular', fontSize: 12, color: colors.error, marginBottom: 8 },
   saveBtnText: { fontFamily: 'DMSans-SemiBold', fontSize: 16, color: colors.white, letterSpacing: -0.2 },
 });
