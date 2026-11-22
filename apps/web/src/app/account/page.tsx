@@ -4,18 +4,20 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   User, MapPin, Heart, Package, HelpCircle, MessageCircle,
-  LogOut, ChevronRight, FileText, Settings, ShieldCheck, Truck,
+  LogOut, ChevronRight, FileText, Settings, ShieldCheck, Truck, Sun, Moon,
 } from 'lucide-react';
 import {
   isLoggedIn, loadToken, requestOtp, verifyOtp, clearTokens,
   getProfile, updateProfile, getAddresses, type UserProfile,
 } from '@/lib/api';
+import { useTheme } from '@/lib/theme-context';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 type Screen = 'loading' | 'login' | 'otp' | 'profile' | 'editName';
 
 export default function AccountPage() {
+  const { isDark, toggleTheme } = useTheme();
   const [screen, setScreen] = useState<Screen>('loading');
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
@@ -294,10 +296,10 @@ export default function AccountPage() {
 
           {/* Logout — desktop only in sidebar */}
           <button onClick={handleLogout} className="hidden lg:flex card w-full mt-4 items-center justify-center gap-2 !py-3 group hover:border-error/30 transition-colors">
-            <LogOut size={20} className="text-[#C44A4A]" strokeWidth={1.5} />
-            <span className="font-sans text-title-sm text-[#C44A4A] font-medium">Log Out</span>
+            <LogOut size={20} className="text-error" strokeWidth={1.5} />
+            <span className="font-sans text-title-sm text-error font-medium">Log Out</span>
           </button>
-          <p className="hidden lg:block font-sans text-body-sm text-[#999] text-center mt-4">Juhar v2.0.4</p>
+          <p className="hidden lg:block font-sans text-body-sm text-text-tertiary text-center mt-4">Juhar v2.0.4</p>
         </div>
 
         {/* Right content */}
@@ -326,10 +328,11 @@ export default function AccountPage() {
           <div className="card mt-6 overflow-hidden !p-0 lg:grid lg:grid-cols-2 lg:!p-0 lg:gap-0">
             {[
               { Icon: User, label: 'Edit Profile', desc: 'Update your name and details', onClick: () => { setEditName(profile?.name || ''); setScreen('editName'); } },
+              { Icon: isDark ? Moon : Sun, label: isDark ? 'Dark Mode' : 'Light Mode', desc: 'Switch appearance', onClick: toggleTheme, toggle: true },
               { Icon: HelpCircle, label: 'FAQs', desc: 'Common questions answered' },
               { Icon: MessageCircle, label: 'Help & Support', desc: 'Chat with us anytime', badge: 'WhatsApp 24/7' },
               { Icon: FileText, label: 'Terms & Privacy', desc: 'Legal and privacy policies' },
-            ].map(({ Icon, label, desc, onClick, badge }, idx, arr) => (
+            ].map(({ Icon, label, desc, onClick, badge, toggle }, idx, arr) => (
               <div key={label} className={`${idx < arr.length - 1 ? 'lg:border-b lg:border-r border-surface-container-high' : ''}`}>
                 <button onClick={onClick} className="w-full h-[52px] lg:h-[72px] px-4 lg:px-6 flex items-center justify-between hover:bg-surface-container-low transition-colors">
                   <div className="flex items-center gap-4">
@@ -343,8 +346,14 @@ export default function AccountPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {badge && <span className="px-2 py-0.5 rounded-full bg-[#E8F5E9] text-[#2E7D32] font-sans text-label-sm font-semibold">{badge}</span>}
-                    <ChevronRight size={18} className="text-outline/60" />
+                    {badge && <span className="px-2 py-0.5 rounded-full bg-status-delivered-bg text-status-delivered-text font-sans text-label-sm font-semibold">{badge}</span>}
+                    {toggle ? (
+                      <div className={`w-10 h-6 rounded-full relative transition-colors ${isDark ? 'bg-primary' : 'bg-surface-container-high'}`}>
+                        <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${isDark ? 'translate-x-5' : 'translate-x-1'}`} />
+                      </div>
+                    ) : (
+                      <ChevronRight size={18} className="text-outline/60" />
+                    )}
                   </div>
                 </button>
                 {/* Mobile divider only */}
@@ -355,10 +364,10 @@ export default function AccountPage() {
 
           {/* Logout — mobile only */}
           <button onClick={handleLogout} className="lg:hidden card w-full mt-6 flex items-center justify-center gap-2 !py-3 group">
-            <LogOut size={20} className="text-[#C44A4A] group-active:scale-95 transition-transform" strokeWidth={1.5} />
-            <span className="font-sans text-title-sm text-[#C44A4A] font-medium">Log Out</span>
+            <LogOut size={20} className="text-error group-active:scale-95 transition-transform" strokeWidth={1.5} />
+            <span className="font-sans text-title-sm text-error font-medium">Log Out</span>
           </button>
-          <p className="lg:hidden font-sans text-body-sm text-[#999] text-center mt-8">Juhar v2.0.4</p>
+          <p className="lg:hidden font-sans text-body-sm text-text-tertiary text-center mt-8">Juhar v2.0.4</p>
         </div>
       </div>
     </div>

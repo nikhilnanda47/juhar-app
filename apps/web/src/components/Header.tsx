@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Search, ShoppingBag, User } from 'lucide-react';
+import { Search, ShoppingBag, User, Sun, Moon } from 'lucide-react';
 import { useCartCount } from '@/lib/cart-context';
+import { useTheme } from '@/lib/theme-context';
 
 const NAV_LINKS = [
   { href: '/', label: 'Home' },
@@ -14,6 +15,7 @@ const NAV_LINKS = [
 export default function Header() {
   const pathname = usePathname();
   const { itemCount } = useCartCount();
+  const { isDark, toggleTheme } = useTheme();
 
   return (
     <header className="sticky top-0 z-50 bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
@@ -42,6 +44,13 @@ export default function Header() {
 
         {/* Actions — desktop only (mobile uses bottom nav) */}
         <div className="hidden lg:flex items-center gap-3">
+          <button
+            onClick={toggleTheme}
+            className="w-9 h-9 rounded-full bg-surface-container-low flex items-center justify-center text-text-secondary hover:text-primary transition-colors"
+            aria-label="Toggle dark mode"
+          >
+            {isDark ? <Sun size={18} strokeWidth={1.5} /> : <Moon size={18} strokeWidth={1.5} />}
+          </button>
           <Link
             href="/shop"
             className="w-9 h-9 rounded-full bg-surface-container-low flex items-center justify-center text-text-secondary hover:text-primary transition-colors"

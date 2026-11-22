@@ -45,7 +45,7 @@ export default function OrderDetailPage() {
             Order {order.publicNumber}
           </h1>
           <div className="flex items-center gap-2 mt-2">
-            <span className="badge bg-secondary-container/40 text-[#795E38]">COD Order</span>
+            <span className="badge bg-secondary-container/40 text-accent-dark">COD Order</span>
             <span className="text-text-tertiary">·</span>
             <span className="font-sans text-body-sm text-text-tertiary">
               {new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
@@ -221,7 +221,7 @@ export default function OrderDetailPage() {
             <div className="card">
               <div className="flex justify-between items-center mb-3">
                 <span className="font-sans text-body-sm text-text-tertiary">Payment Method</span>
-                <span className="badge bg-secondary-container/40 text-[#795E38]">
+                <span className="badge bg-secondary-container/40 text-accent-dark">
                   {order.paymentMode === 'cod' ? 'Cash on Delivery' : 'UPI'}
                 </span>
               </div>

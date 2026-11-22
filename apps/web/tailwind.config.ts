@@ -1,30 +1,44 @@
 import type { Config } from 'tailwindcss';
 
+function cssVar(name: string) {
+  return `rgb(var(--color-${name}) / <alpha-value>)`;
+}
+
 const config: Config = {
+  darkMode: 'class',
   content: ['./src/**/*.{ts,tsx}'],
   theme: {
     extend: {
       colors: {
-        primary: '#8B3A4A',
-        'primary-dark': '#6B1D2A',
-        accent: '#B5956B',
-        surface: '#FFFFFF',
-        background: '#FAFAF7',
-        'text-primary': '#1A1A1A',
-        'text-secondary': '#6B6B6B',
-        'text-tertiary': '#999999',
-        border: '#EEEEEE',
-        success: '#3D8B63',
-        warning: '#D4923A',
-        error: '#C44A4A',
-        whatsapp: '#25D366',
-        // Mockup tokens
-        'surface-container': '#EEEEEB',
-        'surface-container-low': '#F4F4F1',
-        'surface-container-high': '#E8E8E5',
-        outline: '#877274',
-        'on-surface-variant': '#544244',
-        'secondary-container': '#FFDAAB',
+        primary: cssVar('primary'),
+        'primary-dark': cssVar('primary-dark'),
+        accent: cssVar('accent'),
+        surface: cssVar('surface'),
+        background: cssVar('background'),
+        'text-primary': cssVar('text-primary'),
+        'text-secondary': cssVar('text-secondary'),
+        'text-tertiary': cssVar('text-tertiary'),
+        border: cssVar('border'),
+        success: cssVar('success'),
+        warning: cssVar('warning'),
+        error: cssVar('error'),
+        whatsapp: cssVar('whatsapp'),
+        'surface-container': cssVar('surface-container'),
+        'surface-container-low': cssVar('surface-container-low'),
+        'surface-container-high': cssVar('surface-container-high'),
+        outline: cssVar('outline'),
+        'on-surface-variant': cssVar('on-surface-variant'),
+        'secondary-container': cssVar('secondary-container'),
+        'accent-dark': cssVar('accent-dark'),
+        'toast-bg': cssVar('toast-bg'),
+        'status-delivered-bg': cssVar('status-delivered-bg'),
+        'status-delivered-text': cssVar('status-delivered-text'),
+        'status-confirmed-bg': cssVar('status-confirmed-bg'),
+        'status-confirmed-text': cssVar('status-confirmed-text'),
+        'status-packed-bg': cssVar('status-packed-bg'),
+        'status-packed-text': cssVar('status-packed-text'),
+        'status-cancelled-bg': cssVar('status-cancelled-bg'),
+        'status-cancelled-text': cssVar('status-cancelled-text'),
       },
       fontFamily: {
         serif: ['Noto Serif', 'Georgia', 'serif'],

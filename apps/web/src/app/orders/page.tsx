@@ -8,13 +8,13 @@ import { loadToken, formatPaise } from '@/lib/api';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
-const STATUS_STYLES: Record<string, { bg: string; text: string; label: string }> = {
-  placed: { bg: '#E8E8E5', text: '#8B3A4A', label: 'Placed' },
-  confirmed: { bg: '#FFF8E1', text: '#F57F17', label: 'Confirmed' },
-  packed: { bg: '#FFF3E0', text: '#E65100', label: 'Packed' },
-  shipped: { bg: '#FFF3E0', text: '#E65100', label: 'Shipped' },
-  delivered: { bg: 'rgba(255,218,171,0.4)', text: '#795E38', label: 'Delivered' },
-  cancelled: { bg: '#FCE4EC', text: '#C62828', label: 'Cancelled' },
+const STATUS_STYLES: Record<string, { bgClass: string; textClass: string; label: string }> = {
+  placed: { bgClass: 'bg-surface-container-high', textClass: 'text-primary', label: 'Placed' },
+  confirmed: { bgClass: 'bg-status-confirmed-bg', textClass: 'text-status-confirmed-text', label: 'Confirmed' },
+  packed: { bgClass: 'bg-status-packed-bg', textClass: 'text-status-packed-text', label: 'Packed' },
+  shipped: { bgClass: 'bg-status-packed-bg', textClass: 'text-status-packed-text', label: 'Shipped' },
+  delivered: { bgClass: 'bg-secondary-container/40', textClass: 'text-accent-dark', label: 'Delivered' },
+  cancelled: { bgClass: 'bg-status-cancelled-bg', textClass: 'text-status-cancelled-text', label: 'Cancelled' },
 };
 
 const FILTERS = ['All', 'Placed', 'Confirmed', 'Shipped', 'Delivered', 'Cancelled'];
@@ -156,7 +156,7 @@ export default function OrdersPage() {
 
                 {/* Status */}
                 <div>
-                  <span className="badge" style={{ backgroundColor: sc.bg, color: sc.text }}>
+                  <span className={`badge ${sc.bgClass} ${sc.textClass}`}>
                     {sc.label}
                   </span>
                 </div>
@@ -198,7 +198,7 @@ export default function OrdersPage() {
                     {new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                   </p>
                 </div>
-                <span className="badge" style={{ backgroundColor: sc.bg, color: sc.text }}>
+                <span className={`badge ${sc.bgClass} ${sc.textClass}`}>
                   {sc.label}
                 </span>
               </div>
