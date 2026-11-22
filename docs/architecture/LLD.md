@@ -2001,3 +2001,9 @@ TabNavigator (5 tabs)
 - **Toggle:** on `ProfileScreen`, a "Dark Mode / Light Mode" row with a `Switch` in the menu card when logged in, and a Sun/Moon icon button at the right of the "Account" header when logged out (phone-number screen only; the OTP and name-capture screens have none).
 - **Rule for new UI:** use semantic tokens (`background`, `surface`, `surfaceAlt`, `textPrimary`, `statusDeliveredBg`, …) rather than hex values. Fixed colors are acceptable only on brand-coloured backgrounds, such as a white check mark on a coloured circle.
 - **React Native 0.88:** `StyleSheet.absoluteFillObject` was removed; use `StyleSheet.absoluteFill`.
+
+### 8.9 Messages and copying text
+
+- **Do not call `Alert.alert` directly for errors.** It does nothing in the Expo web preview (`expo start --web`), so the message is silently lost. Use `showAlert(title, message)` from `src/utils/showAlert.ts`, which uses `window.alert` on web and `Alert.alert` on devices. Errors on the main flows are also shown on the screen itself (Add Address, Place Order), which works everywhere.
+- **Copy buttons use `useCopyToClipboard`** (`src/utils/useCopyToClipboard.ts`, built on `expo-clipboard`): it copies the text, returns which button was copied so the label can switch to "Copied" for about 1.5 seconds, and falls back to showing the text if the clipboard is unavailable.
+- The logout confirmation in `ProfileScreen` keeps its own web check (`window.confirm`) because it needs a yes/no answer.

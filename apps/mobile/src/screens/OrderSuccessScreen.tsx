@@ -1,12 +1,12 @@
 import React, { useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  Alert,
 } from 'react-native';
 import { Check, Truck, Package, ShieldCheck, ArrowRight, Copy } from 'lucide-react-native';
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
 import { formatPaise } from '../services/api';
 import { BounceIn, FadeInUp } from '../components/AnimatedUI';
+import { useCopyToClipboard } from '../utils/useCopyToClipboard';
 
 interface Props {
   navigation: any;
@@ -19,9 +19,8 @@ export default function OrderSuccessScreen({ navigation, route }: Props) {
   const { order } = route.params;
   const firstItem = order.items?.[0];
 
-  const handleCopy = () => {
-    Alert.alert('Order Number', order.publicNumber);
-  };
+  const { copiedKey, copy } = useCopyToClipboard();
+  const handleCopy = () => copy('order', order.publicNumber);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -46,7 +45,10 @@ export default function OrderSuccessScreen({ navigation, route }: Props) {
         <TouchableOpacity style={styles.refBadge} onPress={handleCopy}>
           <Text style={styles.refLabel}>REF:</Text>
           <Text style={styles.refNumber}>{order.publicNumber}</Text>
-          <Copy size={16} color={colors.primary} strokeWidth={2} />
+          {copiedKey === 'order'
+            ? <Check size={16} color={colors.primary} strokeWidth={2.5} />
+            : <Copy size={16} color={colors.primary} strokeWidth={2} />}
+          {copiedKey === 'order' ? <Text style={styles.copiedText}>Copied</Text> : null}
         </TouchableOpacity>
         </FadeInUp>
 
@@ -155,6 +157,7 @@ const createStyles = (colors: ColorPalette) => StyleSheet.create({
     letterSpacing: 1.5, textTransform: 'uppercase',
   },
   refNumber: { fontFamily: 'DMSans-SemiBold', fontSize: 16, color: colors.primary, letterSpacing: -0.2 },
+  copiedText: { fontFamily: 'DMSans-Medium', fontSize: 12, color: colors.primary },
 
   previewCard: {
     width: '100%', backgroundColor: colors.surface, borderRadius: borderRadius.md,
