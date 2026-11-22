@@ -15,6 +15,7 @@ const ThemeContext = createContext<ThemeContextValue>({
 });
 
 const STORAGE_KEY = 'juhar_theme';
+const BROWSER_BAR_COLOR: Record<ThemeMode, string> = { light: '#FAFAF7', dark: '#121212' };
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [mode, setMode] = useState<ThemeMode>('light');
@@ -36,6 +37,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     } else {
       root.classList.remove('dark');
     }
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', BROWSER_BAR_COLOR[mode]);
     localStorage.setItem(STORAGE_KEY, mode);
   }, [mode, mounted]);
 
