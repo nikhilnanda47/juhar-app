@@ -218,6 +218,34 @@
   background: var(--maroon-light);
 }
 
+/* Row actions + cancel */
+.actions {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.cancelOrderBtn {
+  padding: 0.35rem 0.75rem;
+  background: none;
+  color: var(--error);
+  border: 1px solid var(--error);
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.cancelOrderBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cancelOrderBtn:not(:disabled):hover {
+  background: var(--error-bg);
+}
+
 /* Empty state */
 .empty {
   text-align: center;
@@ -338,6 +366,30 @@
 .confirmBtn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* Cancel modal */
+.dangerBtn {
+  padding: 0.55rem 1.5rem;
+  background: var(--error);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.dangerBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.modalError {
+  margin: 0.75rem 0 0;
+  font-size: 0.8rem;
+  color: var(--error);
 }
 
 /* ─── Responsive ─── */

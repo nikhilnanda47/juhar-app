@@ -15,6 +15,8 @@ const NEXT_STATUS: Record<string, string> = {
   shipped: 'delivered',
 };
 
+const CANCELLABLE = ['placed', 'confirmed'];
+
 const STATUS_LABELS: Record<string, string> = {
   placed: 'Confirm',
   confirmed: 'Pack',
@@ -36,6 +38,10 @@ export default function OrdersPage() {
   const [shipModal, setShipModal] = useState<string | null>(null);
   const [trackingId, setTrackingId] = useState('');
   const [courierName, setCourierName] = useState('');
+  const [cancelModal, setCancelModal] = useState<{ id: string; publicNumber: string } | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelError, setCancelError] = useState('');
+  const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
     loadOrders();
@@ -93,6 +99,26 @@ export default function OrdersPage() {
       alert(err.message);
     }
     setUpdating(null);
+  };
+
+  const closeCancelModal = () => {
+    setCancelModal(null);
+    setCancelReason('');
+    setCancelError('');
+  };
+
+  const handleCancel = async () => {
+    if (!cancelModal || !cancelReason.trim()) return;
+    setCancelling(true);
+    setCancelError('');
+    try {
+      await api.updateOrderStatus(cancelModal.id, { status: 'cancelled', reason: cancelReason.trim() });
+      closeCancelModal();
+      await loadOrders();
+    } catch (err: any) {
+      setCancelError(err.message || 'Could not cancel the order');
+    }
+    setCancelling(false);
   };
 
   const searchInput = (
@@ -163,15 +189,26 @@ export default function OrdersPage() {
                     </span>
                   </td>
                   <td>
-                    {NEXT_STATUS[order.status] && (
-                      <button
-                        className={styles.actionBtn}
-                        onClick={() => handleStatusUpdate(order.id, NEXT_STATUS[order.status])}
-                        disabled={updating === order.id}
-                      >
-                        {updating === order.id ? '...' : STATUS_LABELS[order.status]}
-                      </button>
-                    )}
+                    <div className={styles.actions}>
+                      {NEXT_STATUS[order.status] && (
+                        <button
+                          className={styles.actionBtn}
+                          onClick={() => handleStatusUpdate(order.id, NEXT_STATUS[order.status])}
+                          disabled={updating === order.id}
+                        >
+                          {updating === order.id ? '...' : STATUS_LABELS[order.status]}
+                        </button>
+                      )}
+                      {CANCELLABLE.includes(order.status) && (
+                        <button
+                          className={styles.cancelOrderBtn}
+                          onClick={() => setCancelModal({ id: order.id, publicNumber: order.publicNumber })}
+                          disabled={updating === order.id}
+                        >
+                          Cancel
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -205,6 +242,35 @@ export default function OrdersPage() {
             <div className={styles.modalActions}>
               <button className={styles.cancelModalBtn} onClick={() => { setShipModal(null); setTrackingId(''); setCourierName(''); }}>Cancel</button>
               <button className={styles.confirmBtn} onClick={handleShip} disabled={!trackingId}>Ship Order</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel Modal */}
+      {cancelModal && (
+        <div className={styles.modalOverlay} onClick={closeCancelModal}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <h3>Cancel order {cancelModal.publicNumber}?</h3>
+            <p className={styles.modalSubtext}>
+              The reserved stock is released and this cannot be undone. A reason is required.
+            </p>
+            <div className={styles.modalField}>
+              <label>Reason *</label>
+              <input
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="e.g. Customer unreachable"
+                maxLength={255}
+                autoFocus
+              />
+            </div>
+            {cancelError && <p className={styles.modalError}>{cancelError}</p>}
+            <div className={styles.modalActions}>
+              <button className={styles.cancelModalBtn} onClick={closeCancelModal} disabled={cancelling}>Keep order</button>
+              <button className={styles.dangerBtn} onClick={handleCancel} disabled={!cancelReason.trim() || cancelling}>
+                {cancelling ? 'Cancelling...' : 'Cancel order'}
+              </button>
             </div>
           </div>
         </div>

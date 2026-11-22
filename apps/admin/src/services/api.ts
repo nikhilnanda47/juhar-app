@@ -180,7 +180,7 @@ export class ApiClient {
     );
   }
 
-  async updateOrderStatus(id: string, data: { status: string; trackingId?: string; courierName?: string }) {
+  async updateOrderStatus(id: string, data: { status: string; trackingId?: string; courierName?: string; reason?: string }) {
     return this.request(`/api/v1/admin/orders/${id}/status`, {
       method: 'PATCH',
       body: JSON.stringify(data),
