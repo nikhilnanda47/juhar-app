@@ -15,6 +15,12 @@ const STATUS_STYLES: Record<string, { bgClass: string; textClass: string; label:
   shipped: { bgClass: 'bg-status-packed-bg', textClass: 'text-status-packed-text', label: 'Shipped' },
   delivered: { bgClass: 'bg-secondary-container/40', textClass: 'text-accent-dark', label: 'Delivered' },
   cancelled: { bgClass: 'bg-status-cancelled-bg', textClass: 'text-status-cancelled-text', label: 'Cancelled' },
+  return_requested: { bgClass: 'bg-surface-container-high', textClass: 'text-primary', label: 'Return requested' },
+  return_approved: { bgClass: 'bg-surface-container-high', textClass: 'text-primary', label: 'Return approved' },
+  return_rejected: { bgClass: 'bg-status-cancelled-bg', textClass: 'text-status-cancelled-text', label: 'Return rejected' },
+  returned: { bgClass: 'bg-surface-container-high', textClass: 'text-primary', label: 'Returned' },
+  refund_pending: { bgClass: 'bg-surface-container-high', textClass: 'text-primary', label: 'Refund pending' },
+  refunded: { bgClass: 'bg-secondary-container/40', textClass: 'text-accent-dark', label: 'Refunded' },
 };
 
 const FILTERS = ['All', 'Placed', 'Confirmed', 'Shipped', 'Delivered', 'Cancelled'];
