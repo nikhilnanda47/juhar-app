@@ -4,9 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Package, User, ArrowRight, ShieldCheck, Truck, Filter } from 'lucide-react';
-import { loadToken, formatPaise } from '@/lib/api';
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+import { loadToken, getOrders, formatPaise } from '@/lib/api';
 
 const STATUS_STYLES: Record<string, { bgClass: string; textClass: string; label: string }> = {
   placed: { bgClass: 'bg-surface-container-high', textClass: 'text-primary', label: 'Placed' },
@@ -36,10 +34,8 @@ export default function OrdersPage() {
     const hasToken = loadToken();
     setLoggedIn(hasToken);
     if (hasToken) {
-      const token = localStorage.getItem('juhar_token');
-      fetch(`${API_BASE}/api/v1/orders`, { headers: { Authorization: `Bearer ${token}` } })
-        .then(r => r.json())
-        .then(j => setOrders(j.success ? j.data.items : []))
+      getOrders()
+        .then(setOrders)
         .catch(() => {})
         .finally(() => setLoading(false));
     } else setLoading(false);

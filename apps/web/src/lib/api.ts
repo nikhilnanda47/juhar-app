@@ -185,3 +185,24 @@ export async function createAddress(data: Omit<Address, 'id'>): Promise<Address>
     method: 'POST', body: JSON.stringify(data),
   });
 }
+
+// ── Orders ──
+// Order payloads are still loosely typed (screens treat them as `any`).
+
+export async function getOrders(): Promise<any[]> {
+  loadToken(); // order pages may open before any other call has loaded the token
+  const data = await request<{ items: any[] }>('/api/v1/orders');
+  return data.items ?? [];
+}
+
+export async function getOrder(id: string): Promise<any> {
+  loadToken();
+  return request<any>(`/api/v1/orders/${id}`);
+}
+
+export async function placeOrder(input: {
+  addressId: string; paymentMode: string; idempotencyKey: string; notes?: string;
+}): Promise<any> {
+  loadToken();
+  return request<any>('/api/v1/orders', { method: 'POST', body: JSON.stringify(input) });
+}

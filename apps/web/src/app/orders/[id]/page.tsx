@@ -3,9 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Check, Truck, MapPin, Phone, MessageCircle, ArrowRight, Copy, Package, ShieldCheck } from 'lucide-react';
-import { loadToken, formatPaise } from '@/lib/api';
+import { loadToken, getOrder, formatPaise } from '@/lib/api';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 const STEPS = ['placed', 'confirmed', 'packed', 'shipped', 'delivered'];
 const STEP_LABELS: Record<string, string> = {
   placed: 'Order Placed', confirmed: 'Confirmed', packed: 'Packed', shipped: 'Shipped', delivered: 'Delivered',
@@ -26,10 +25,8 @@ export default function OrderDetailPage() {
 
   useEffect(() => {
     loadToken();
-    const token = localStorage.getItem('juhar_token');
-    fetch(`${API_BASE}/api/v1/orders/${id}`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json())
-      .then(j => { if (j.success) setOrder(j.data); })
+    getOrder(id)
+      .then(setOrder)
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [id]);

@@ -7,21 +7,8 @@ import {
   Check, Truck, MapPin, Phone, MessageCircle, ArrowRight, Copy, Info,
 } from 'lucide-react-native';
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
-import { formatPaise } from '../services/api';
+import { getOrder, formatPaise } from '../services/api';
 import { useCopyToClipboard } from '../utils/useCopyToClipboard';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const API_BASE = __DEV__ ? 'http://localhost:3000' : 'https://api.juhar.in';
-
-async function fetchOrderDetail(orderId: string) {
-  const token = await AsyncStorage.getItem('juhar_token');
-  const res = await fetch(`${API_BASE}/api/v1/orders/${orderId}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  const json = await res.json();
-  if (!json.success) throw new Error(json.error?.message);
-  return json.data;
-}
 
 const TIMELINE_STEPS = ['placed', 'confirmed', 'packed', 'shipped', 'delivered'];
 const STEP_LABELS: Record<string, string> = {
@@ -41,7 +28,7 @@ export default function OrderDetailScreen({ navigation, route }: Props) {
 
   useEffect(() => { load(); }, [orderId]);
   const load = async () => {
-    try { setOrder(await fetchOrderDetail(orderId)); } catch {}
+    try { setOrder(await getOrder(orderId)); } catch {}
     setLoading(false);
   };
 
@@ -59,7 +46,7 @@ export default function OrderDetailScreen({ navigation, route }: Props) {
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={async () => {
           setRefreshing(true);
-          try { setOrder(await fetchOrderDetail(orderId)); } catch {}
+          try { setOrder(await getOrder(orderId)); } catch {}
           setRefreshing(false);
         }} tintColor={colors.primary} />
       }

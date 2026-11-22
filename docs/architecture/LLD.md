@@ -1929,6 +1929,8 @@ apps/web/
 
 ### 8.3 Core Shopping Flow
 
+> **API calls (2026-11-22):** Every screen reaches the API through the shared client (`apps/mobile/src/services/api.ts`; `apps/web/src/lib/api.ts` on the web). Orders use `getOrders()`, `getOrder(id)` and `placeOrder({ addressId, paymentMode, idempotencyKey })`, which load the saved token before calling. No screen has its own `fetch` or its own copy of `API_BASE` any more, so changes such as token refresh (step 24) only need to be made in one place per app. Order payloads are still typed loosely (`any`).
+>
 > **Implementation status (2026-11-22):** The Cart tab works for guests (local cart, key `juhar_local_cart`, synced to the server after login) as well as for logged-in users. Order Review does not call `POST /checkout/quote`: it computes totals client-side from the cart. Placing the order is `POST /orders` from Order Review (there is no `POST /checkout/place`), and Order Success shows the returned order. Only COD is offered.
 
 | Screen | Component | Route | Data Source |

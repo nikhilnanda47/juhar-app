@@ -130,7 +130,6 @@ Open items as of 2026-11-22, grouped by urgency. The team tracker holds owners a
 ### Engineering hygiene
 - Test coverage is early: the order state machine, stock (reserve, release, commit, ship, adjust, expiry job), admin order status changes and checkout (quote, order placement, shipping and totals) have tests (`npm test -w apps/api`). The admin API client's token refresh is also tested (`npm test -w apps/admin`). Auth, cart, the orders service, products and the web and mobile apps are not covered yet. These tests use a fake database, so they cannot prove real concurrent locking or real SQL; that needs a test against Postgres.
 - No ESLint configuration, so the `lint` scripts do not run.
-- Some mobile and web screens call the API with raw `fetch` and their own copy of `API_BASE` instead of the shared API client.
 - The cart badge polls the server every 2–3 seconds.
 - The shipping rate and free-shipping threshold are duplicated between the API and the mobile cart screen.
 - `apps/mobile/src/navigation/TabNavigator.tsx` has `@ts-nocheck`.

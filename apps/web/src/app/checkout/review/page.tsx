@@ -3,9 +3,7 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Phone, ArrowRight, Package, Handshake } from 'lucide-react';
-import { loadToken, getAddresses, getCart, formatPaise, type Address, type CartResponse } from '@/lib/api';
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+import { loadToken, getAddresses, getCart, placeOrder, formatPaise, type Address, type CartResponse } from '@/lib/api';
 
 function OrderReviewContent() {
   const router = useRouter();
@@ -30,17 +28,10 @@ function OrderReviewContent() {
   const handlePlaceOrder = async () => {
     setPlacing(true);
     try {
-      const token = localStorage.getItem('juhar_token');
       const idempotencyKey = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      const res = await fetch(`${API_BASE}/api/v1/orders`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ addressId, paymentMode: 'cod', idempotencyKey }),
-      });
-      const json = await res.json();
-      if (json.success) router.push(`/order-success?orderId=${json.data.id}`);
-      else alert(json.error?.message || 'Failed to place order');
-    } catch (e: any) { alert(e.message || 'Failed'); }
+      const order = await placeOrder({ addressId: addressId!, paymentMode: 'cod', idempotencyKey });
+      router.push(`/order-success?orderId=${order.id}`);
+    } catch (e: any) { alert(e.message || 'Failed to place order'); }
     finally { setPlacing(false); }
   };
 

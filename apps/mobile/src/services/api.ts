@@ -293,6 +293,27 @@ export async function getProductBySlug(slug: string): Promise<Product> {
   return request<Product>(`/api/v1/products/${slug}`);
 }
 
+// ── Order endpoints ──
+// Order payloads are still loosely typed (screens treat them as `any`).
+
+export async function getOrders(): Promise<any[]> {
+  await loadToken(); // order screens may open before any other call has loaded the token
+  const data = await request<{ items: any[] }>('/api/v1/orders');
+  return data.items ?? [];
+}
+
+export async function getOrder(id: string): Promise<any> {
+  await loadToken();
+  return request<any>(`/api/v1/orders/${id}`);
+}
+
+export async function placeOrder(input: {
+  addressId: string; paymentMode: string; idempotencyKey: string; notes?: string;
+}): Promise<any> {
+  await loadToken();
+  return request<any>('/api/v1/orders', { method: 'POST', body: JSON.stringify(input) });
+}
+
 // ── Helpers ──
 
 export function formatPaise(paise: number): string {

@@ -5,22 +5,7 @@ import {
 } from 'react-native';
 import { Truck, Phone, ArrowRight, Package, BadgeCheck, Handshake } from 'lucide-react-native';
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
-import { getAddresses, getCart, formatPaise, type Address, type CartResponse } from '../services/api';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const API_BASE = __DEV__ ? 'http://localhost:3000' : 'https://api.juhar.in';
-
-async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = await AsyncStorage.getItem('juhar_token');
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
-  const json = await res.json();
-  if (!json.success) throw new Error(json.error?.message || 'Request failed');
-  return json.data;
-}
+import { getAddresses, getCart, placeOrder, formatPaise, type Address, type CartResponse } from '../services/api';
 
 interface Props {
   navigation: any;
@@ -57,10 +42,7 @@ export default function OrderReviewScreen({ navigation, route }: Props) {
     setError('');
     try {
       const idempotencyKey = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      const order = await apiRequest<any>('/api/v1/orders', {
-        method: 'POST',
-        body: JSON.stringify({ addressId, paymentMode, idempotencyKey }),
-      });
+      const order = await placeOrder({ addressId, paymentMode, idempotencyKey });
       navigation.replace('OrderSuccess', { order });
     } catch (err: any) {
       setError(err.message || 'Could not place order. Please try again.');
