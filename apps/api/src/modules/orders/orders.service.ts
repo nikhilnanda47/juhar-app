@@ -183,12 +183,14 @@ export class OrdersService {
       switch (dto.status) {
         case OrderStatus.CONFIRMED:
           data.confirmedAt = new Date();
+          await this.inventoryService.commitOrderReservations(tx, orderId);
           break;
         case OrderStatus.PACKED:
           data.packedAt = new Date();
           break;
         case OrderStatus.SHIPPED:
           data.shippedAt = new Date();
+          await this.inventoryService.settleShipment(tx, orderId);
           // Create shipment record
           if (dto.trackingId) {
             await tx.shipment.create({

@@ -137,7 +137,7 @@ export class CheckoutService {
         if (dto.paymentMode === PaymentMode.UPI) {
           expiresAt.setMinutes(expiresAt.getMinutes() + 30); // 30 min for UPI
         } else {
-          expiresAt.setHours(expiresAt.getHours() + 24); // 24 hours for COD
+          expiresAt.setHours(expiresAt.getHours() + 24); // COD: 24h review window; the expiry job leaves COD holds alone
         }
 
         const reservation = await this.inventoryService.reserve(

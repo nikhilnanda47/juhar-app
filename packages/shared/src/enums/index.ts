@@ -48,6 +48,7 @@ export enum ReservationStatus {
   COMMITTED = 'committed',
   RELEASED = 'released',
   EXPIRED = 'expired',
+  FULFILLED = 'fulfilled',
 }
 
 // ── Publish Status ──

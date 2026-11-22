@@ -14,8 +14,11 @@ function makeTx(rows: StockRow[] = []) {
     inventoryReservation: {
       create: jest.fn().mockImplementation(({ data }) => Promise.resolve({ id: 'res-1', ...data })),
       findUnique: jest.fn(),
+      findMany: jest.fn().mockResolvedValue([]),
       update: jest.fn().mockResolvedValue({}),
+      updateMany: jest.fn().mockResolvedValue({}),
     },
+    orderItem: { findMany: jest.fn().mockResolvedValue([]) },
   };
 }
 
@@ -201,8 +204,97 @@ describe('InventoryService', () => {
     });
   });
 
-  describe('stock settlement (not built yet)', () => {
-    it.todo('commits the reservation when an order is confirmed');
-    it.todo('takes the units off on-hand when an order ships');
+  describe('commitOrderReservations', () => {
+    it('turns every held reservation of the order into committed', async () => {
+      const tx = makeTx();
+      await newService().commitOrderReservations(asTx(tx), 'order-1');
+      expect(tx.inventoryReservation.updateMany).toHaveBeenCalledWith({
+        where: { orderId: 'order-1', status: 'held' },
+        data: { status: 'committed' },
+      });
+    });
+  });
+
+  describe('settleShipment', () => {
+    const line = (variantId: string, qty: number) => ({ variantId, qty, sku: `SKU-${variantId}` });
+    const hold = (id: string, variantId: string, qty: number, status = 'held') => ({ id, variantId, qty, status });
+
+    function shipping(onHand: number, lines: unknown[], holds: unknown[]) {
+      const tx = makeTx([{ on_hand: onHand, reserved: 0, unavailable: 0 }]);
+      tx.orderItem.findMany.mockResolvedValue(lines);
+      tx.inventoryReservation.findMany.mockResolvedValue(holds);
+      return tx;
+    }
+
+    it('takes the shipped units off on-hand, gives back the matching hold and marks it fulfilled', async () => {
+      const tx = shipping(10, [line('v1', 2)], [hold('r1', 'v1', 2)]);
+      await newService().settleShipment(asTx(tx), 'order-1');
+
+      expect(tx.inventory.update).toHaveBeenCalledWith({
+        where: { variantId: 'v1' },
+        data: { onHand: { decrement: 2 }, reserved: { decrement: 2 }, version: { increment: 1 } },
+      });
+      expect(tx.inventoryReservation.updateMany).toHaveBeenCalledWith({
+        where: { id: { in: ['r1'] } },
+        data: { status: 'fulfilled' },
+      });
+    });
+
+    it('considers held and committed holds of this order only', async () => {
+      const tx = shipping(10, [line('v1', 1)], [hold('r1', 'v1', 1, 'committed')]);
+      await newService().settleShipment(asTx(tx), 'order-1');
+      expect(tx.inventoryReservation.findMany).toHaveBeenCalledWith({
+        where: { orderId: 'order-1', status: { in: ['held', 'committed'] } },
+      });
+    });
+
+    it('locks the stock row before changing it', async () => {
+      const tx = shipping(10, [line('v1', 1)], [hold('r1', 'v1', 1)]);
+      await newService().settleShipment(asTx(tx), 'order-1');
+
+      expect((tx.$queryRaw.mock.calls[0][0] as TemplateStringsArray).join('?')).toContain('FOR UPDATE');
+      expect(tx.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(tx.inventory.update.mock.invocationCallOrder[0]);
+    });
+
+    it('settles each order line separately', async () => {
+      const tx = shipping(10, [line('v1', 2), line('v2', 3)], [hold('r1', 'v1', 2), hold('r2', 'v2', 3)]);
+      await newService().settleShipment(asTx(tx), 'order-1');
+
+      expect(tx.inventory.update).toHaveBeenCalledTimes(2);
+      expect(tx.inventory.update).toHaveBeenCalledWith(expect.objectContaining({ where: { variantId: 'v2' }, data: expect.objectContaining({ onHand: { decrement: 3 }, reserved: { decrement: 3 } }) }));
+    });
+
+    it('only gives back what was still held when the hold was already expired or released', async () => {
+      const tx = shipping(10, [line('v1', 2)], []);
+      await newService().settleShipment(asTx(tx), 'order-1');
+
+      expect(tx.inventory.update).toHaveBeenCalledWith({
+        where: { variantId: 'v1' },
+        data: { onHand: { decrement: 2 }, reserved: { decrement: 0 }, version: { increment: 1 } },
+      });
+      expect(tx.inventoryReservation.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('allows shipping exactly what is on hand', async () => {
+      const tx = shipping(2, [line('v1', 2)], [hold('r1', 'v1', 2)]);
+      await expect(newService().settleShipment(asTx(tx), 'order-1')).resolves.toBeUndefined();
+      expect(tx.inventory.update).toHaveBeenCalledTimes(1);
+    });
+
+    it('refuses to ship more than is on hand and changes nothing for that line', async () => {
+      const tx = shipping(1, [line('v1', 2)], [hold('r1', 'v1', 2)]);
+      const attempt = newService().settleShipment(asTx(tx), 'order-1');
+
+      await expect(attempt).rejects.toThrow(ConflictException);
+      await expect(attempt).rejects.toThrow('STOCK_MISMATCH');
+      expect(tx.inventory.update).not.toHaveBeenCalled();
+      expect(tx.inventoryReservation.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('treats a missing stock row as nothing on hand', async () => {
+      const tx = shipping(0, [line('v1', 1)], []);
+      tx.$queryRaw.mockResolvedValue([]);
+      await expect(newService().settleShipment(asTx(tx), 'order-1')).rejects.toThrow('STOCK_MISMATCH');
+    });
   });
 });

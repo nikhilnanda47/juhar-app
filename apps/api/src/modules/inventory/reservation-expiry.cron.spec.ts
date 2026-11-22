@@ -26,9 +26,17 @@ describe('ReservationExpiryCron', () => {
     const { prisma, cron } = setup([]);
     await cron.handleExpiredReservations();
 
-    expect(prisma.inventoryReservation.findMany).toHaveBeenCalledWith({
-      where: { status: 'held', expiresAt: { lt: expect.any(Date) } },
-    });
+    const { where } = prisma.inventoryReservation.findMany.mock.calls[0][0];
+    expect(where.status).toBe('held');
+    expect(where.expiresAt).toEqual({ lt: expect.any(Date) });
+  });
+
+  it('leaves cash-on-delivery holds alone, so stock stays reserved until an admin acts', async () => {
+    const { prisma, cron } = setup([]);
+    await cron.handleExpiredReservations();
+
+    const { where } = prisma.inventoryReservation.findMany.mock.calls[0][0];
+    expect(where.OR).toEqual([{ orderId: null }, { order: { paymentMode: { not: 'cod' } } }]);
   });
 
   it('does nothing when nothing has expired', async () => {
@@ -69,7 +77,4 @@ describe('ReservationExpiryCron', () => {
     expect(tx.inventoryReservation.update).toHaveBeenCalledWith({ where: { id: 'r2' }, data: { status: 'expired' } });
   });
 
-  describe('not built yet', () => {
-    it.todo('leaves the stock hold alone for orders that are still active');
-  });
 });
