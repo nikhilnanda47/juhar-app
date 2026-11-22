@@ -3,10 +3,17 @@
 **Version:** 1.0  
 **Date:** 13 November 2026  
 **Status:** Draft for review  
+**Code sync:** Blockquotes marked *Implementation status (2026-11-22)* record where the code differs from or lags this design. The design text itself is unchanged.  
 
 ---
 
 ## 1. Backend Module Architecture
+
+> **Implementation status (2026-11-22):** The tree below is the design. In `apps/api/src` today:
+> - `config/` holds only `env.validation.ts` (see 5.5).
+> - Guards live in `modules/auth/guards/` (`jwt-auth`, `admin-auth`, `roles`), not `common/guards/`.
+> - `common/` has `decorators/`, `dto/pagination.dto.ts`, `filters/` and `interceptors/`. There is no `pipes/` (`ValidationPipe` is registered globally in `main.ts`) and no `utils/` (money, slug and order-number helpers are in `packages/shared`).
+> - Implemented modules: auth, users, addresses, categories, products, inventory, cart, checkout, orders. `media`, `payments` and `admin` do not exist (`PaymentsModule` and `AdminModule` are commented out in `app.module.ts`). There is also a `health.controller.ts`.
 
 ```
 src/
@@ -64,6 +71,13 @@ src/
 ### 2.1 Auth Module
 
 **Purpose:** OTP-based phone authentication for customers and admins.
+
+> **Implementation status (2026-11-22):**
+> - `AuthModule` binds the OTP provider to `MockOtpProvider` (fixed OTP `123456`, logged to the console). The `OTP_PROVIDER` variable in `.env.example` is not read anywhere, so a real SMS provider cannot be selected without a code change.
+> - OTPs are hashed (SHA-256) and kept in an in-memory `Map` inside `AuthService`, not Redis, so they are lost on restart and not shared between instances. The 5-attempt limit and a 30-second resend cooldown are enforced there. The per-phone and per-IP limits are not (see 5.3).
+> - `verifyOtp` issues an access token (15 min) and a refresh token (7 days), and `POST /auth/refresh` works. The refresh token is returned in the JSON body, not an httpOnly cookie. The web (`localStorage` key `juhar_refresh_token`), mobile (`AsyncStorage` key `juhar_refresh`) and admin (`juhar_admin_refresh`) clients store it but never call `/auth/refresh`, so a session effectively ends when the 15-minute access token expires.
+> - `GET /auth/me` (JWT required) also exists. The token payload `type` is `admin` (plus `role`) when the phone exists in `admin_users`.
+> - There is no `throttle-otp.guard.ts`. Guards are `JwtAuthGuard`, `AdminAuthGuard` and `RolesGuard` in `modules/auth/guards/`.
 
 ```
 modules/auth/
@@ -500,6 +514,8 @@ class VariantResponse {
 
 **Purpose:** Product image/video upload via signed S3 URLs.
 
+> **Implementation status (2026-11-22):** Not implemented (planned Phase 5). There is no `modules/media`. The `product_media` table exists and `ProductsService` reads from it, but there is no upload flow and no media is seeded, so clients render placeholder boxes instead of product images.
+
 ```
 modules/media/
 ├── media.module.ts
@@ -550,6 +566,13 @@ Admin                    API                           S3
 ### 2.7 Inventory Module
 
 **Purpose:** Stock tracking with atomic reservations.
+
+> **Implementation status (2026-11-22):** `getStock`, `getStockBulk`, `adjustStock` (audited), `reserve` (row lock via `SELECT … FOR UPDATE`), `releaseReservation` and the every-minute expiry cron exist in `inventory.service.ts` and `reservation-expiry.cron.ts`. There is no separate `reservation.service.ts`. Stock does **not** settle yet:
+> - **Design:** the reservation becomes `committed` when the order is confirmed and "stays reserved until fulfillment" (3.1, 3.2). The design does not spell out the final `on_hand` deduction, but the return restock (`on_hand += qty`) assumes one happens.
+> - **Code:** `commitReservation` is never called, and nothing decrements `on_hand` (only the admin `adjustStock` changes it). Reservations therefore stay `held` through confirm, pack and ship.
+> - **Consequence (oversell risk):** the cron releases every `held` reservation whose `expires_at` has passed (24 h for COD), including those of live `confirmed`, `packed` or `shipped` orders, which returns already-sold stock to the available pool.
+> - Cancelling an order does release its `held`/`committed` reservations correctly.
+> - Admin routes in code: `GET /admin/inventory/:variantId` and `POST /admin/inventory/adjust` (the adjust route is restricted to `owner` and `catalog_editor`).
 
 ```
 modules/inventory/
@@ -742,6 +765,13 @@ class CartItemResponse {
 
 **Purpose:** Quote generation + atomic order placement.
 
+> **Implementation status (2026-11-22):** `POST /checkout/quote` and `POST /orders` are implemented, including the single-transaction placement, idempotency-key replay and 30 min (UPI) / 24 h (COD) reservation expiry. Differences from the design below:
+> - Shipping is a flat ₹99 (9900 paise), free when the subtotal is ≥ ₹5,000 (500000 paise). Tax is always 0 (GST is included in the price). There is no PIN-based shipping, serviceability check (`PIN_NOT_SERVICEABLE`) or COD-eligibility check; the quote always returns `codAvailable: true`.
+> - The web and mobile review screens do not call the quote endpoint. Each recomputes the same rate and threshold from the cart client-side (the rule is duplicated in several places).
+> - Order numbers come from `generateOrderNumber(order.count() + 1)` in `packages/shared`. The sequence counts all orders ever placed, so two concurrent orders can get the same number (the unique constraint then makes placement fail). `ORDER_NUMBER_PREFIX` is still `SAJ`, so new orders are `SAJ-YYYYMMDD-XXXX` while this document and `database-design.md` specify `JUH-`.
+> - Errors are thrown as plain-string exceptions (`CART_EMPTY`, `VARIANT_UNAVAILABLE: <sku>`, `ADDRESS_NOT_FOUND`, `INSUFFICIENT_STOCK` from the inventory reserve). The error envelope therefore carries `code: HTTP_<status>` with the identifier in `message`, not the `CHK_xxx` codes below.
+> - The API accepts `paymentMode: "upi"` (creating a `pending` order with a 30-minute reservation) but no payment flow exists; both clients send only `cod`.
+
 ```
 modules/checkout/
 ├── checkout.module.ts
@@ -918,6 +948,14 @@ async placeOrder(userId: string, dto: PlaceOrderDto) {
 
 **Purpose:** Order lifecycle management for customers and admins.
 
+> **Implementation status (2026-11-22):**
+> - The state machine is in `packages/shared` (`ORDER_TRANSITIONS`, `canTransitionOrder`), not `modules/orders/order-state-machine.ts`.
+> - **Customer endpoints:** `GET /orders`, `GET /orders/:id` (items and shipments; payments are not included) and `POST /orders/:id/cancel`. Cancel works for `placed`/`confirmed` only, releases `held`/`committed` reservations and stores `cancellation_reason`, but writes **no audit event**. `POST /orders/:id/return` is not implemented.
+> - **Admin endpoints:** `GET /admin/orders` (filter by `status`; `search` matches order number or phone; no date range) and `PATCH /admin/orders/:id/status` (roles `owner`, `fulfillment_operator`; transition validated; audit event written).
+> - **Side effects implemented:** `confirmed_at`/`packed_at`/`shipped_at`/`delivered_at`/`cancelled_at` timestamps; a shipment row on ship (only when a `trackingId` is sent); shipments marked delivered; reservations released on cancel. **Not implemented:** refunds, customer notifications, the 7-day return-window check, restock on return, refund creation.
+> - **Admin cancellation:** the API accepts `status: "cancelled"` for `placed`/`confirmed` orders, but `UpdateOrderStatusDto` has no `reason` field, so no `cancellation_reason` is stored for admin cancels. The admin panel has no Cancel button (its Orders page offers only Confirm → Pack → Ship → Deliver).
+> - **Return/refund statuses** can be set through the admin endpoint (the state machine allows them) but the admin panel has no UI for them. The web order screens display them; the mobile order detail does not yet (it only special-cases `cancelled`).
+
 ```
 modules/orders/
 ├── orders.module.ts
@@ -991,6 +1029,8 @@ function canTransition(from: OrderStatus, to: OrderStatus): boolean {
 ### 2.11 Payments Module
 
 **Purpose:** Payment gateway integration, webhook processing, reconciliation, refunds.
+
+> **Implementation status (2026-11-22):** Not implemented (planned Phase 4). There is no `modules/payments`: no gateway, `/payments/initiate`, webhook, reconciliation or refund endpoints. COD orders are created with `payment_status = cod_pending` and are the only payment path the clients use.
 
 ```
 modules/payments/
@@ -1428,6 +1468,11 @@ async initiateRefund(orderId: string, adminId: string, amount?: number) {
 
 **Purpose:** Admin authentication, RBAC, audit logging, reports.
 
+> **Implementation status (2026-11-22):** There is no `AdminModule`; reports and admin-user management are not implemented (planned Phase 5). What exists:
+> - **RBAC:** `RolesGuard` and the `@Roles()` decorator in `modules/auth/guards` and `common/decorators`. The `owner` role bypasses role checks, and a route with no roles is open to any admin. Roles are applied on catalog writes (`owner`, `catalog_editor`), inventory adjust (`owner`, `catalog_editor`) and order status changes (`owner`, `fulfillment_operator`).
+> - **Audit:** there is no `AuditService`. Audit events are written inline with `prisma.auditEvent.create` in the orders service (status changes) and the inventory service (stock adjustments) only. Product and category changes are not audited.
+> - **Admin accounts:** rows in `admin_users`, created by the seed script (one `owner`). An admin signs in through the normal OTP flow and receives a token with `type: "admin"`.
+
 ```
 modules/admin/
 ├── admin.module.ts
@@ -1713,6 +1758,8 @@ class GlobalExceptionFilter implements ExceptionFilter {
 
 ### 5.3 Rate Limiting
 
+> **Implementation status (2026-11-22):** The limits in this table are **not enforced**. `ThrottlerModule.forRoot` defines a global `short` bucket (100 requests/min) and `POST /auth/otp/request` carries `@Throttle({ short: { ttl: 600000, limit: 3 } })`, but no `ThrottlerGuard` is registered (no `APP_GUARD`, no `@UseGuards(ThrottlerGuard)`), so neither takes effect. Even once registered, `@nestjs/throttler` tracks by client IP by default, so the per-phone limit would need a custom tracker. The `RATE_LIMITS` constants in `packages/shared` are unused. What is enforced today is the OTP verify limit (5 attempts per OTP) and a 30-second OTP resend cooldown, both held in memory in `AuthService`.
+
 | Endpoint | Limit | Window |
 |---|---|---|
 | POST /auth/otp/request | 3 per phone | 10 minutes |
@@ -1728,6 +1775,14 @@ class GlobalExceptionFilter implements ExceptionFilter {
 | POST /orders | `idempotencyKey` in body | Return existing order if key exists |
 | POST /webhooks/payments | `provider_event_id` | Skip if already processed |
 | POST /payments/initiate | One active payment per order | Return existing if pending |
+
+### 5.5 Configuration & Environment Validation
+
+- `apps/api/src/config/env.validation.ts` exports `validateEnv`, wired in `app.module.ts` as `ConfigModule.forRoot({ isGlobal: true, envFilePath: ['.env.local', '.env'], validate: validateEnv })`. It is a plain function with no Joi or Zod dependency.
+- **Required variables:** `DATABASE_URL`, `JWT_SECRET`, `JWT_REFRESH_SECRET`. If any is missing or blank the API refuses to start and names each one: `Missing required environment variables: <names>. Copy apps/api/.env.example to apps/api/.env and set them.`
+- **CORS:** `main.ts` reads `CORS_ORIGINS` (comma separated). When set, it **replaces** the built-in defaults, which are `http://localhost:3001` (web), `http://localhost:3002` (admin) and `http://localhost:8081` (mobile web preview). `.env.example` lists all three.
+- Other variables in `.env.example` (`PORT`, `NODE_ENV`, `OTP_PROVIDER`, `PAYMENT_GATEWAY`, `S3_*`) are not validated. `OTP_PROVIDER` is not read by any code yet (see 2.1).
+- `.env` is read only at process start, so changing it requires restarting the API.
 
 ---
 
@@ -1781,9 +1836,7 @@ Note: Circular dependencies between Orders ↔ Payments resolved using `forwardR
 
 ---
 
-## 6. Mobile App Screen Architecture
-
-## 6a. Web App Architecture (`apps/web`)
+## 7. Web App Architecture (`apps/web`)
 
 **Technology:** Next.js 14 (App Router) + Tailwind CSS + TypeScript  
 **Port:** `localhost:3001` (dev), shares same API backend as mobile app
@@ -1792,8 +1845,8 @@ Note: Circular dependencies between Orders ↔ Payments resolved using `forwardR
 apps/web/
 ├── src/
 │   ├── app/
-│   │   ├── layout.tsx          # Root layout (Header, BottomNav, CartProvider)
-│   │   ├── globals.css         # Tailwind + component classes
+│   │   ├── layout.tsx          # Root layout (ThemeProvider, CartProvider, Header, BottomNav, theme flash-prevention script)
+│   │   ├── globals.css         # Tailwind + theme CSS variables (:root / .dark) + component classes
 │   │   ├── page.tsx            # Home (/, hero, collections, arrivals)
 │   │   ├── shop/
 │   │   │   ├── page.tsx        # Product listing (search, filters, grid)
@@ -1814,26 +1867,47 @@ apps/web/
 │   │   └── BottomNav.tsx       # Mobile bottom nav (5 tabs, cart badge)
 │   └── lib/
 │       ├── api.ts              # API client (mirrors mobile api.ts)
-│       └── cart-context.tsx    # CartProvider, useCartCount()
-├── tailwind.config.ts          # Design tokens matching mobile theme
+│       ├── cart-context.tsx    # CartProvider, useCartCount()
+│       └── theme-context.tsx   # ThemeProvider, useTheme() → { isDark, toggleTheme }
+├── tailwind.config.ts          # Design tokens as CSS-variable colors; darkMode: 'class'
 ├── next.config.js
 └── package.json
 ```
 
-**Design token alignment:** Tailwind config uses same color hex values, font families (Noto Serif + DM Sans), and spacing values as `apps/mobile/src/theme/`.
+**Design token alignment:** The web app uses the same brand palette, font families (Noto Serif + DM Sans) and spacing as `apps/mobile/src/theme/`. Colors are defined once as CSS variables in `globals.css` (see 7.1) and referenced from `tailwind.config.ts`, rather than as fixed hex values.
 
 **Responsive strategy:**
 - Mobile (`<640px`): App-like layout, bottom nav, sticky CTAs, 2-col grids
 - Tablet (`md: 640–1024px`): 2–3 col grids, larger inputs (h-14), more padding
 - Desktop (`lg: 1024px+`): Full-width, side-by-side layouts, table views, header nav
 
+### 7.1 Theme System (Light / Dark)
+
+- **Tokens:** `globals.css` defines every color as an RGB triplet CSS variable, e.g. `--color-primary: 139 58 74`, under `:root` (light) and `.dark` (dark; e.g. `--color-background: 18 18 18`). `tailwind.config.ts` maps each token with a `cssVar(name)` helper to `rgb(var(--color-<name>) / <alpha-value>)`, so opacity modifiers such as `bg-primary/10` and `bg-surface/80` work in both themes. `darkMode` is `'class'`.
+- **Provider:** `ThemeProvider` (`src/lib/theme-context.tsx`) wraps the app in `layout.tsx` (outside `CartProvider`). It adds or removes the `dark` class on `<html>`, saves the choice in `localStorage` under `juhar_theme` (`light` | `dark`), and updates `<meta name="theme-color">` (`#FAFAF7` light, `#121212` dark) so the mobile browser bar follows the toggle.
+- **No flash on load:** an inline `<script>` in `<head>` reads `juhar_theme` and adds `dark` before first paint, and `<html>` has `suppressHydrationWarning`.
+- **Default:** light. The OS appearance setting is not followed.
+- **Toggle:** a Sun/Moon button in `Header` (desktop only, `lg` and up) and a "Dark Mode / Light Mode" switch in the Account page menu, which is shown only after login. A logged-out visitor on a screen narrower than `lg` therefore has no toggle yet.
+- **Rule for new UI:** use the token classes (`bg-surface`, `text-text-primary`, `border-border`, `bg-status-*-bg`, `text-status-*-text`, `bg-toast-bg`, `text-accent-dark`). Do not hardcode hex values or `bg-white` for surfaces or overlays, because text that uses `text-text-primary` turns light in dark mode and becomes unreadable on a fixed white background (use `bg-surface/90` for badges over product images).
+
+### 7.2 Pages that Read the URL (`useSearchParams`)
+
+`next build` fails with "useSearchParams() should be wrapped in a suspense boundary" for any page that calls `useSearchParams()` outside `<Suspense>`. `/checkout/review` (`addressId`) and `/order-success` (`orderId`) therefore keep their logic in an inner component (`OrderReviewContent`, `OrderSuccessContent`) and export a default page component that wraps it in `<Suspense fallback={<spinner/>}>`. Use the same pattern for any new page that reads query parameters.
+
+### 7.3 Order Status Display
+
+- **Order detail (`orders/[id]`):** a five-step timeline (placed, confirmed, packed, shipped, delivered). `cancelled` replaces the timeline with a banner showing the cancel date and reason (matching mobile). Return and refund statuses (`return_requested`, `return_approved`, `return_rejected`, `returned`, `refund_pending`, `refunded`) show a status notice above a fully completed timeline. The payment badge reflects `paymentMode` (`COD Order` / `UPI Order`).
+- **Orders list (`orders`):** `STATUS_STYLES` has a badge style and label for all twelve statuses, using token classes.
+
 ---
 
-## 6b. Mobile App Screen Architecture
+## 8. Mobile App Screen Architecture
 
 **Total: 13 screens implemented** (9 deferred: No Internet, App Update, Maintenance, standalone My Addresses, Search Results, FAQs). Auth screens are inline in Profile.
 
-### 6.1 Onboarding & System States
+> **Implementation status (2026-11-22):** The app runs on Expo SDK 58, React Native 0.88, React 19 and React Navigation 7. `apps/mobile` has its own `package.json` and `package-lock.json` and is installed separately; it is not part of the root npm workspaces. Navigation is a bottom-tab navigator with five tabs: Home, Shop (Explore stack), Cart (stack), Orders (stack) and Account (`ProfileScreen` directly, with no nested stack). The Search and standalone Addresses screens in 8.5 and 8.6 do not exist.
+
+### 8.1 Onboarding & System States
 
 | Screen | Component | Notes |
 |---|---|---|
@@ -1843,7 +1917,7 @@ apps/web/
 | App Update Required | `ForceUpdateScreen` | Non-dismissable, compare app version vs minimum from API/remote config |
 | Maintenance | `MaintenanceScreen` | Shown when API returns 503, informational only |
 
-### 6.2 Authentication
+### 8.2 Authentication
 
 | Screen | Component | Route | Notes |
 |---|---|---|---|
@@ -1851,7 +1925,9 @@ apps/web/
 | OTP Verify | `LoginOtpScreen` | After phone submit | 6-digit input, 30s resend cooldown, max 5 attempts |
 | Name Capture | `NameCaptureScreen` | After first OTP verify | Shown when `isNewUser=true` or `name=null`, skip option |
 
-### 6.3 Core Shopping Flow
+### 8.3 Core Shopping Flow
+
+> **Implementation status (2026-11-22):** The Cart tab works for guests (local cart, key `juhar_local_cart`, synced to the server after login) as well as for logged-in users. Order Review does not call `POST /checkout/quote`: it computes totals client-side from the cart. Placing the order is `POST /orders` from Order Review (there is no `POST /checkout/place`), and Order Success shows the returned order. Only COD is offered.
 
 | Screen | Component | Route | Data Source |
 |---|---|---|---|
@@ -1864,14 +1940,14 @@ apps/web/
 | Order Review | `OrderReviewScreen` | Stack: Checkout → Review | `POST /checkout/quote` |
 | Order Success | `OrderSuccessScreen` | Stack: after place order | `POST /checkout/place` response |
 
-### 6.4 Post-Purchase
+### 8.4 Post-Purchase
 
 | Screen | Component | Route | Data Source |
 |---|---|---|---|
 | Orders List | `OrdersScreen` | Tab: Orders | `GET /orders` (authenticated) |
 | Order Detail | `OrderDetailScreen` | Stack: Orders → Detail | `GET /orders/:id` |
 
-### 6.5 Profile & Addresses
+### 8.5 Profile & Addresses
 
 | Screen | Component | Route | Data Source |
 |---|---|---|---|
@@ -1879,7 +1955,9 @@ apps/web/
 | My Addresses | `AddressesScreen` | Stack: Profile → Addresses | `GET /me/addresses` |
 | Search Results | `SearchScreen` | Stack: Explore → Search | `GET /products?search=` |
 
-### 6.6 Navigation Structure
+### 8.6 Navigation Structure
+
+> **Implementation status (2026-11-22):** The tree below is the design. Actual tab names are Home, Shop, Cart, Orders and Account. Shop contains `ExploreList` and `ProductDetail` only. Account is `ProfileScreen` with no stack, so `Search`, `Addresses` and the Profile-stack `AddAddress` do not exist; address selection and creation live in the Cart stack.
 
 ```
 TabNavigator (5 tabs)
@@ -1903,7 +1981,7 @@ TabNavigator (5 tabs)
     └── AddAddress (AddAddressScreen)
 ```
 
-### 6.7 System Screen Triggers
+### 8.7 System Screen Triggers
 
 | Screen | Trigger |
 |---|---|
@@ -1912,3 +1990,14 @@ TabNavigator (5 tabs)
 | No Internet | `NetInfo` listener detects offline state |
 | Force Update | API response header `X-Min-App-Version` > current app version |
 | Maintenance | API returns HTTP 503 with `maintenance: true` |
+
+> **Implementation status (2026-11-22):** Only Splash and Welcome exist. The first-launch flag is stored under the AsyncStorage key `juhar_onboarding_done` (set to `'true'`), not `@juhar/onboarded`. No Internet, Force Update and Maintenance are not implemented.
+
+### 8.8 Theme System (Light / Dark)
+
+- **Tokens:** `src/theme/colors.ts` exports `lightColors`, `darkColors` and `ColorPalette`. `ColorPalette` is the mapped type `{ [K in keyof typeof lightColors]: string }`, so dark values can differ from the light literals. `colors` (an alias of `lightColors`) remains only as a static default for code outside the provider, such as the font-loading view in `App.tsx`. `src/theme/index.ts` re-exports the palettes, `typography`, `spacing`, `borderRadius`, `elevation`, `ThemeProvider` and `useTheme`.
+- **Provider:** `ThemeProvider` (`src/theme/ThemeContext.tsx`) exposes `useTheme()` returning `{ colors, isDark, toggleTheme }`. The default is light, and the choice is saved in AsyncStorage under `juhar_theme`. The OS appearance setting is not followed, even though `app.json` sets `userInterfaceStyle` to `"automatic"`. `App.tsx` nests `SafeAreaProvider > ThemeProvider > AppInner`, and `AppInner` sets the `StatusBar` style from `isDark`.
+- **Screen pattern:** `const { colors } = useTheme(); const styles = useMemo(() => createStyles(colors), [colors]);` with `const createStyles = (colors: ColorPalette) => StyleSheet.create({ ... })` at the bottom of the file. Sub-components (cards, rows, badges) call `useTheme()` themselves. `TabNavigator.tsx` builds each stack's header options and the tab bar from `useTheme()`.
+- **Toggle:** on `ProfileScreen`, a "Dark Mode / Light Mode" row with a `Switch` in the menu card when logged in, and a Sun/Moon icon button at the right of the "Account" header when logged out (phone-number screen only; the OTP and name-capture screens have none).
+- **Rule for new UI:** use semantic tokens (`background`, `surface`, `surfaceAlt`, `textPrimary`, `statusDeliveredBg`, …) rather than hex values. Fixed colors are acceptable only on brand-coloured backgrounds, such as a white check mark on a coloured circle.
+- **React Native 0.88:** `StyleSheet.absoluteFillObject` was removed; use `StyleSheet.absoluteFill`.

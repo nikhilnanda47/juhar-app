@@ -123,7 +123,7 @@ Open items as of 2026-11-22, grouped by urgency. The team tracker holds owners a
 - **Database `CHECK` constraints** described in `docs/architecture/database-design.md` (non-negative stock, positive quantities) are not in the migration; they are enforced in application code only.
 
 ### Dark mode follow-ups
-- Web: visitors who are logged out on a phone-width screen may have no theme toggle (the header toggle is desktop-only) — to be verified.
+- Web: visitors who are logged out on a phone-width screen have no theme toggle (the header toggle is desktop-only and the Account menu only appears after login).
 - Both apps always start in light mode and ignore the device setting; the admin panel has no dark mode.
 - A few mobile screens (product detail, welcome) use fixed colours that need a visual check in dark mode.
 
