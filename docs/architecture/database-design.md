@@ -288,7 +288,7 @@ Server-side cart. Prices are NOT stored — recalculated from variant on every r
 **Order statuses:** `placed`, `confirmed`, `packed`, `shipped`, `delivered`, `cancelled`, `return_requested`, `return_approved`, `return_rejected`, `returned`, `refund_pending`, `refunded`
 
 > **Implementation status (2026-11-22):**
-> - `public_number` is currently built from `count(orders) + 1`, which can collide under concurrent orders. The prefix is `JUH-`; orders placed before the rename may carry the old `SAJ-` prefix and are left unchanged. The target design is a database sequence.
+> - `public_number` is `JUH-YYYYMMDD-NNNN`, where `NNNN` comes from the PostgreSQL sequence `order_number_seq` (`nextval`). It counts across all days (it does not restart daily), is safe for orders placed at the same moment, and can skip a number when an order fails after taking one. Orders placed before the rename may carry the old `SAJ-` prefix and are left unchanged.
 > - `cancellation_reason` is stored for customer cancellations only. Admin cancellations (via the status endpoint) set `cancelled_at` but no reason.
 > - Statuses after `delivered` (returns and refunds) exist in the schema and state machine, and the admin status endpoint would accept those transitions, but there is no customer return flow, no admin UI, and no restock or refund side effects yet.
 
@@ -552,4 +552,4 @@ admin_users ──1:N──> audit_events (actor_id)
 - Destructive changes (column drops) deferred to separate migration after verification
 - Seed script for development with sample categories, products, variants, and inventory
 
-> **Implementation status (2026-11-22):** One migration exists (`20261113122754_init`, all 18 tables). Run `npx prisma generate` after pulling schema changes and `npx prisma migrate dev` to apply new migrations locally. Planned migrations: a sequence for order numbers and the `CHECK` constraints in section 6.
+> **Implementation status (2026-11-22):** Two migrations exist: `20261113122754_init` (all 18 tables) and `20261122120000_order_number_sequence` (the `order_number_seq` sequence, created by hand-written SQL because Prisma's schema cannot declare sequences; it starts after the highest existing order number). Run `npx prisma generate` after pulling schema changes and `npx prisma migrate dev` to apply new migrations locally. Prisma does not report the sequence as schema drift. Planned migration: the `CHECK` constraints in section 6.

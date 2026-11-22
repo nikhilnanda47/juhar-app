@@ -31,16 +31,16 @@ function item(o: ItemOptions = {}) {
   };
 }
 
-function setup(cart: unknown[], opts: { address?: unknown; existingOrder?: unknown; orderCount?: number } = {}) {
+function setup(cart: unknown[], opts: { address?: unknown; existingOrder?: unknown; nextNumber?: number } = {}) {
   let created: Record<string, unknown> = {};
   let createdItems: Record<string, unknown>[] = [];
 
   const tx = {
+    $queryRaw: jest.fn().mockResolvedValue([{ nextval: BigInt(opts.nextNumber ?? 42) }]),
     order: {
       findUnique: jest.fn().mockImplementation(({ where }) =>
         Promise.resolve(where.idempotencyKey ? (opts.existingOrder ?? null) : { ...created, items: createdItems }),
       ),
-      count: jest.fn().mockResolvedValue(opts.orderCount ?? 41),
       create: jest.fn().mockImplementation(({ data }) => {
         created = { id: 'order-1', createdAt: NOW, ...data };
         return Promise.resolve(created);
@@ -184,6 +184,7 @@ describe('CheckoutService', () => {
         expect(inventory.reserve).not.toHaveBeenCalled();
         expect(tx.order.create).not.toHaveBeenCalled();
         expect(tx.cartItem.deleteMany).not.toHaveBeenCalled();
+        expect(tx.$queryRaw).not.toHaveBeenCalled();
       });
     });
 
@@ -290,10 +291,20 @@ describe('CheckoutService', () => {
         });
       });
 
-      it('numbers the order JUH-<today>-<count of existing orders plus one>', async () => {
-        const { service, tx } = setup([item()], { orderCount: 42 });
+      it('numbers the order JUH-<today>-<next number from the order_number_seq sequence>', async () => {
+        const { service, tx } = setup([item()], { nextNumber: 43 });
         await service.placeOrder('user-1', placeDto());
+
+        const sql = (tx.$queryRaw.mock.calls[0][0] as TemplateStringsArray).join('?');
+        expect(sql).toContain('nextval');
+        expect(sql).toContain('order_number_seq');
         expect(created(tx).publicNumber).toBe('JUH-20261122-0043');
+      });
+
+      it('takes exactly one number per order', async () => {
+        const { service, tx } = setup([item({ id: 'a' }), item({ id: 'b' })]);
+        await service.placeOrder('user-1', placeDto());
+        expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
       });
 
       it('freezes title, SKU, quantity and price on each order line', async () => {
@@ -334,7 +345,6 @@ describe('CheckoutService', () => {
   });
 
   describe('not built yet', () => {
-    it.todo('numbers orders from a database sequence instead of counting existing orders');
     it.todo('reads the shipping rate and free-shipping threshold from one shared place');
     it.todo('checks PIN code serviceability and cash-on-delivery eligibility');
   });

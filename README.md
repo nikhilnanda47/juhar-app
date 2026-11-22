@@ -116,8 +116,8 @@ Open items as of 2026-11-22, grouped by urgency. The team tracker holds owners a
 - **Stock does not settle.** Reservations are never committed and `on_hand` is not decremented when an order ships, while the expiry job releases held reservations (24 hours for COD) even for live orders. This risks overselling.
 
 ### Orders and catalog
-- **Order numbers.** Generated from `count() + 1`, which can collide under concurrent orders. New orders use the `JUH-` prefix; orders placed before the rename keep their old `SAJ-` numbers.
 - **Price sorting** (`price_asc` / `price_desc`) only sorts within each page of results.
+- **Order numbers can skip.** They come from a database sequence (`order_number_seq`), so a number used by an order that then fails is not reused. Orders placed before the `JUH-` rename keep their old `SAJ-` numbers.
 - **Cancellations.** Customer cancellations write no audit event. Admins cannot cancel from the admin panel, and the API stores no cancellation reason for admin cancels.
 - **Support number.** The "Need help?" link on the web order page uses a placeholder WhatsApp number (WhatsApp integration is pending).
 - **Database `CHECK` constraints** described in `docs/architecture/database-design.md` (non-negative stock, positive quantities) are not in the migration; they are enforced in application code only.
@@ -261,7 +261,7 @@ GitHub Actions (`.github/workflows/ci.yml`) runs four jobs in parallel on Node 2
 
 | Job | What it checks |
 |-----|----------------|
-| API | Install, Prisma generate, typecheck (shared + API), tests, build — with a Postgres service |
+| API | Install, Prisma generate, apply migrations and check the schema matches them (against a Postgres service), typecheck (shared + API), tests, build |
 | Web | Typecheck and `next build` |
 | Admin | Typecheck, tests and `next build` |
 | Mobile | `npm ci` inside `apps/mobile` (it is not an npm workspace), then typecheck |

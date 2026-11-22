@@ -154,9 +154,9 @@ export class CheckoutService {
       const taxPaise = 0;
       const totalPaise = subtotalPaise + shippingPaise + taxPaise;
 
-      // 5. Generate order number
-      const orderCount = await tx.order.count();
-      const publicNumber = generateOrderNumber(orderCount + 1);
+      // 5. Generate order number from the database sequence (safe for concurrent orders)
+      const [{ nextval }] = await tx.$queryRaw<{ nextval: bigint }[]>`SELECT nextval('order_number_seq') AS nextval`;
+      const publicNumber = generateOrderNumber(Number(nextval));
 
       // 6. Create order with address snapshot
       const order = await tx.order.create({
