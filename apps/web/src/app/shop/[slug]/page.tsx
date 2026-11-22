@@ -129,10 +129,10 @@ export default function ProductDetailPage() {
               {/* Desktop actions */}
               <div className="hidden lg:flex absolute top-4 right-4 gap-2">
                 <button onClick={() => setWishlisted(!wishlisted)}
-                  className="w-10 h-10 rounded-full bg-white/80 backdrop-blur flex items-center justify-center hover:bg-white transition-colors">
+                  className="w-10 h-10 rounded-full bg-surface/80 backdrop-blur flex items-center justify-center hover:bg-surface transition-colors">
                   <Heart size={20} className={wishlisted ? 'text-primary fill-primary' : 'text-text-secondary'} strokeWidth={1.5} />
                 </button>
-                <button className="w-10 h-10 rounded-full bg-white/80 backdrop-blur flex items-center justify-center hover:bg-white transition-colors">
+                <button className="w-10 h-10 rounded-full bg-surface/80 backdrop-blur flex items-center justify-center hover:bg-surface transition-colors">
                   <Share2 size={20} className="text-text-secondary" strokeWidth={1.5} />
                 </button>
               </div>

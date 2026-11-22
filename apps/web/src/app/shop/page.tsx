@@ -98,13 +98,13 @@ export default function ShopPage() {
               <div className="relative aspect-[3/4] rounded-xl bg-surface-container-low overflow-hidden mb-2 shadow-[0_1px_4px_rgba(0,0,0,0.03)] group-hover:shadow-md transition-shadow">
                 {/* Wishlist */}
                 <button
-                  className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/80 backdrop-blur flex items-center justify-center z-10"
+                  className="absolute top-2 right-2 w-8 h-8 rounded-full bg-surface/80 backdrop-blur flex items-center justify-center z-10"
                   onClick={(e) => e.preventDefault()}
                 >
                   <Heart size={16} className="text-text-tertiary" strokeWidth={2} />
                 </button>
                 {/* Origin badge */}
-                <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-full bg-white/90 backdrop-blur">
+                <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-full bg-surface/90 backdrop-blur">
                   <span className="font-sans text-label-sm text-text-primary">{(product as any).fabric || 'Handloom'}</span>
                 </div>
               </div>
