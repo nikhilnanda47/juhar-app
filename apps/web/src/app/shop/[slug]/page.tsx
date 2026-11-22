@@ -122,7 +122,7 @@ export default function ProductDetailPage() {
           <div className="lg:sticky lg:top-20">
             {/* Main image */}
             <div className="relative aspect-[3/4] lg:aspect-[4/5] lg:rounded-2xl overflow-hidden bg-surface-container-low">
-              <div className="absolute bottom-4 left-4 px-3 py-1.5 rounded-full bg-white/90 backdrop-blur shadow-sm flex items-center gap-1.5">
+              <div className="absolute bottom-4 left-4 px-3 py-1.5 rounded-full bg-surface/90 backdrop-blur shadow-sm flex items-center gap-1.5">
                 <ShieldCheck size={14} className="text-accent" strokeWidth={2} />
                 <span className="font-sans text-label-sm text-text-primary font-semibold tracking-wide">GI CERTIFIED LOOM</span>
               </div>
