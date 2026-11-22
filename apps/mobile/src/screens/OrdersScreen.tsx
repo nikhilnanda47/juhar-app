@@ -61,8 +61,8 @@ export default function OrdersScreen({ navigation }: Props) {
       <View style={styles.center}>
         <User size={48} color={colors.textTertiary} strokeWidth={1.5} />
         <Text style={styles.emptyTitle}>Log in to view orders</Text>
-        <TouchableOpacity style={styles.primaryBtn} onPress={() => navigation.navigate('Account')}>
-          <Text style={styles.primaryBtnText}>Log In</Text>
+        <TouchableOpacity style={styles.outlineBtn} onPress={() => navigation.navigate('Account')}>
+          <Text style={styles.outlineBtnText}>Log In</Text>
         </TouchableOpacity>
       </View>
     );
