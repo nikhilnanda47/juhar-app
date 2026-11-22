@@ -106,7 +106,8 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   if (!json.success) {
     const err = (json as any).error || { code: 'UNKNOWN', message: 'Request failed' };
-    throw new ApiError(err.code, err.message, res.status);
+    const details = Array.isArray(err.details) ? err.details.join('; ') : '';
+    throw new ApiError(err.code, details ? `${err.message}: ${details}` : err.message, res.status);
   }
 
   return json.data;
