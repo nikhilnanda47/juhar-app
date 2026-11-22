@@ -295,9 +295,9 @@ export default function ProductDetailPage() {
                 ['Origin', product.origin],
                 ['Length', product.length],
                 ['Width', product.width],
-                ['Weight', product.weight ? `${product.weight}g` : null],
-                ['Occasion', product.occasion],
-                ['Blouse Piece', product.blousePiece === true ? 'Included' : product.blousePiece === false ? 'Not included' : null],
+                ['Weight', product.weight],
+                ['Occasion', product.occasion?.join(', ')],
+                ['Blouse Piece', product.blousePiece],
                 ['Care', product.careInstructions],
               ].filter(([, v]) => v).map(([label, value], idx) => (
                 <div key={label} className={`flex justify-between py-3 px-4 ${idx % 2 === 0 ? 'bg-surface-container-low/30' : ''}`}>
