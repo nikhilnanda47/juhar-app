@@ -116,7 +116,7 @@ Open items as of 2026-11-22, grouped by urgency. The team tracker holds owners a
 - **Stock does not settle.** Reservations are never committed and `on_hand` is not decremented when an order ships, while the expiry job releases held reservations (24 hours for COD) even for live orders. This risks overselling.
 
 ### Orders and catalog
-- **Order numbers.** Generated from `count() + 1`, which can collide under concurrent orders, and still use the prefix `SAJ-` (the design specifies `JUH-`).
+- **Order numbers.** Generated from `count() + 1`, which can collide under concurrent orders. New orders use the `JUH-` prefix; orders placed before the rename keep their old `SAJ-` numbers.
 - **Price sorting** (`price_asc` / `price_desc`) only sorts within each page of results.
 - **Cancellations.** Customer cancellations write no audit event. Admins cannot cancel from the admin panel, and the API stores no cancellation reason for admin cancels.
 - **Support number.** The "Need help?" link on the web order page uses a placeholder WhatsApp number (WhatsApp integration is pending).

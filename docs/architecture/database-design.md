@@ -288,7 +288,7 @@ Server-side cart. Prices are NOT stored — recalculated from variant on every r
 **Order statuses:** `placed`, `confirmed`, `packed`, `shipped`, `delivered`, `cancelled`, `return_requested`, `return_approved`, `return_rejected`, `returned`, `refund_pending`, `refunded`
 
 > **Implementation status (2026-11-22):**
-> - `public_number` is currently built from `count(orders) + 1`, which can collide under concurrent orders, and the code still emits the prefix `SAJ-` instead of `JUH-`. The target design is a database sequence with the `JUH-` prefix.
+> - `public_number` is currently built from `count(orders) + 1`, which can collide under concurrent orders. The prefix is `JUH-`; orders placed before the rename may carry the old `SAJ-` prefix and are left unchanged. The target design is a database sequence.
 > - `cancellation_reason` is stored for customer cancellations only. Admin cancellations (via the status endpoint) set `cancelled_at` but no reason.
 > - Statuses after `delivered` (returns and refunds) exist in the schema and state machine, and the admin status endpoint would accept those transitions, but there is no customer return flow, no admin UI, and no restock or refund side effects yet.
 

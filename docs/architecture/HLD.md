@@ -215,7 +215,7 @@ Users can browse and add to cart without logging in:
 - Constants: state machine transitions (`ORDER_TRANSITIONS`, `canTransitionOrder`), rate limits, auth/inventory/cart limits, order-number prefix
 - Utils: paise ↔ rupee formatting, slug generation, order-number generation, phone and PIN validation
 
-> **Implementation status (2026-11-22):** The package compiles to `packages/shared/dist/` (`main`/`types` point there). A root `postinstall` script (`npm run build -w packages/shared`) builds it after every `npm install` / `npm ci`, so a fresh clone can typecheck and run the API without a separate step. Compiled output is git-ignored and no longer committed next to the sources. The API imports it as `@juhar/shared`. The admin panel maps it to the source via a tsconfig path but does not import it yet. The order-number prefix constant is still `SAJ` (a rebrand leftover), so generated numbers read `SAJ-YYYYMMDD-XXXX`, while the data-model docs show `JUH-…`.
+> **Implementation status (2026-11-22):** The package compiles to `packages/shared/dist/` (`main`/`types` point there). A root `postinstall` script (`npm run build -w packages/shared`) builds it after every `npm install` / `npm ci`, so a fresh clone can typecheck and run the API without a separate step. Compiled output is git-ignored and no longer committed next to the sources. The API imports it as `@juhar/shared`. The admin panel maps it to the source via a tsconfig path but does not import it yet. The order-number prefix constant is `JUH`, so generated numbers read `JUH-YYYYMMDD-XXXX` (orders placed before the rename may carry the old `SAJ-` prefix).
 
 ---
 

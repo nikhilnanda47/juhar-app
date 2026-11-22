@@ -290,10 +290,10 @@ describe('CheckoutService', () => {
         });
       });
 
-      it('numbers the order from the count of existing orders plus one, with today\'s date', async () => {
+      it('numbers the order JUH-<today>-<count of existing orders plus one>', async () => {
         const { service, tx } = setup([item()], { orderCount: 42 });
         await service.placeOrder('user-1', placeDto());
-        expect(created(tx).publicNumber).toMatch(/^[A-Z]+-20261122-0043$/);
+        expect(created(tx).publicNumber).toBe('JUH-20261122-0043');
       });
 
       it('freezes title, SKU, quantity and price on each order line', async () => {
@@ -334,7 +334,7 @@ describe('CheckoutService', () => {
   });
 
   describe('not built yet', () => {
-    it.todo('numbers orders from a database sequence with the JUH prefix');
+    it.todo('numbers orders from a database sequence instead of counting existing orders');
     it.todo('reads the shipping rate and free-shipping threshold from one shared place');
     it.todo('checks PIN code serviceability and cash-on-delivery eligibility');
   });

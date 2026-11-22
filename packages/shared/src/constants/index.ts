@@ -71,7 +71,7 @@ export const RETURNS = {
 } as const;
 
 // ── Order Number ──
-export const ORDER_NUMBER_PREFIX = 'SAJ';
+export const ORDER_NUMBER_PREFIX = 'JUH';
 
 // ── Currency ──
 export const CURRENCY = {

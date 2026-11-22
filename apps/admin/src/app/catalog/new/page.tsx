@@ -368,7 +368,7 @@ export default function CreateProductPage() {
                       <input
                         value={variant.sku}
                         onChange={(e) => updateVariant(idx, 'sku', e.target.value)}
-                        placeholder="SAJ-IKT-MRN-001"
+                        placeholder="JUH-IKT-MRN-001"
                         required
                         className={styles.inputMono}
                       />

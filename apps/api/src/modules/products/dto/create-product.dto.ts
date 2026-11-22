@@ -7,7 +7,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PublishStatus } from '@juhar/shared';
 
 export class CreateVariantDto {
-  @ApiProperty({ example: 'SAJ-IKT-MRN-001' })
+  @ApiProperty({ example: 'JUH-IKT-MRN-001' })
   @IsString()
   @MaxLength(50)
   sku!: string;
