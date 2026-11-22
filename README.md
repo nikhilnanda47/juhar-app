@@ -426,10 +426,12 @@ The API checks its environment at startup and refuses to start, naming the varia
 ```bash
 cd apps/api
 npx prisma generate
-npx prisma migrate dev
+npx prisma migrate deploy
 npx ts-node prisma/seed.ts    # Seeds 4 categories, 8 products, 11 variants, 1 admin
 cd ../..
 ```
+
+> **If `prisma migrate dev` fails with `P3014` ("could not create the shadow database"):** your database user is not allowed to create databases, and `migrate dev` needs that to compare migrations against a temporary database. To apply existing migrations, use `npx prisma migrate deploy` instead (it needs no extra permission). To create new migrations yourself, grant the permission once: `psql postgres -c "ALTER USER juhar CREATEDB;"` (run as your Postgres superuser).
 
 ### 6. The shared package
 
@@ -501,7 +503,7 @@ Check what changed (`git diff HEAD@{1} --stat`), then use this table. Dev server
 |----------------------|---------|---------|
 | Dependencies (`package.json`, `package-lock.json`) | Stop the dev servers, run `npm install` at the root (and in `apps/mobile` if its `package.json` changed) | Everything you stopped |
 | `packages/shared/src` | `npm run build -w packages/shared` | API |
-| `apps/api/prisma/schema.prisma` or a new migration | `cd apps/api && npx prisma migrate dev && npx prisma generate` | API and Prisma Studio |
+| `apps/api/prisma/schema.prisma` or a new migration | `cd apps/api && npx prisma migrate deploy && npx prisma generate` (applies the new migrations; safe to run when nothing is pending) | API and Prisma Studio |
 | `apps/api/.env.example` (new variables) | Copy the new variables into your own `apps/api/.env` | API |
 | `tsconfig.json`, `next.config.js`, `tailwind.config.ts` or `layout.tsx` in `apps/web` / `apps/admin` | — | That app's dev server |
 | Source files only in `apps/web`, `apps/admin`, `apps/mobile` | — | Nothing (hot reload) |
@@ -516,7 +518,8 @@ Check what changed (`git diff HEAD@{1} --stat`), then use this table. Dev server
 | `npm run dev:admin` | Root | Start admin panel |
 | `cd apps/mobile && npx expo start --web` | Root | Start mobile app (web preview) |
 | `cd apps/api && npx prisma studio` | Root | Visual database browser |
-| `cd apps/api && npx prisma migrate dev --name <name>` | Root | Create new migration |
+| `cd apps/api && npx prisma migrate deploy` | Root | Apply migrations that already exist (use this after `git pull`; no extra database permission needed) |
+| `cd apps/api && npx prisma migrate dev --name <name>` | Root | Create a new migration (needs the database user to be allowed to create databases, see Troubleshooting) |
 | `cd apps/api && npx prisma generate` | Root | Regenerate Prisma client |
 | `cd apps/api && npx ts-node prisma/seed.ts` | Root | Re-seed database |
 | `psql -U juhar -d juhar_dev` | Anywhere | Connect to database CLI |
