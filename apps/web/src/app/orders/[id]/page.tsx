@@ -45,7 +45,9 @@ export default function OrderDetailPage() {
             Order {order.publicNumber}
           </h1>
           <div className="flex items-center gap-2 mt-2">
-            <span className="badge bg-secondary-container/40 text-accent-dark">COD Order</span>
+            <span className="badge bg-secondary-container/40 text-accent-dark">
+              {order.paymentMode === 'cod' ? 'COD Order' : 'UPI Order'}
+            </span>
             <span className="text-text-tertiary">·</span>
             <span className="font-sans text-body-sm text-text-tertiary">
               {new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
