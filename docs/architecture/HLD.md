@@ -462,7 +462,7 @@ Push → Lint + Typecheck + Test (parallel) → Build → Deploy Staging (auto) 
 > API     npm ci → prisma generate → typecheck (shared + api) → test → build
 >         (Postgres 16 service container; JWT/DB env supplied for tests)
 > Web     npm ci → typecheck → next build
-> Admin   npm ci → typecheck → next build
+> Admin   npm ci → typecheck → test (Jest) → next build
 > Mobile  npm ci (inside apps/mobile) → tsc --noEmit
 > ```
 >
@@ -491,7 +491,7 @@ Push → Lint + Typecheck + Test (parallel) → Build → Deploy Staging (auto) 
 > - **OTP provider:** `AuthModule` always uses `MockOtpProvider` (fixed OTP `123456`, logged to the console). `OTP_PROVIDER` in `.env` is not read. Anyone can log in as any phone number, including the seeded admin, so this must be replaced before any real use.
 > - **OTP store:** hashed OTPs and attempt counts live in an in-memory map, so they reset on restart and do not work across multiple instances.
 > - **Rate limiting:** `ThrottlerModule` is configured and `POST /auth/otp/request` carries a `@Throttle` decorator, but no `ThrottlerGuard` is registered, so none of the limits above are enforced. The OTP per-attempt limit (5 per OTP) is enforced in `AuthService`.
-> - **Refresh tokens:** the API issues and verifies them (`POST /auth/refresh`), but the web, mobile and admin clients store the refresh token without using it. A session therefore ends when the 15-minute access token expires.
+> - **Refresh tokens:** the API issues and verifies them (`POST /auth/refresh`), and the admin panel uses it (on a 401 it refreshes once and repeats the request; a rejected refresh token returns to `/login`). The web and mobile clients store the refresh token without using it, so their sessions end when the 15-minute access token expires. Refresh tokens cannot be revoked.
 > - **Startup checks:** the API now refuses to start unless `DATABASE_URL`, `JWT_SECRET` and `JWT_REFRESH_SECRET` are set (`src/config/env.validation.ts`), naming the missing variables. `CORS_ORIGINS`, when set, replaces the built-in local origin list entirely.
 
 ---

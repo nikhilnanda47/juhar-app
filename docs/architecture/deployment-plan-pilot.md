@@ -414,7 +414,7 @@ PAYMENT_GATEWAY=mock
 > **Implementation status (2026-11-22):** Three items above are **not yet true in the code** and block a real launch:
 > - **Rate limiting on OTP endpoints:** configured but not enforced, because no throttler guard is registered.
 > - **OTP login:** the mock provider accepts the fixed code `123456` for any phone number, including admin numbers.
-> - **Sessions:** web, mobile and admin do not use the refresh token, so logins end after the 15-minute access token.
+> - **Sessions:** web and mobile do not use the refresh token, so their logins end after the 15-minute access token. The admin panel refreshes its login automatically (sessions last up to the 7-day refresh token).
 >
 > Required secrets are now enforced at startup: the API will not boot without `DATABASE_URL`, `JWT_SECRET` and `JWT_REFRESH_SECRET` (the 64+ character guidance above is still advice only; length is not checked).
 

@@ -108,6 +108,9 @@ jobs:
       - name: Typecheck
         run: npm run typecheck -w apps/admin
 
+      - name: Test
+        run: npm test -w apps/admin
+
       - name: Build
         run: npm run build -w apps/admin
 
