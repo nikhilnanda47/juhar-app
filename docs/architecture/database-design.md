@@ -210,6 +210,8 @@ One row per variant. Source of truth for stock levels.
 **Computed (app-level):** `available = on_hand - reserved - unavailable`  
 **Constraints:** `on_hand >= 0`, `reserved >= 0`, `unavailable >= 0`, `reserved + unavailable <= on_hand`
 
+> **Implementation status (2026-11-22):** The `CHECK` constraints above are not in the `init` migration (Prisma's schema cannot declare them; they need raw SQL in a migration). The invariants are enforced only in application code — `InventoryService.reserve` locks the row with `SELECT FOR UPDATE` and checks availability, and `adjustStock` rejects adjustments that would go below `reserved + unavailable`. Stock also does not yet settle after dispatch: `on_hand` is never decremented when an order ships. See *Known Issues* in the README.
+
 ---
 
 ### 3.8 inventory_reservations
@@ -229,6 +231,8 @@ Temporary stock holds created at checkout, released on expiry or cancellation.
 
 **Indexes:** `variant_id`, `order_id`, `status + expires_at` (for expiry worker)  
 **Constraint:** `qty > 0`
+
+> **Implementation status (2026-11-22):** Reservations are created as `held` and move to `released` (cancellation) or `expired` (expiry worker). Nothing sets `committed` yet, and the expiry worker expires every `held` reservation past `expires_at` regardless of the order's state, so a still-active COD order loses its stock hold after 24 hours.
 
 ---
 
@@ -282,6 +286,11 @@ Server-side cart. Prices are NOT stored — recalculated from variant on every r
 **Constraints:** All paise fields `>= 0`, `total_paise = subtotal_paise - discount_paise + shipping_paise + tax_paise`
 
 **Order statuses:** `placed`, `confirmed`, `packed`, `shipped`, `delivered`, `cancelled`, `return_requested`, `return_approved`, `return_rejected`, `returned`, `refund_pending`, `refunded`
+
+> **Implementation status (2026-11-22):**
+> - `public_number` is currently built from `count(orders) + 1`, which can collide under concurrent orders, and the code still emits the prefix `SAJ-` instead of `JUH-`. The target design is a database sequence with the `JUH-` prefix.
+> - `cancellation_reason` is stored for customer cancellations only. Admin cancellations (via the status endpoint) set `cancelled_at` but no reason.
+> - Statuses after `delivered` (returns and refunds) exist in the schema and state machine, and the admin status endpoint would accept those transitions, but there is no customer return flow, no admin UI, and no restock or refund side effects yet.
 
 ---
 
@@ -519,6 +528,8 @@ admin_users ──1:N──> audit_events (actor_id)
 
 ## 6. Data Integrity Rules
 
+> **Implementation status (2026-11-22):** Rules marked `CHECK` below are the target design. The `init` migration contains no `CHECK` constraints, so today they are enforced in application code only. Unique constraints, foreign keys and the `SELECT FOR UPDATE` reservation lock are in place.
+
 | Rule | Enforcement |
 |---|---|
 | Stock cannot go negative | CHECK constraint: `on_hand >= 0`, `reserved >= 0` |
@@ -540,3 +551,5 @@ admin_users ──1:N──> audit_events (actor_id)
 - Every migration tested with rollback in staging before production
 - Destructive changes (column drops) deferred to separate migration after verification
 - Seed script for development with sample categories, products, variants, and inventory
+
+> **Implementation status (2026-11-22):** One migration exists (`20261113122754_init`, all 18 tables). Run `npx prisma generate` after pulling schema changes and `npx prisma migrate dev` to apply new migrations locally. Planned migrations: a sequence for order numbers and the `CHECK` constraints in section 6.
