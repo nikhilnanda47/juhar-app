@@ -97,8 +97,8 @@ export default function CartScreen() {
         <ShoppingBag size={48} color={colors.textTertiary} strokeWidth={1.5} />
         <Text style={styles.emptyTitle}>Your bag is empty</Text>
         <Text style={styles.emptySubtext}>Browse our collection and add something you love.</Text>
-        <TouchableOpacity style={styles.outlineBtn} onPress={() => navigation.navigate('Shop')}>
-          <Text style={styles.outlineBtnText}>Start Shopping</Text>
+        <TouchableOpacity style={styles.primaryBtn} onPress={() => navigation.navigate('Shop')}>
+          <Text style={styles.primaryBtnText}>Start Shopping</Text>
         </TouchableOpacity>
       </View>
     );
