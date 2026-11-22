@@ -128,7 +128,7 @@ Open items as of 2026-11-22, grouped by urgency. The team tracker holds owners a
 - A few mobile screens (product detail, welcome) use fixed colours that need a visual check in dark mode.
 
 ### Engineering hygiene
-- Test coverage is just starting: the order state machine and stock reservation (reserve, release, adjust, expiry job) have tests (`npm test -w apps/api`). Checkout totals and the rest of the API are not covered yet. The reservation tests use a fake database, so they cannot prove real concurrent locking; that needs a test against Postgres.
+- Test coverage is early: the order state machine, stock reservation (reserve, release, adjust, expiry job) and checkout (quote, order placement, shipping and totals) have tests (`npm test -w apps/api`). Auth, cart, the orders service, products and the web, admin and mobile apps are not covered yet. These tests use a fake database, so they cannot prove real concurrent locking or real SQL; that needs a test against Postgres.
 - No ESLint configuration, so the `lint` scripts do not run.
 - Some mobile and web screens call the API with raw `fetch` and their own copy of `API_BASE` instead of the shared API client.
 - The cart badge polls the server every 2–3 seconds.
