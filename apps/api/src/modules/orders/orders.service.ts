@@ -165,6 +165,10 @@ export class OrdersService {
    * Admin: update order status with state machine validation.
    */
   async updateStatus(orderId: string, dto: UpdateOrderStatusDto, adminId: string) {
+    if (dto.status === OrderStatus.CANCELLED && !dto.reason?.trim()) {
+      throw new BadRequestException('A cancellation reason is required');
+    }
+
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
     });
@@ -213,6 +217,7 @@ export class OrdersService {
           break;
         case OrderStatus.CANCELLED:
           data.cancelledAt = new Date();
+          data.cancellationReason = dto.reason?.trim();
           // Release reservations
           const reservations = await tx.inventoryReservation.findMany({
             where: { orderId, status: { in: ['held', 'committed'] } },
@@ -238,7 +243,10 @@ export class OrdersService {
           actorType: 'admin',
           actorId: adminId,
           beforeState: { status: order.status } as any,
-          afterState: { status: dto.status } as any,
+          afterState: {
+            status: dto.status,
+            ...(dto.status === OrderStatus.CANCELLED ? { reason: dto.reason?.trim() } : {}),
+          } as any,
         },
       });
 

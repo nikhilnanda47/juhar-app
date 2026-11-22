@@ -80,7 +80,7 @@ describe('OrdersService.updateStatus and stock', () => {
   describe('cancelling', () => {
     it.each(['placed', 'confirmed'])('gives back every active hold of a %s order', async (from) => {
       const { service, inventory, tx } = setup(from);
-      await changeTo(service, 'cancelled');
+      await changeTo(service, 'cancelled', { reason: 'Customer unreachable' });
 
       expect(tx.inventoryReservation.findMany).toHaveBeenCalledWith({
         where: { orderId: 'order-1', status: { in: ['held', 'committed'] } },
@@ -88,6 +88,51 @@ describe('OrdersService.updateStatus and stock', () => {
       expect(inventory.releaseReservation).toHaveBeenCalledWith(tx, 'res-1');
       expect(inventory.releaseReservation).toHaveBeenCalledWith(tx, 'res-2');
     });
+
+    it('stores the reason on the order together with the cancel time', async () => {
+      const { service, tx } = setup('placed');
+      await changeTo(service, 'cancelled', { reason: 'Customer unreachable' });
+
+      expect(tx.order.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: 'cancelled', cancellationReason: 'Customer unreachable', cancelledAt: expect.any(Date) }),
+        }),
+      );
+    });
+
+    it('trims spaces around the reason', async () => {
+      const { service, tx } = setup('placed');
+      await changeTo(service, 'cancelled', { reason: '  Out of stock  ' });
+      expect(tx.order.update.mock.calls[0][0].data.cancellationReason).toBe('Out of stock');
+    });
+
+    it.each([[undefined], [''], ['   ']])('refuses a cancellation with the reason %p, before reading or changing anything', async (reason) => {
+      const { service, prisma, inventory } = setup('placed');
+
+      await expect(changeTo(service, 'cancelled', { reason })).rejects.toThrow('A cancellation reason is required');
+
+      expect(prisma.order.findUnique).not.toHaveBeenCalled();
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+      expect(inventory.releaseReservation).not.toHaveBeenCalled();
+    });
+
+    it('records the reason in the audit entry', async () => {
+      const { service, tx } = setup('confirmed');
+      await changeTo(service, 'cancelled', { reason: 'Customer unreachable' });
+
+      expect(tx.auditEvent.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          beforeState: { status: 'confirmed' },
+          afterState: { status: 'cancelled', reason: 'Customer unreachable' },
+        }),
+      });
+    });
+  });
+
+  it('does not store a cancellation reason for other status changes', async () => {
+    const { service, tx } = setup('placed');
+    await changeTo(service, 'confirmed', { reason: 'ignored' });
+    expect(tx.order.update.mock.calls[0][0].data).not.toHaveProperty('cancellationReason');
   });
 
   describe('rules', () => {
@@ -101,7 +146,7 @@ describe('OrdersService.updateStatus and stock', () => {
 
     it('refuses to cancel an order that is already shipped', async () => {
       const { service, inventory, prisma } = setup('shipped');
-      await expect(changeTo(service, 'cancelled')).rejects.toThrow('Cannot transition from "shipped" to "cancelled"');
+      await expect(changeTo(service, 'cancelled', { reason: 'Too late' })).rejects.toThrow('Cannot transition from "shipped" to "cancelled"');
       expect(prisma.$transaction).not.toHaveBeenCalled();
       expect(inventory.releaseReservation).not.toHaveBeenCalled();
     });

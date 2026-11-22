@@ -1,4 +1,5 @@
-import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, IsString, MaxLength, ValidateIf } from 'class-validator';
+import { Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { OrderStatus } from '@juhar/shared';
 
@@ -18,6 +19,14 @@ export class UpdateOrderStatusDto {
   @IsString()
   @MaxLength(100)
   courierName?: string;
+
+  @ApiPropertyOptional({ description: 'Why the order is cancelled (required when status is "cancelled")', maxLength: 255 })
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @ValidateIf((o) => o.status === OrderStatus.CANCELLED)
+  @IsString()
+  @IsNotEmpty({ message: 'A cancellation reason is required' })
+  @MaxLength(255)
+  reason?: string;
 }
 
 export class CancelOrderDto {
