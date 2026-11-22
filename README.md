@@ -118,7 +118,7 @@ Open items as of 2026-11-22, grouped by urgency. The team tracker holds owners a
 - **Price sorting** (`price_asc` / `price_desc`) only sorts within each page of results.
 - **Cash-on-delivery stock holds do not expire.** A COD order reserves its units until an admin confirms, ships or cancels it, so an order nobody acts on keeps that stock locked and nothing flags it yet. Unpaid UPI holds still expire after 30 minutes, but that does not cancel the order (payments are Phase 4).
 - **Order numbers can skip.** They come from a database sequence (`order_number_seq`), so a number used by an order that then fails is not reused. Orders placed before the `JUH-` rename keep their old `SAJ-` numbers.
-- **Cancellations.** Customer cancellations write no audit event (admin cancellations do).
+- **Cancellations.** Customer-side order cancellation is out of scope for now (in discovery). An API endpoint for it exists but no app uses it, and it writes no audit entry (admin cancellations do).
 - **Support number.** The "Need help?" link on the web order page uses a placeholder WhatsApp number (WhatsApp integration is pending).
 - **Database `CHECK` constraints** described in `docs/architecture/database-design.md` (non-negative stock, positive quantities) are not in the migration; they are enforced in application code only.
 
