@@ -377,7 +377,7 @@ PAYMENT_GATEWAY=mock
 - [ ] Run seed script for initial admin user
 - [ ] Configure CORS origins for production domains
 
-> **CI note (2026-11-22):** GitHub Actions already typechecks and builds the API, web, admin and mobile apps on every push to `main` or `develop-*` and on pull requests into `main`. It does not deploy, and it is not yet a required check on `main`. See HLD section 8 for the job details. Before each release, confirm the latest CI run on the commit is green.
+> **CI note (2026-11-22):** GitHub Actions already typechecks and builds the API, web, admin and mobile apps on every push to `main` or `develop-*` and on pull requests into `main`. It does not deploy. The `build` gate job is a required check on `main` through the `main-protection` ruleset (which also requires a pull request with 1 approving review). See HLD section 8 for the job details. Before each release, confirm the latest CI run on the commit is green.
 
 ### Per-Release Deployment
 

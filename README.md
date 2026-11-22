@@ -266,7 +266,9 @@ GitHub Actions (`.github/workflows/ci.yml`) runs four jobs in parallel on Node 2
 | Admin | Typecheck and `next build` |
 | Mobile | `npm ci` inside `apps/mobile` (it is not an npm workspace), then typecheck |
 
-It runs on pushes to `main` and `develop-*`, on pull requests into `main`, and manually from the Actions tab. A newer push cancels the older run on the same branch. Requiring green checks before merging into `main` is a GitHub repository setting (Settings → Branches) and is not enabled yet.
+It runs on pushes to `main` and `develop-*`, on pull requests into `main`, and manually from the Actions tab. A newer push cancels the older run on the same branch. A fifth job named `build` is a gate that depends on the other four and fails unless they all pass.
+
+`main` is protected by a repository ruleset (`main-protection`): changes must come through a pull request with 1 approving review and a passing `build` check, and `main` cannot be deleted or force-pushed. The gate job exists because the ruleset requires a check with exactly that name; if you rename or remove it, pull requests can no longer be merged until the ruleset is updated.
 
 To run the same checks locally:
 

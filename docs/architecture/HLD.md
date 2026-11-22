@@ -469,7 +469,7 @@ Push → Lint + Typecheck + Test (parallel) → Build → Deploy Staging (auto) 
 > - `npm ci` at the repo root also runs the `postinstall` that builds `packages/shared` into `dist/`.
 > - Mobile has its own install because `apps/mobile` is not part of the root npm workspaces (Expo needs an isolated `node_modules`).
 > - There is no lint step (no ESLint config exists yet), and the API test job passes without running any tests (`jest --passWithNoTests`; no tests exist yet).
-> - Making these checks required before merging into `main` is a GitHub branch-protection setting. It is not configured yet.
+> - A fifth job, `build`, depends on the four above and fails unless they all succeeded. The repository ruleset `main-protection` requires a check with exactly that name, plus a pull request with 1 approving review, and blocks deletion and force-pushes on `main`. Renaming or removing the `build` job would make pull requests unmergeable until the ruleset is updated.
 
 ---
 
