@@ -2875,7 +2875,9 @@ paths:
         Implemented side effects:
         - shipped: when `trackingId` is sent, creates a shipment (carrier = `courierName`, default "Manual")
         - delivered: marks the shipment delivered
-        - cancelled: releases the held inventory reservations
+        - confirmed: the order's held inventory reservations become committed
+        - shipped: takes the shipped units off `on_hand` and releases the matching holds; responds `409 STOCK_MISMATCH` (and changes nothing) if `on_hand` is lower than an order line needs
+        - cancelled: releases the held/committed inventory reservations
 
         **Cancellation:** allowed only from `placed` or `confirmed` (the state machine has no
         cancel transition from `packed` onwards). The request currently has **no reason field**,

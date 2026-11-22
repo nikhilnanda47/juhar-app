@@ -113,10 +113,10 @@ Open items as of 2026-11-22, grouped by urgency. The team tracker holds owners a
 - **Mock login.** OTP login uses a mock provider that always accepts `123456`, so anyone can sign in as any phone number, including the seeded admin. The `OTP_PROVIDER` environment variable is not read yet, and OTP codes are kept in server memory (lost on restart, not shared across instances).
 - **Rate limiting is not enforced.** The throttler is configured, and the OTP endpoint is annotated, but no throttler guard is registered.
 - **Web and mobile sessions end after 15 minutes.** They store the refresh token but never call `/auth/refresh`. The admin panel already renews its login automatically (up to 7 days).
-- **Stock does not settle.** Reservations are never committed and `on_hand` is not decremented when an order ships, while the expiry job releases held reservations (24 hours for COD) even for live orders. This risks overselling.
 
 ### Orders and catalog
 - **Price sorting** (`price_asc` / `price_desc`) only sorts within each page of results.
+- **Cash-on-delivery stock holds do not expire.** A COD order reserves its units until an admin confirms, ships or cancels it, so an order nobody acts on keeps that stock locked and nothing flags it yet. Unpaid UPI holds still expire after 30 minutes, but that does not cancel the order (payments are Phase 4).
 - **Order numbers can skip.** They come from a database sequence (`order_number_seq`), so a number used by an order that then fails is not reused. Orders placed before the `JUH-` rename keep their old `SAJ-` numbers.
 - **Cancellations.** Customer cancellations write no audit event. Admins cannot cancel from the admin panel, and the API stores no cancellation reason for admin cancels.
 - **Support number.** The "Need help?" link on the web order page uses a placeholder WhatsApp number (WhatsApp integration is pending).
@@ -128,7 +128,7 @@ Open items as of 2026-11-22, grouped by urgency. The team tracker holds owners a
 - A few mobile screens (product detail, welcome) use fixed colours that need a visual check in dark mode.
 
 ### Engineering hygiene
-- Test coverage is early: the order state machine, stock reservation (reserve, release, adjust, expiry job) and checkout (quote, order placement, shipping and totals) have tests (`npm test -w apps/api`). The admin API client's token refresh is also tested (`npm test -w apps/admin`). Auth, cart, the orders service, products and the web and mobile apps are not covered yet. These tests use a fake database, so they cannot prove real concurrent locking or real SQL; that needs a test against Postgres.
+- Test coverage is early: the order state machine, stock (reserve, release, commit, ship, adjust, expiry job), admin order status changes and checkout (quote, order placement, shipping and totals) have tests (`npm test -w apps/api`). The admin API client's token refresh is also tested (`npm test -w apps/admin`). Auth, cart, the orders service, products and the web and mobile apps are not covered yet. These tests use a fake database, so they cannot prove real concurrent locking or real SQL; that needs a test against Postgres.
 - No ESLint configuration, so the `lint` scripts do not run.
 - Some mobile and web screens call the API with raw `fetch` and their own copy of `API_BASE` instead of the shared API client.
 - The cart badge polls the server every 2–3 seconds.
@@ -245,7 +245,7 @@ Full spec: [`docs/api/openapi.yaml`](docs/api/openapi.yaml)
 - **State machine enforcement** — server validates every order status transition
 - **Audit trail** — every admin mutation logged with actor + before/after state
 - **RBAC guards** — owner bypasses all, role-specific access for others
-- **Reservation expiry** — cron releases held stock every minute
+- **Stock lifecycle** — placing an order reserves units; confirming commits the hold; shipping takes the units off `on_hand` and releases the hold; cancelling (while placed or confirmed) gives the units back. A cron job expires only non-COD holds, every minute
 
 ## Theming (Light / Dark Mode)
 

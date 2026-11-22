@@ -567,11 +567,13 @@ Admin                    API                           S3
 
 **Purpose:** Stock tracking with atomic reservations.
 
-> **Implementation status (2026-11-22):** `getStock`, `getStockBulk`, `adjustStock` (audited), `reserve` (row lock via `SELECT … FOR UPDATE`), `releaseReservation` and the every-minute expiry cron exist in `inventory.service.ts` and `reservation-expiry.cron.ts`. There is no separate `reservation.service.ts`. Stock does **not** settle yet:
-> - **Design:** the reservation becomes `committed` when the order is confirmed and "stays reserved until fulfillment" (3.1, 3.2). The design does not spell out the final `on_hand` deduction, but the return restock (`on_hand += qty`) assumes one happens.
-> - **Code:** `commitReservation` is never called, and nothing decrements `on_hand` (only the admin `adjustStock` changes it). Reservations therefore stay `held` through confirm, pack and ship.
-> - **Consequence (oversell risk):** the cron releases every `held` reservation whose `expires_at` has passed (24 h for COD), including those of live `confirmed`, `packed` or `shipped` orders, which returns already-sold stock to the available pool.
-> - Cancelling an order does release its `held`/`committed` reservations correctly.
+> **Implementation status (2026-11-22):** `getStock`, `getStockBulk`, `adjustStock` (audited), `reserve` (row lock via `SELECT … FOR UPDATE`), `releaseReservation`, `commitOrderReservations`, `settleShipment` and the every-minute expiry cron exist in `inventory.service.ts` and `reservation-expiry.cron.ts`. There is no separate `reservation.service.ts`. Stock lifecycle as built:
+> - **Place order:** units are reserved (`reserved += qty`), reservation `held`.
+> - **Confirm** (`OrdersService.updateStatus`): `commitOrderReservations` turns the order's `held` reservations into `committed`. Numbers do not change.
+> - **Ship:** `settleShipment` runs inside the status transaction, before the shipment row is created. Per order line it locks the stock row, then `on_hand -= qty` and `reserved -= quantity still held` (0 if the hold had already expired or been released), and marks the holds `fulfilled`. If `on_hand` is lower than the line quantity it throws `409 STOCK_MISMATCH` and the whole status change rolls back (the order stays `packed`), so the admin must correct the stock count first.
+> - **Cancel** (placed or confirmed only): `releaseReservation` gives back every `held`/`committed` hold (`reserved -= qty`), status `released`.
+> - **Expiry job:** expires `held` reservations past `expires_at` **except those of cash-on-delivery orders**, which stay until an admin confirms, ships or cancels the order (decision, 2026-11-22). Reservations with no order and non-COD holds (the future UPI flow) still expire. Expiring a UPI hold does not yet cancel its order; Phase 4 payments should do that.
+> - **Known limits:** an unconfirmed COD order holds its stock indefinitely and nothing flags stale ones; `commitReservation(reservationId, orderId)` (single hold) exists but the order flow uses `commitOrderReservations`.
 > - Admin routes in code: `GET /admin/inventory/:variantId` and `POST /admin/inventory/adjust` (the adjust route is restricted to `owner` and `catalog_editor`).
 
 ```
@@ -952,7 +954,7 @@ async placeOrder(userId: string, dto: PlaceOrderDto) {
 > - The state machine is in `packages/shared` (`ORDER_TRANSITIONS`, `canTransitionOrder`), not `modules/orders/order-state-machine.ts`.
 > - **Customer endpoints:** `GET /orders`, `GET /orders/:id` (items and shipments; payments are not included) and `POST /orders/:id/cancel`. Cancel works for `placed`/`confirmed` only, releases `held`/`committed` reservations and stores `cancellation_reason`, but writes **no audit event**. `POST /orders/:id/return` is not implemented.
 > - **Admin endpoints:** `GET /admin/orders` (filter by `status`; `search` matches order number or phone; no date range) and `PATCH /admin/orders/:id/status` (roles `owner`, `fulfillment_operator`; transition validated; audit event written).
-> - **Side effects implemented:** `confirmed_at`/`packed_at`/`shipped_at`/`delivered_at`/`cancelled_at` timestamps; a shipment row on ship (only when a `trackingId` is sent); shipments marked delivered; reservations released on cancel. **Not implemented:** refunds, customer notifications, the 7-day return-window check, restock on return, refund creation.
+> - **Side effects implemented:** `confirmed_at`/`packed_at`/`shipped_at`/`delivered_at`/`cancelled_at` timestamps; a shipment row on ship (only when a `trackingId` is sent); shipments marked delivered; reservations released on cancel; holds committed on confirm; stock taken off `on_hand` on ship (`409 STOCK_MISMATCH` if the shelf count is too low). **Not implemented:** refunds, customer notifications, the 7-day return-window check, restock on return, refund creation.
 > - **Admin cancellation:** the API accepts `status: "cancelled"` for `placed`/`confirmed` orders, but `UpdateOrderStatusDto` has no `reason` field, so no `cancellation_reason` is stored for admin cancels. The admin panel has no Cancel button (its Orders page offers only Confirm → Pack → Ship → Deliver).
 > - **Return/refund statuses** can be set through the admin endpoint (the state machine allows them) but the admin panel has no UI for them. The web order screens display them; the mobile order detail does not yet (it only special-cases `cancelled`).
 

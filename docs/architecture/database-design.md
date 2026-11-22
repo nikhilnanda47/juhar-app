@@ -210,7 +210,7 @@ One row per variant. Source of truth for stock levels.
 **Computed (app-level):** `available = on_hand - reserved - unavailable`  
 **Constraints:** `on_hand >= 0`, `reserved >= 0`, `unavailable >= 0`, `reserved + unavailable <= on_hand`
 
-> **Implementation status (2026-11-22):** The `CHECK` constraints above are not in the `init` migration (Prisma's schema cannot declare them; they need raw SQL in a migration). The invariants are enforced only in application code — `InventoryService.reserve` locks the row with `SELECT FOR UPDATE` and checks availability, and `adjustStock` rejects adjustments that would go below `reserved + unavailable`. Stock also does not yet settle after dispatch: `on_hand` is never decremented when an order ships. See *Known Issues* in the README.
+> **Implementation status (2026-11-22):** The `CHECK` constraints above are not in the `init` migration (Prisma's schema cannot declare them; they need raw SQL in a migration). The invariants are enforced only in application code — `InventoryService.reserve` locks the row with `SELECT FOR UPDATE` and checks availability, and `adjustStock` rejects adjustments that would go below `reserved + unavailable`. Stock settles when an order ships: `InventoryService.settleShipment` decrements `on_hand` and the held part of `reserved` under the row lock, and refuses (`STOCK_MISMATCH`) if `on_hand` is too low.
 
 ---
 
@@ -224,15 +224,15 @@ Temporary stock holds created at checkout, released on expiry or cancellation.
 | variant_id | UUID | FK → product_variants.id, NOT NULL | |
 | order_id | UUID | FK → orders.id, NULL | Set when order is created |
 | qty | INT | NOT NULL | Quantity reserved |
-| status | VARCHAR(20) | NOT NULL, DEFAULT 'held' | held, committed, released, expired |
-| expires_at | TIMESTAMPTZ | NOT NULL | 30 min for UPI; 24 hours for COD |
+| status | VARCHAR(20) | NOT NULL, DEFAULT 'held' | held, committed, released, expired, fulfilled |
+| expires_at | TIMESTAMPTZ | NOT NULL | 30 min for UPI; 24 hours for COD (for COD this is only a review window: the expiry job does not release COD holds) |
 | created_at | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | |
 | updated_at | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | |
 
 **Indexes:** `variant_id`, `order_id`, `status + expires_at` (for expiry worker)  
 **Constraint:** `qty > 0`
 
-> **Implementation status (2026-11-22):** Reservations are created as `held` and move to `released` (cancellation) or `expired` (expiry worker). Nothing sets `committed` yet, and the expiry worker expires every `held` reservation past `expires_at` regardless of the order's state, so a still-active COD order loses its stock hold after 24 hours.
+> **Implementation status (2026-11-22):** A reservation is created `held`. Confirming the order makes it `committed`; shipping makes it `fulfilled` (the units have left `on_hand`); cancelling makes it `released`; the expiry worker makes a non-COD `held` reservation past `expires_at` `expired`. Cash-on-delivery holds are never expired by the worker: they stay until an admin confirms, ships or cancels the order.
 
 ---
 
