@@ -91,7 +91,54 @@ class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+// Sign-in and token-refresh calls must never trigger a refresh themselves.
+const NO_REFRESH_PATHS = [
+  '/api/v1/auth/otp/request',
+  '/api/v1/auth/otp/verify',
+  '/api/v1/auth/refresh',
+];
+
+// One refresh at a time: calls that fail together share the same attempt.
+let refreshing: Promise<boolean> | null = null;
+
+function refreshAccessToken(): Promise<boolean> {
+  if (!refreshing) {
+    refreshing = doRefresh().finally(() => { refreshing = null; });
+  }
+  return refreshing;
+}
+
+async function doRefresh(): Promise<boolean> {
+  let refreshToken: string | null = null;
+  try {
+    refreshToken = await AsyncStorage.getItem(REFRESH_KEY);
+  } catch {
+    return false;
+  }
+  if (!refreshToken) return false;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    });
+    const json = await res.json();
+    if (json.success && json.data?.accessToken) {
+      accessToken = json.data.accessToken;
+      try { await AsyncStorage.setItem(TOKEN_KEY, json.data.accessToken); } catch { /* still usable in memory */ }
+      return true;
+    }
+    // The server rejected the refresh token: the session is over.
+    if (res.status === 401) await clearTokens();
+    return false;
+  } catch {
+    // Network trouble: keep the tokens so a later attempt can still work.
+    return false;
+  }
+}
+
+async function request<T>(path: string, options: RequestInit = {}, retried = false): Promise<T> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...((options.headers as Record<string, string>) || {}),
@@ -103,6 +150,11 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
   const json: ApiResponse<T> = await res.json();
+
+  // Access token expired: renew it once and repeat the call.
+  if (res.status === 401 && !retried && !NO_REFRESH_PATHS.includes(path)) {
+    if (await refreshAccessToken()) return request<T>(path, options, true);
+  }
 
   if (!json.success) {
     const err = (json as any).error || { code: 'UNKNOWN', message: 'Request failed' };

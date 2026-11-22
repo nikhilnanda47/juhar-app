@@ -1554,6 +1554,11 @@ paths:
     post:
       tags: [Auth]
       summary: Refresh access token
+      description: >-
+        The admin, web and mobile API clients call this automatically when an access
+        token expires (a 401 on any other call) and then repeat the failed request.
+        A 401 here means the refresh token is invalid or expired and the user must
+        sign in again.
       operationId: refreshToken
       requestBody:
         required: true

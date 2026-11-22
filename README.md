@@ -112,7 +112,6 @@ Open items as of 2026-11-22, grouped by urgency. The team tracker holds owners a
 ### Security and reliability — fix before real users
 - **Mock login.** OTP login uses a mock provider that always accepts `123456`, so anyone can sign in as any phone number, including the seeded admin. The `OTP_PROVIDER` environment variable is not read yet, and OTP codes are kept in server memory (lost on restart, not shared across instances).
 - **Rate limiting is not enforced.** The throttler is configured, and the OTP endpoint is annotated, but no throttler guard is registered.
-- **Web and mobile sessions end after 15 minutes.** They store the refresh token but never call `/auth/refresh`. The admin panel already renews its login automatically (up to 7 days).
 
 ### Orders and catalog
 - **Price sorting** (`price_asc` / `price_desc`) only sorts within each page of results.
@@ -128,7 +127,7 @@ Open items as of 2026-11-22, grouped by urgency. The team tracker holds owners a
 - A few mobile screens (product detail, welcome) use fixed colours that need a visual check in dark mode.
 
 ### Engineering hygiene
-- Test coverage is early: the order state machine, stock (reserve, release, commit, ship, adjust, expiry job), admin order status changes and checkout (quote, order placement, shipping and totals) have tests (`npm test -w apps/api`). The admin API client's token refresh is also tested (`npm test -w apps/admin`). Auth, cart, the orders service, products and the web and mobile apps are not covered yet. These tests use a fake database, so they cannot prove real concurrent locking or real SQL; that needs a test against Postgres.
+- Test coverage is early: the order state machine, stock (reserve, release, commit, ship, adjust, expiry job), admin order status changes and checkout (quote, order placement, shipping and totals) have tests (`npm test -w apps/api`). The automatic token refresh in the admin, web and mobile API clients is also tested (`npm test -w apps/admin`, `npm test -w apps/web`, and `npm test` inside `apps/mobile`). Auth, cart, the orders service, products and the web and mobile screens are not covered yet. These tests use a fake database, so they cannot prove real concurrent locking or real SQL; that needs a test against Postgres.
 - No ESLint configuration, so the `lint` scripts do not run.
 - The cart badge polls the server every 2–3 seconds.
 - The shipping rate and free-shipping threshold are duplicated between the API and the mobile cart screen.
@@ -261,9 +260,9 @@ GitHub Actions (`.github/workflows/ci.yml`) runs four jobs in parallel on Node 2
 | Job | What it checks |
 |-----|----------------|
 | API | Install, Prisma generate, apply migrations and check the schema matches them (against a Postgres service), typecheck (shared + API), tests, build |
-| Web | Typecheck and `next build` |
+| Web | Typecheck, tests and `next build` |
 | Admin | Typecheck, tests and `next build` |
-| Mobile | `npm ci` inside `apps/mobile` (it is not an npm workspace), then typecheck |
+| Mobile | `npm ci` inside `apps/mobile` (it is not an npm workspace), then typecheck and tests |
 
 It runs on pushes to `main` and `develop-*`, on pull requests into `main`, and manually from the Actions tab. A newer push cancels the older run on the same branch. A fifth job named `build` is a gate that depends on the other four and fails unless they all pass.
 
@@ -272,10 +271,10 @@ It runs on pushes to `main` and `develop-*`, on pull requests into `main`, and m
 To run the same checks locally:
 
 ```bash
-npm run typecheck -w apps/web && npm run build -w apps/web
+npm run typecheck -w apps/web && npm test -w apps/web && npm run build -w apps/web
 npm run typecheck -w apps/admin && npm test -w apps/admin && npm run build -w apps/admin
 npm run typecheck -w apps/api
-(cd apps/mobile && npm run typecheck)
+(cd apps/mobile && npm run typecheck && npm test)
 ```
 
 ## Development Roadmap

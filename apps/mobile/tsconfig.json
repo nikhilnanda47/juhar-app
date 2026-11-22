@@ -4,7 +4,7 @@
     "strict": true,
     "jsx": "react-jsx",
     "typeRoots": ["./node_modules/@types"],
-    "types": ["react"]
+    "types": ["react", "jest", "node"]
   },
   "include": ["**/*.ts", "**/*.tsx", "src/**/*", "App.tsx"]
 }

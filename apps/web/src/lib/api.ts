@@ -36,13 +36,61 @@ export function clearTokens() {
 }
 
 // ── Generic request ──
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+// Sign-in and token-refresh calls must never trigger a refresh themselves.
+const NO_REFRESH_PATHS = [
+  '/api/v1/auth/otp/request',
+  '/api/v1/auth/otp/verify',
+  '/api/v1/auth/refresh',
+];
+
+// One refresh at a time: calls that fail together share the same attempt.
+let refreshing: Promise<boolean> | null = null;
+
+function refreshAccessToken(): Promise<boolean> {
+  if (!refreshing) {
+    refreshing = doRefresh().finally(() => { refreshing = null; });
+  }
+  return refreshing;
+}
+
+async function doRefresh(): Promise<boolean> {
+  if (typeof window === 'undefined') return false;
+  const refreshToken = localStorage.getItem('juhar_refresh_token');
+  if (!refreshToken) return false;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    });
+    const json = await res.json();
+    if (json.success && json.data?.accessToken) {
+      setToken(json.data.accessToken);
+      return true;
+    }
+    // The server rejected the refresh token: the session is over.
+    if (res.status === 401) clearTokens();
+    return false;
+  } catch {
+    // Network trouble: keep the tokens so a later attempt can still work.
+    return false;
+  }
+}
+
+async function request<T>(path: string, options: RequestInit = {}, retried = false): Promise<T> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
   };
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
   const json = await res.json();
+
+  // Access token expired: renew it once and repeat the call.
+  if (res.status === 401 && !retried && !NO_REFRESH_PATHS.includes(path)) {
+    if (await refreshAccessToken()) return request<T>(path, options, true);
+  }
+
   if (!json.success) {
     const message = json.error?.message || 'Request failed';
     const details = Array.isArray(json.error?.details) ? json.error.details.join('; ') : '';
