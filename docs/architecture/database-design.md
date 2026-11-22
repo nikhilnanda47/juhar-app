@@ -289,7 +289,7 @@ Server-side cart. Prices are NOT stored — recalculated from variant on every r
 
 > **Implementation status (2026-11-22):**
 > - `public_number` is `JUH-YYYYMMDD-NNNN`, where `NNNN` comes from the PostgreSQL sequence `order_number_seq` (`nextval`). It counts across all days (it does not restart daily), is safe for orders placed at the same moment, and can skip a number when an order fails after taking one. Orders placed before the rename may carry the old `SAJ-` prefix and are left unchanged.
-> - `cancellation_reason` is stored for customer cancellations only. Admin cancellations (via the status endpoint) set `cancelled_at` but no reason.
+> - `cancellation_reason` is stored for both customer cancellations and admin cancellations (the admin status endpoint requires a reason when cancelling).
 > - Statuses after `delivered` (returns and refunds) exist in the schema and state machine, and the admin status endpoint would accept those transitions, but there is no customer return flow, no admin UI, and no restock or refund side effects yet.
 
 ---

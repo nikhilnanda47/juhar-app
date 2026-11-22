@@ -206,7 +206,7 @@ Users can browse and add to cart without logging in:
 | Reports | Orders, GMV, COD pending, refunds, stock summary, top products |
 | Settings | Admin user management, role assignment |
 
-> **Implementation status (2026-11-22):** Built: OTP login, dashboard (stats + recent orders), categories (list/create/activate), product catalog (list, create with variants, publish/unpublish), inventory (view only) and orders (search/filter; confirm → pack → ship with tracking ID → deliver). **Not built:** product edit, manual stock adjustment UI (the API endpoint exists), order detail page, **cancelling an order** (the API supports it from placed/confirmed, but the panel has no cancel action and the API stores no admin cancellation reason), returns and refunds, customers, reports, settings/RBAC management. The panel is light-theme only.
+> **Implementation status (2026-11-22):** Built: OTP login, dashboard (stats + recent orders), categories (list/create/activate), product catalog (list, create with variants, publish/unpublish), inventory (view only) and orders (search/filter; confirm → pack → ship with tracking ID → deliver; cancel a placed or confirmed order with a required reason). **Not built:** product edit, manual stock adjustment UI (the API endpoint exists), order detail page, returns and refunds, customers, reports, settings/RBAC management. The panel is light-theme only.
 
 ### 3.6 Shared Package (`packages/shared`)
 

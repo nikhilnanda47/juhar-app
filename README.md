@@ -64,7 +64,7 @@ Juhar is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce pl
 | 11 | Account — split-panel login, profile with sidebar (desktop) | ✅ |
 | 12 | Light / dark mode — toggle in the desktop header and the Account menu; choice is remembered, no flash on load | ✅ |
 
-### Admin Panel (Web) — 14 features working
+### Admin Panel (Web) — 15 features working
 
 | # | Feature | Status |
 |---|---------|--------|
@@ -82,13 +82,13 @@ Juhar is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce pl
 | 12 | Confirm → Pack → Ship → Deliver order status flow | ✅ |
 | 13 | Ship with tracking ID and courier name | ✅ |
 | 14 | Logout | ✅ |
+| 15 | Cancel a placed or confirmed order with a required reason (releases the reserved stock) | ✅ |
 
 ### Not Yet Built
 
 | Feature | Planned Phase |
 |---------|--------------|
 | Real OTP/SMS provider (login currently uses a mock that accepts `123456`) | Before launch |
-| Admin: cancel an order (UI + cancellation reason) | Phase 3.5 |
 | Dark mode for the admin panel; follow the device's light/dark setting | Post-pilot |
 | Real product images (using placeholders) | Phase 5 |
 | UPI/online payment | Phase 4 |
@@ -118,7 +118,7 @@ Open items as of 2026-11-22, grouped by urgency. The team tracker holds owners a
 - **Price sorting** (`price_asc` / `price_desc`) only sorts within each page of results.
 - **Cash-on-delivery stock holds do not expire.** A COD order reserves its units until an admin confirms, ships or cancels it, so an order nobody acts on keeps that stock locked and nothing flags it yet. Unpaid UPI holds still expire after 30 minutes, but that does not cancel the order (payments are Phase 4).
 - **Order numbers can skip.** They come from a database sequence (`order_number_seq`), so a number used by an order that then fails is not reused. Orders placed before the `JUH-` rename keep their old `SAJ-` numbers.
-- **Cancellations.** Customer cancellations write no audit event. Admins cannot cancel from the admin panel, and the API stores no cancellation reason for admin cancels.
+- **Cancellations.** Customer cancellations write no audit event (admin cancellations do).
 - **Support number.** The "Need help?" link on the web order page uses a placeholder WhatsApp number (WhatsApp integration is pending).
 - **Database `CHECK` constraints** described in `docs/architecture/database-design.md` (non-negative stock, positive quantities) are not in the migration; they are enforced in application code only.
 

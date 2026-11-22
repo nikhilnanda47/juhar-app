@@ -1228,8 +1228,9 @@ components:
     UpdateOrderStatusBody:
       type: object
       description: |
-        Only `status`, `trackingId` and `courierName` are accepted; unknown fields are rejected with 400.
-        Planned additions: `cancellationReason`, `trackingUrl`, `adminNotes`.
+        Only `status`, `trackingId`, `courierName` and `reason` are accepted; unknown fields are rejected with 400.
+        `reason` is required (non-blank, at most 255 characters, trimmed) when `status` is `cancelled`.
+        Planned additions: `trackingUrl`, `adminNotes`.
       required: [status]
       properties:
         status:
@@ -1243,6 +1244,10 @@ components:
           type: string
           maxLength: 100
           description: Carrier name for the shipment (defaults to "Manual")
+        reason:
+          type: string
+          maxLength: 255
+          description: Why the order is cancelled. Required when status = cancelled; stored as the order's cancellation reason and in the audit entry.
 
     InitiateRefundBody:
       type: object
@@ -2880,9 +2885,9 @@ paths:
         - cancelled: releases the held/committed inventory reservations
 
         **Cancellation:** allowed only from `placed` or `confirmed` (the state machine has no
-        cancel transition from `packed` onwards). The request currently has **no reason field**,
-        so an admin cancel stores `cancelled_at` but no `cancellation_reason`
-        (customer cancels via `POST /orders/{id}/cancel` do store one).
+        cancel transition from `packed` onwards). A non-blank `reason` is required; it is stored as
+        `cancellation_reason` (like customer cancels via `POST /orders/{id}/cancel`) and recorded in the
+        audit entry. Without it the API answers 400 `A cancellation reason is required`.
 
         Planned (not implemented yet): refund initiation on cancel, restocking on `returned`,
         gateway refund on `refund_pending`, and the return/refund transitions' side effects (Phase 4).
