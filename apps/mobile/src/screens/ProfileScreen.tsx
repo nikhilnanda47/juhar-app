@@ -152,7 +152,16 @@ export default function ProfileScreen() {
   if (screen === 'login') {
     return (
       <View style={styles.authContainer}>
-        <Text style={styles.authPageTitle}>Account</Text>
+        <View style={styles.authHeader}>
+          <Text style={styles.authPageTitle}>Account</Text>
+          <TouchableOpacity style={styles.themeToggleBtn} onPress={toggleTheme} activeOpacity={0.7}>
+            {isDark ? (
+              <Sun size={20} color={colors.textSecondary} strokeWidth={1.5} />
+            ) : (
+              <Moon size={20} color={colors.textSecondary} strokeWidth={1.5} />
+            )}
+          </TouchableOpacity>
+        </View>
         <View style={styles.authContent}>
           <User size={48} color={colors.textTertiary} strokeWidth={1.5} />
           <Text style={styles.authTitle}>Log in to your account</Text>
@@ -450,7 +459,12 @@ const createStyles = (colors: ColorPalette) => StyleSheet.create({
 
   // ── Auth screens ──
   authContainer: { flex: 1, backgroundColor: colors.background, paddingHorizontal: spacing.margin },
-  authPageTitle: { fontFamily: 'NotoSerif-Medium', fontSize: 20, color: colors.textPrimary, paddingTop: 56, lineHeight: 26 },
+  authHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 56 },
+  authPageTitle: { fontFamily: 'NotoSerif-Medium', fontSize: 20, color: colors.textPrimary, lineHeight: 26 },
+  themeToggleBtn: {
+    width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surfaceAlt,
+    justifyContent: 'center', alignItems: 'center',
+  },
   authContent: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingBottom: 80 },
   authTitle: { fontFamily: 'NotoSerif-Regular', fontSize: 24, color: colors.textPrimary, marginTop: spacing.md },
   authSubtext: { fontFamily: 'DMSans-Regular', fontSize: 14, color: colors.textSecondary, textAlign: 'center', marginTop: spacing.sm, marginBottom: spacing.lg },
