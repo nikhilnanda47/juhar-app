@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
   Alert,
 } from 'react-native';
-import { Check, Truck, MessageSquare, ShieldCheck, ArrowRight, Copy } from 'lucide-react-native';
+import { Check, Truck, Package, ShieldCheck, ArrowRight, Copy } from 'lucide-react-native';
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
 import { formatPaise } from '../services/api';
 import { BounceIn, FadeInUp } from '../components/AnimatedUI';
@@ -76,11 +76,9 @@ export default function OrderSuccessScreen({ navigation, route }: Props) {
             <Truck size={20} color={colors.accent} strokeWidth={1.5} />
           </View>
 
-          <View style={styles.smsRow}>
-            <MessageSquare size={16} color={colors.textSecondary} strokeWidth={1.5} />
-            <Text style={styles.smsText}>
-              Updates sent to <Text style={styles.smsPhone}>{order.addressSnapshot?.recipientPhone || '+91 XXXXXXXXXX'}</Text>
-            </Text>
+          <View style={styles.trackRow}>
+            <Package size={16} color={colors.textSecondary} strokeWidth={1.5} />
+            <Text style={styles.trackText}>Track this order anytime in the Orders tab</Text>
           </View>
         </View>
         </FadeInUp>
@@ -176,9 +174,8 @@ const createStyles = (colors: ColorPalette) => StyleSheet.create({
   deliveryInfo: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   deliveryLabel: { fontFamily: 'DMSans-Regular', fontSize: 12, color: colors.textSecondary },
   deliveryDate: { fontFamily: 'DMSans-SemiBold', fontSize: 16, color: colors.textPrimary, letterSpacing: -0.2 },
-  smsRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
-  smsText: { fontFamily: 'DMSans-Regular', fontSize: 12, color: colors.textSecondary },
-  smsPhone: { fontFamily: 'DMSans-Medium', fontSize: 12, color: colors.textPrimary },
+  trackRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
+  trackText: { fontFamily: 'DMSans-Regular', fontSize: 12, color: colors.textSecondary },
 
   assuranceCard: {
     width: '100%', flexDirection: 'row', gap: 10,
