@@ -564,6 +564,6 @@ juhar-app/
 | 8 | Initial SKU count | ~20–30 designs from factory audit | Merchandising |
 | 9 | WhatsApp provider | Gupshup / Wati | Tech |
 | 10 | Stock ownership | Reserved allocation to Juhar (not shared) | Ops |
-| 11 | Unconfirmed COD orders: what should happen to a COD order nobody confirms? | **Decided 2026-11-22:** keep the stock held until an admin acts (confirm, ship or cancel); the expiry worker no longer releases COD holds. Follow-up: flag stale unconfirmed orders to the admin. | Ops |
+| 11 | Unconfirmed COD orders: what should happen to a COD order nobody confirms? | **Decided 2026-11-22:** keep the stock held until an admin acts (confirm, ship or cancel); the expiry worker no longer releases COD holds. **Follow-up done 2026-11-23:** a COD order still `placed` after 24 hours is flagged as overdue in the admin panel (badge, filter and dashboard count); it is never cancelled automatically. | Ops |
 | 12 | Should admins be able to cancel an order after it is packed? The state machine allows cancellation only from `placed` and `confirmed`. | Keep as is; handle post-pack problems as returns | TBD |
 | 13 | Real customer support / WhatsApp number. WhatsApp integration is pending, and the web order page links to a placeholder number. | Use one business number once the integration exists; hide the link until then | TBD |

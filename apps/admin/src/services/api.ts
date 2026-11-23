@@ -175,7 +175,13 @@ export class ApiClient {
   // ── Orders ──
   async getOrders(params?: Record<string, string>) {
     const query = params ? '?' + new URLSearchParams(params).toString() : '';
-    return this.request<{ items: any[]; cursor: string | null; hasMore: boolean }>(
+    return this.request<{
+      items: any[];
+      cursor: string | null;
+      hasMore: boolean;
+      /** Counts over all orders: placed, and placed COD orders waiting more than 24 hours */
+      counts?: { placed: number; overdue: number };
+    }>(
       `/api/v1/admin/orders${query}`,
     );
   }

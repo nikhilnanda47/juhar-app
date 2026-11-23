@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import AdminLayout from '../components/AdminLayout';
 import { api } from '../services/api';
 import styles from './page.module.css';
@@ -8,6 +9,7 @@ import styles from './page.module.css';
 interface DashboardStats {
   todaysOrders: number;
   pendingConfirmation: number;
+  overdueOrders: number;
   lowStockItems: number;
   gmvTodayPaise: number;
   recentOrders: any[];
@@ -38,6 +40,7 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats>({
     todaysOrders: 0,
     pendingConfirmation: 0,
+    overdueOrders: 0,
     lowStockItems: 0,
     gmvTodayPaise: 0,
     recentOrders: [],
@@ -56,9 +59,10 @@ export default function DashboardPage() {
       const todaysOrders = orders.filter(
         (o: any) => new Date(o.createdAt).toDateString() === today,
       );
-      const pendingConfirmation = orders.filter(
-        (o: any) => o.status === 'placed',
-      ).length;
+      // The API counts every order; counting the page here would miss the rest
+      const pendingConfirmation =
+        allOrders.counts?.placed ?? orders.filter((o: any) => o.status === 'placed').length;
+      const overdueOrders = allOrders.counts?.overdue ?? 0;
       const gmvTodayPaise = todaysOrders.reduce(
         (sum: number, o: any) => sum + (o.totalPaise || 0), 0,
       );
@@ -76,6 +80,7 @@ export default function DashboardPage() {
       setStats({
         todaysOrders: todaysOrders.length,
         pendingConfirmation,
+        overdueOrders,
         lowStockItems: lowStock,
         gmvTodayPaise,
         recentOrders: orders.slice(0, 5),
@@ -114,6 +119,11 @@ export default function DashboardPage() {
                     <span className={styles.statValue}>
                       {formatStatValue(card.key, stats)}
                     </span>
+                    {card.key === 'pendingConfirmation' && stats.overdueOrders > 0 && (
+                      <Link href="/orders?filter=overdue" className={styles.statOverdue}>
+                        {stats.overdueOrders} overdue (24h+) →
+                      </Link>
+                    )}
                   </div>
                 </div>
               </div>

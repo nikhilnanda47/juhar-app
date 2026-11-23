@@ -2819,6 +2819,10 @@ paths:
       tags: ["Admin: Orders"]
       summary: Search orders
       operationId: adminListOrders
+      description: >-
+        Implemented filters: `status`, `search`, `overdue`, `cursor`, `limit`. `paymentMode`, `fromDate`
+        and `toDate` are **not implemented**: the API refuses unknown query parameters with 400.
+        Every order carries `waitingMinutes` and `overdue`, and the response has `counts` over all orders.
       security:
         - BearerAuth: []
       parameters:
@@ -2827,8 +2831,16 @@ paths:
           schema:
             type: string
             enum: [placed, confirmed, packed, shipped, delivered, cancelled, return_requested, return_approved, return_rejected, returned, refund_pending, refunded]
+        - name: overdue
+          in: query
+          description: >-
+            `true` keeps only cash-on-delivery orders still `placed` for more than 24 hours (their stock
+            is still held). They are flagged only, never cancelled automatically.
+          schema:
+            type: boolean
         - name: paymentMode
           in: query
+          description: Not implemented (400)
           schema:
             type: string
             enum: [upi, cod]
@@ -2864,12 +2876,32 @@ paths:
                           items:
                             type: array
                             items:
-                              $ref: '#/components/schemas/Order'
+                              allOf:
+                                - $ref: '#/components/schemas/Order'
+                                - type: object
+                                  properties:
+                                    waitingMinutes:
+                                      type: integer
+                                      nullable: true
+                                      description: Minutes since the order was placed; only while its status is `placed`, otherwise null
+                                    overdue:
+                                      type: boolean
+                                      description: A COD order still `placed` for more than 24 hours
                           cursor:
                             type: string
                             nullable: true
                           hasMore:
                             type: boolean
+                          counts:
+                            type: object
+                            description: Over all orders, whatever page, filter or search was asked for
+                            properties:
+                              placed:
+                                type: integer
+                                description: Orders with status `placed`
+                              overdue:
+                                type: integer
+                                description: COD orders still `placed` for more than 24 hours
 
   /api/v1/admin/orders/{id}:
     get:

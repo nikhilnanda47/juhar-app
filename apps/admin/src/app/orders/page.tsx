@@ -8,6 +8,14 @@ import styles from './orders.module.css';
 
 const STATUS_OPTIONS = ['all', 'placed', 'confirmed', 'packed', 'shipped', 'delivered', 'cancelled'];
 
+// How long an order has waited, in words ("25 min", "5 h", "2 days")
+function formatWaiting(minutes: number): string {
+  if (minutes < 60) return `${minutes} min`;
+  if (minutes < 24 * 60) return `${Math.floor(minutes / 60)} h`;
+  const days = Math.floor(minutes / (24 * 60));
+  return `${days} ${days === 1 ? 'day' : 'days'}`;
+}
+
 const NEXT_STATUS: Record<string, string> = {
   placed: 'confirmed',
   confirmed: 'packed',
@@ -33,6 +41,8 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+  const [filterReady, setFilterReady] = useState(false);
+  const [counts, setCounts] = useState({ placed: 0, overdue: 0 });
   const [search, setSearch] = useState('');
   const [updating, setUpdating] = useState<string | null>(null);
   const [shipModal, setShipModal] = useState<string | null>(null);
@@ -43,17 +53,21 @@ export default function OrdersPage() {
   const [cancelError, setCancelError] = useState('');
   const [cancelling, setCancelling] = useState(false);
 
+  // The dashboard links here with ?filter=overdue; read it once before the first load
   useEffect(() => {
-    loadOrders();
+    if (new URLSearchParams(window.location.search).get('filter') === 'overdue') setFilter('overdue');
+    setFilterReady(true);
   }, []);
 
   const loadOrders = async () => {
     try {
       const params: Record<string, string> = {};
-      if (filter !== 'all') params.status = filter;
+      if (filter === 'overdue') params.overdue = 'true';
+      else if (filter !== 'all') params.status = filter;
       if (search) params.search = search;
       const data = await api.getOrders(params);
       setOrders(data.items || []);
+      if (data.counts) setCounts(data.counts);
     } catch {
       // AdminLayout handles auth
     } finally {
@@ -62,9 +76,10 @@ export default function OrdersPage() {
   };
 
   useEffect(() => {
+    if (!filterReady) return;
     setLoading(true);
     loadOrders();
-  }, [filter]);
+  }, [filter, filterReady]);
 
   const handleStatusUpdate = async (orderId: string, status: string) => {
     if (status === 'shipped') {
@@ -145,6 +160,19 @@ export default function OrdersPage() {
               {s.charAt(0).toUpperCase() + s.slice(1)}
             </button>
           ))}
+          <button
+            className={
+              filter === 'overdue'
+                ? styles.filterActive
+                : counts.overdue > 0
+                  ? styles.filterOverdue
+                  : styles.filterBtn
+            }
+            onClick={() => setFilter('overdue')}
+            title="Cash-on-delivery orders still placed after 24 hours. Their stock stays held until you confirm or cancel them."
+          >
+            Overdue ({counts.overdue})
+          </button>
         </div>
       </div>
 
@@ -175,6 +203,11 @@ export default function OrdersPage() {
                   </td>
                   <td className={styles.date}>
                     {new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                    {order.waitingMinutes != null && (
+                      <div className={order.overdue ? styles.waitingOverdue : styles.waiting}>
+                        waiting {formatWaiting(order.waitingMinutes)}
+                      </div>
+                    )}
                   </td>
                   <td>{order.itemCount}</td>
                   <td className={styles.price}>{formatPaise(order.totalPaise)}</td>
@@ -187,6 +220,14 @@ export default function OrdersPage() {
                     <span className={`${styles.statusBadge} ${styles['status_' + order.status]}`}>
                       {order.status}
                     </span>
+                    {order.overdue && (
+                      <span
+                        className={styles.overdueBadge}
+                        title="Still placed after 24 hours. Its stock stays held until you confirm or cancel it."
+                      >
+                        Overdue
+                      </span>
+                    )}
                   </td>
                   <td>
                     <div className={styles.actions}>
