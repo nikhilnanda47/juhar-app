@@ -522,7 +522,7 @@ The web app (`localhost:3001`) mirrors all mobile app features with responsive l
 
 - **Header** (`components/Header.tsx`): Sticky, brand + nav links (desktop), icons hidden on mobile (bottom nav handles it). Cart badge count. The desktop actions include the dark-mode toggle (sun/moon icon) next to search, cart and account.
 - **BottomNav** (`components/BottomNav.tsx`): 5 tabs matching mobile app, hidden on desktop (`lg:hidden`). Cart badge count.
-- **CartProvider** (`lib/cart-context.tsx`): React context providing `itemCount` to Header and BottomNav. Polls every 2s, checks server cart (logged in) or localStorage guest cart.
+- **CartProvider** (`lib/cart-context.tsx`): React context providing `itemCount` to Header and BottomNav. It reads the server cart (logged in) or the localStorage guest cart, and refreshes only when the cart changes (`notifyCartChanged()` in `lib/cart-events.ts`, also across tabs through the `storage` event), when the customer returns to the tab or window (`focus` / `visibilitychange`), and every 5 minutes while the tab is visible as a safety net. There is no polling timer. Scheduling lives in `lib/cart-refresh.ts`.
 - **ThemeProvider** (`lib/theme-context.tsx`): React context providing `{ isDark, toggleTheme }`. Toggles the `dark` class on `<html>`, saves the choice in `localStorage` (`juhar_theme`) and updates the `theme-color` meta tag. See section 3a.
 - **Viewport:** pinch-zoom is allowed (the viewport sets only `width=device-width, initial-scale=1`; earlier it disabled scaling). The browser theme colour is `#FAFAF7` in light mode and `#121212` in dark mode.
 
@@ -530,7 +530,7 @@ The web app (`localhost:3001`) mirrors all mobile app features with responsive l
 
 Both web and mobile show a badge on the cart icon:
 - **Web**: Burgundy circle badge on Header (desktop) and BottomNav (mobile). Via `useCartCount()` context.
-- **Mobile**: Native `tabBarBadge` on Cart tab. Polls every 3s via `TabNavigator`.
+- **Mobile**: Native `tabBarBadge` on Cart tab, fed by `TabNavigator`. It refreshes when the cart changes (`notifyCartChanged()` in `services/cartEvents.ts`), when the app returns to the foreground, and every 5 minutes while the app is in the foreground. There is no polling timer (scheduling in `services/cartRefresh.ts`).
 - Badge hidden when count is 0, shows "99+" for counts over 99.
 
 ### 12.4 Guest Cart (Local Cart)

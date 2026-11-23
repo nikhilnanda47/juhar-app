@@ -126,7 +126,7 @@ Open items as of 2026-11-22, grouped by urgency. The team tracker holds owners a
 ### Engineering hygiene
 - Test coverage is early: the order state machine, stock (reserve, release, commit, ship, adjust, expiry job), admin order status changes, checkout (quote, order placement, shipping and totals) and rate limiting have tests (`npm test -w apps/api`). The automatic token refresh in the admin, web and mobile API clients is also tested (`npm test -w apps/admin`, `npm test -w apps/web`, and `npm test` inside `apps/mobile`). Auth, cart, the orders service, products and the web and mobile screens are not covered yet. Most of these tests use a fake database, so they cannot prove real concurrent locking or real SQL. The one exception is the test of the database `CHECK` constraints (`apps/api/src/database/check-constraints.spec.ts`), which runs against a real migrated Postgres only when you set `DB_TESTS=1` (CI does): `cd apps/api && npx prisma migrate deploy && DB_TESTS=1 npm test -- check-constraints`.
 - No ESLint configuration, so the `lint` scripts do not run.
-- The cart badge polls the server every 2–3 seconds.
+- The cart badge means two different things: for a guest it is the total **quantity** in the cart, for a logged-in customer it is the number of **different products** (the server's `itemCount` counts lines). Moving a guest cart to an account can therefore change the number. The cart page's "Items" count has the same difference.
 - The shipping rate and free-shipping threshold are duplicated between the API and the mobile cart screen.
 - `apps/mobile/src/navigation/TabNavigator.tsx` has `@ts-nocheck`.
 

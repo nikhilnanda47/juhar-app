@@ -1,3 +1,5 @@
+import { notifyCartChanged } from './cart-events';
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 // ── Token management ──
@@ -33,6 +35,7 @@ export function clearTokens() {
     localStorage.removeItem('juhar_token');
     localStorage.removeItem('juhar_refresh_token');
   }
+  notifyCartChanged(); // the badge now shows the guest cart
 }
 
 // ── Generic request ──
@@ -181,19 +184,25 @@ export async function getCart(): Promise<CartResponse> {
 }
 
 export async function addToCart(variantId: string, quantity: number): Promise<CartResponse> {
-  return request<CartResponse>('/api/v1/cart/items', {
+  const cart = await request<CartResponse>('/api/v1/cart/items', {
     method: 'POST', body: JSON.stringify({ variantId, quantity }),
   });
+  notifyCartChanged();
+  return cart;
 }
 
 export async function updateCartItem(itemId: string, quantity: number): Promise<CartResponse> {
-  return request<CartResponse>(`/api/v1/cart/items/${itemId}`, {
+  const cart = await request<CartResponse>(`/api/v1/cart/items/${itemId}`, {
     method: 'PATCH', body: JSON.stringify({ quantity }),
   });
+  notifyCartChanged();
+  return cart;
 }
 
 export async function removeCartItem(itemId: string): Promise<CartResponse> {
-  return request<CartResponse>(`/api/v1/cart/items/${itemId}`, { method: 'DELETE' });
+  const cart = await request<CartResponse>(`/api/v1/cart/items/${itemId}`, { method: 'DELETE' });
+  notifyCartChanged();
+  return cart;
 }
 
 export async function requestOtp(phone: string) {
@@ -211,6 +220,7 @@ export async function verifyOtp(phone: string, otp: string) {
   if (typeof window !== 'undefined') {
     localStorage.setItem('juhar_refresh_token', data.refreshToken);
   }
+  notifyCartChanged(); // the badge now shows the account's cart
   return data;
 }
 
@@ -252,5 +262,7 @@ export async function placeOrder(input: {
   addressId: string; paymentMode: string; idempotencyKey: string; notes?: string;
 }): Promise<any> {
   loadToken();
-  return request<any>('/api/v1/orders', { method: 'POST', body: JSON.stringify(input) });
+  const order = await request<any>('/api/v1/orders', { method: 'POST', body: JSON.stringify(input) });
+  notifyCartChanged(); // placing an order empties the cart
+  return order;
 }

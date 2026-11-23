@@ -4,6 +4,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { notifyCartChanged } from './cartEvents';
 
 const API_BASE = __DEV__
   ? 'http://localhost:3000'  // Dev: local API
@@ -180,12 +181,14 @@ export async function saveTokens(access: string, refresh: string) {
   accessToken = access;
   await AsyncStorage.setItem(TOKEN_KEY, access);
   await AsyncStorage.setItem(REFRESH_KEY, refresh);
+  notifyCartChanged(); // the badge now shows the account's cart
 }
 
 export async function clearTokens() {
   accessToken = null;
   await AsyncStorage.removeItem(TOKEN_KEY);
   await AsyncStorage.removeItem(REFRESH_KEY);
+  notifyCartChanged(); // the badge now shows the guest cart
 }
 
 export function isLoggedIn(): boolean {
@@ -311,23 +314,29 @@ export async function getCart(): Promise<CartResponse> {
 }
 
 export async function addToCart(variantId: string, quantity: number): Promise<CartResponse> {
-  return request<CartResponse>('/api/v1/cart/items', {
+  const cart = await request<CartResponse>('/api/v1/cart/items', {
     method: 'POST',
     body: JSON.stringify({ variantId, quantity }),
   });
+  notifyCartChanged();
+  return cart;
 }
 
 export async function updateCartItem(itemId: string, quantity: number): Promise<CartResponse> {
-  return request<CartResponse>(`/api/v1/cart/items/${itemId}`, {
+  const cart = await request<CartResponse>(`/api/v1/cart/items/${itemId}`, {
     method: 'PATCH',
     body: JSON.stringify({ quantity }),
   });
+  notifyCartChanged();
+  return cart;
 }
 
 export async function removeCartItem(itemId: string): Promise<CartResponse> {
-  return request<CartResponse>(`/api/v1/cart/items/${itemId}`, {
+  const cart = await request<CartResponse>(`/api/v1/cart/items/${itemId}`, {
     method: 'DELETE',
   });
+  notifyCartChanged();
+  return cart;
 }
 
 // ── Public endpoints (no auth needed) ──
@@ -363,7 +372,9 @@ export async function placeOrder(input: {
   addressId: string; paymentMode: string; idempotencyKey: string; notes?: string;
 }): Promise<any> {
   await loadToken();
-  return request<any>('/api/v1/orders', { method: 'POST', body: JSON.stringify(input) });
+  const order = await request<any>('/api/v1/orders', { method: 'POST', body: JSON.stringify(input) });
+  notifyCartChanged(); // placing an order empties the cart
+  return order;
 }
 
 // ── Helpers ──

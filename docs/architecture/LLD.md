@@ -679,7 +679,7 @@ async reserve(tx: PrismaTx, variantId: string, qty: number, expiresAt: Date) {
 
 **Client-side guest cart:**
 - Mobile: `apps/mobile/src/services/localCart.ts` — AsyncStorage-based, provides `addToLocalCart()`, `updateLocalCartItem()`, `removeLocalCartItem()`, `syncLocalCartToServer()`, `localCartToResponse()`
-- Web: `apps/web/src/lib/cart-context.tsx` — React context with `CartProvider`, localStorage-based, polls every 2s, exposes `useCartCount()` for badge display
+- Web: `apps/web/src/lib/cart-context.tsx` — React context with `CartProvider`, exposes `useCartCount()` for badge display. The badge does not poll: it refreshes when something calls `notifyCartChanged()` (`lib/cart-events.ts`: the cart API calls in `lib/api.ts`, `placeOrder`, login, logout and the guest-cart helpers `saveLocalCart` / `clearLocalCart`), on the `storage` event (other tabs), on window focus or when the tab becomes visible, and every 5 minutes while visible (`lib/cart-refresh.ts`). Bursts of changes are merged into one refresh (250 ms) and an older response never overwrites a newer one. Mobile does the same with `services/cartEvents.ts` and `services/cartRefresh.ts`, wired in `TabNavigator` (cart API calls, `placeOrder`, `saveTokens`/`clearTokens` and the `localCart.ts` writes announce changes; foreground = `AppState` active). **Anything new that changes the cart must call `notifyCartChanged()`**, otherwise the badge stays stale until the next focus or 5-minute refresh
 - Guest items stored as `LocalCartItem[]` with variant snapshot (title, price, color, sku)
 - On login, `syncLocalCartToServer()` iterates local items and calls `POST /api/v1/cart/items` for each, then clears local storage
 

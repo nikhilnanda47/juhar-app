@@ -167,7 +167,7 @@ Users can browse and add to cart without logging in:
 2. **Cart tab** → renders local cart with full stepper/remove functionality
 3. **Proceed to Checkout** → redirected to login
 4. **After login** → `syncLocalCartToServer()` pushes local items to server cart, clears local storage
-5. **Cart badge** → updates on both platforms, polling every 2–3 seconds
+5. **Cart badge** → updates on both platforms as soon as the cart changes (no polling; it also refreshes when the customer returns to the app and every 5 minutes as a safety net)
 
 **Files:** `apps/mobile/src/services/localCart.ts`, `apps/web/src/lib/cart-context.tsx`
 
