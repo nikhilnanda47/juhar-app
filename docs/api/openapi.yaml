@@ -1848,6 +1848,13 @@ paths:
           description: Maximum price in paise
         - name: sortBy
           in: query
+          description: >-
+            `newest` (default): newest first. `price_asc` / `price_desc`: the whole catalog (not
+            just one page) by the cheapest active variant, which is the price shown on the card;
+            products with the same price are ordered by id. The `cursor` is the id of the last
+            product on the previous page and continues from that place in whichever order you
+            asked for; a cursor that no longer matches a listed product returns an empty page.
+            `relevance` is not implemented and behaves like `newest`.
           schema:
             type: string
             enum: [newest, price_asc, price_desc, relevance]

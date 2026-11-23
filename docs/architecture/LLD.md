@@ -448,7 +448,7 @@ class CreateVariantDto {
 
 | Method | Input | Output | Rules |
 |---|---|---|---|
-| `findAll(query)` | ProductQueryDto | `{ items, cursor, hasMore }` | Only `published` + `active` variants. Cursor pagination by `created_at` + `id`. Join inventory for availability. |
+| `findAll(query)` | ProductQueryDto | `{ items, cursor, hasMore }` | Only `published` + `active` variants. Cursor pagination by `created_at` + `id`. Join inventory for availability. **Sorting:** `newest` (default) orders by `created_at` descending. `price_asc` / `price_desc` order the whole filtered catalog in SQL by the cheapest active variant (`MIN(price_paise)`, the card price), ties by `id`; the page is cut from that order and the cursor is the last product's `id` on the page (an unknown cursor gives an empty page). The ids of all matching products are read on each price-sorted request, which is fine up to a few thousand products. `relevance` is not implemented and behaves like `newest`. |
 | `findBySlug(slug)` | slug | ProductDetail | Include variants (active only), media (sorted), inventory availability. 404 if not published. |
 | `create(dto, adminId)` | CreateProductDto, UUID | Product | Auto-generate slug from title. Create variants + inventory rows in transaction. Audit log. |
 | `update(id, dto, adminId)` | UUID, UpdateDto, UUID | Product | Validate category exists. Update slug if title changes (check uniqueness). Audit log with before/after. |
