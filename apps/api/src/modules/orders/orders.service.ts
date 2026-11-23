@@ -3,6 +3,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { indiaDayBounds } from '../../common/time/india-day';
 import { InventoryService } from '../inventory/inventory.service';
 import { OrderQueryDto, AdminOrderQueryDto, UpdateOrderStatusDto, CancelOrderDto } from './dto';
 import { canTransitionOrder, INVENTORY, OrderStatus, PAGINATION } from '@juhar/shared';
@@ -155,10 +156,20 @@ export class OrdersService {
 
     // The counts cover all orders (not just this page or this filter) so the dashboard
     // and the filter button always show the real numbers.
-    const [orders, placed, overdue] = await Promise.all([
+    const today = indiaDayBounds(now);
+    const [orders, placed, overdue, todayTotals] = await Promise.all([
       this.prisma.order.findMany(findArgs),
       this.prisma.order.count({ where: { status: OrderStatus.PLACED } }),
       this.prisma.order.count({ where: overdueWhere }),
+      // Today (India time): orders placed today, cancelled ones left out, and their value (GMV)
+      this.prisma.order.aggregate({
+        where: {
+          createdAt: { gte: today.start, lt: today.end },
+          status: { not: OrderStatus.CANCELLED },
+        },
+        _count: { _all: true },
+        _sum: { totalPaise: true },
+      }),
     ]);
     const hasMore = orders.length > limit;
     const items = hasMore ? orders.slice(0, limit) : orders;
@@ -171,7 +182,15 @@ export class OrdersService {
       })),
       cursor: hasMore ? items[items.length - 1].id : null,
       hasMore,
-      counts: { placed, overdue },
+      counts: {
+        placed,
+        overdue,
+        today: {
+          date: today.date,
+          orders: todayTotals._count._all,
+          gmvPaise: todayTotals._sum.totalPaise ?? 0,
+        },
+      },
     };
   }
 

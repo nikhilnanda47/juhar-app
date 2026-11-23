@@ -24,7 +24,8 @@ function order(id: string, status: string, paymentMode: string, minutesAgo: numb
 function setup(rows: any[], counts = { placed: 7, overdue: 3 }) {
   const findMany = jest.fn(async () => rows);
   const count = jest.fn(async ({ where }: any) => (where.createdAt ? counts.overdue : counts.placed));
-  const service = new OrdersService({ order: { findMany, count } } as any, {} as any);
+  const aggregate = jest.fn(async () => ({ _count: { _all: 0 }, _sum: { totalPaise: null } }));
+  const service = new OrdersService({ order: { findMany, count, aggregate } } as any, {} as any);
   return { service, findMany, count };
 }
 
@@ -118,7 +119,7 @@ describe('OrdersService.findAllAdmin: overdue COD orders', () => {
     it('returns how many orders are placed and how many are overdue', async () => {
       const { service } = setup([], { placed: 12, overdue: 5 });
       const result = await service.findAllAdmin({} as any, NOW);
-      expect(result.counts).toEqual({ placed: 12, overdue: 5 });
+      expect(result.counts).toMatchObject({ placed: 12, overdue: 5 });
     });
 
     it('counts all orders, not just this page or this filter', async () => {

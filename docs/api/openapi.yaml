@@ -2937,6 +2937,22 @@ paths:
                               overdue:
                                 type: integer
                                 description: COD orders still `placed` for more than 24 hours
+                              today:
+                                type: object
+                                description: >-
+                                  Today in India (UTC+5:30, midnight to midnight), for the dashboard.
+                                  Cancelled orders are left out of both numbers.
+                                properties:
+                                  date:
+                                    type: string
+                                    example: "2026-11-23"
+                                    description: The India calendar date these numbers are for
+                                  orders:
+                                    type: integer
+                                    description: Orders placed today that are not cancelled
+                                  gmvPaise:
+                                    type: integer
+                                    description: Sum of `totalPaise` of those orders (GMV)
 
   /api/v1/admin/orders/{id}:
     get:

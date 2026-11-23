@@ -179,8 +179,15 @@ export class ApiClient {
       items: any[];
       cursor: string | null;
       hasMore: boolean;
-      /** Counts over all orders: placed, and placed COD orders waiting more than 24 hours */
-      counts?: { placed: number; overdue: number };
+      /**
+       * Counts over all orders (not just this page): placed, placed COD orders waiting more than
+       * 24 hours, and today's totals for India (cancelled orders left out).
+       */
+      counts?: {
+        placed: number;
+        overdue: number;
+        today: { date: string; orders: number; gmvPaise: number };
+      };
     }>(
       `/api/v1/admin/orders${query}`,
     );

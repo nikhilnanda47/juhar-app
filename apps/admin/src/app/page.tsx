@@ -55,17 +55,13 @@ export default function DashboardPage() {
       const allOrders = await api.getOrders();
       const orders = allOrders.items || [];
 
-      const today = new Date().toDateString();
-      const todaysOrders = orders.filter(
-        (o: any) => new Date(o.createdAt).toDateString() === today,
-      );
-      // The API counts every order; counting the page here would miss the rest
+      // The API counts every order; counting the page here would miss the rest.
+      // "Today" is the India day, worked out by the API, so it is the same whatever the browser's time zone.
       const pendingConfirmation =
         allOrders.counts?.placed ?? orders.filter((o: any) => o.status === 'placed').length;
       const overdueOrders = allOrders.counts?.overdue ?? 0;
-      const gmvTodayPaise = todaysOrders.reduce(
-        (sum: number, o: any) => sum + (o.totalPaise || 0), 0,
-      );
+      const todaysOrders = allOrders.counts?.today?.orders ?? 0;
+      const gmvTodayPaise = allOrders.counts?.today?.gmvPaise ?? 0;
 
       const products = await api.getProducts();
       let lowStock = 0;
@@ -78,7 +74,7 @@ export default function DashboardPage() {
       });
 
       setStats({
-        todaysOrders: todaysOrders.length,
+        todaysOrders,
         pendingConfirmation,
         overdueOrders,
         lowStockItems: lowStock,
