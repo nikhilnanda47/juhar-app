@@ -4,13 +4,11 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ShoppingBag, Trash2, Minus, Plus, Truck, ArrowRight, Leaf } from 'lucide-react';
 import { isLoggedIn, loadToken, getCart, updateCartItem, removeCartItem, formatPaise, type CartResponse } from '@/lib/api';
+import { readLocalCart, saveLocalCart } from '@/lib/cart-events';
+import { remainingForFreeShipping, shippingFor, shippingProgressPercent, useShippingRule } from '@/lib/shipping';
 
-const FREE_SHIPPING_THRESHOLD = 500000;
 
-function getLocalCart(): any[] {
-  if (typeof window === 'undefined') return [];
-  return JSON.parse(localStorage.getItem('juhar_local_cart') || '[]');
-}
+const getLocalCart = readLocalCart;
 
 function localToCartResponse(items: any[]): CartResponse {
   const cartItems = items.map((item: any) => ({
@@ -38,6 +36,7 @@ export default function CartPage() {
   const [loading, setLoading] = useState(true);
   const [loggedIn, setLoggedIn] = useState(false);
   const [updating, setUpdating] = useState<string | null>(null);
+  const { rule, loaded: ruleLoaded } = useShippingRule();
 
   useEffect(() => { load(); }, []);
 
@@ -61,7 +60,7 @@ export default function CartPage() {
         let items = getLocalCart();
         if (newQty <= 0) items = items.filter((c: any) => c.variantId !== variantId);
         else { const item = items.find((c: any) => c.variantId === variantId); if (item) item.quantity = newQty; }
-        localStorage.setItem('juhar_local_cart', JSON.stringify(items));
+        saveLocalCart(items);
         setCart(localToCartResponse(items));
       }
     } catch {}
@@ -75,14 +74,14 @@ export default function CartPage() {
       else {
         const variantId = itemId.replace('local-', '');
         const items = getLocalCart().filter((c: any) => c.variantId !== variantId);
-        localStorage.setItem('juhar_local_cart', JSON.stringify(items));
+        saveLocalCart(items);
         setCart(localToCartResponse(items));
       }
     } catch {}
     setUpdating(null);
   };
 
-  if (loading) return <div className="flex items-center justify-center min-h-[60vh]"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
+  if (loading || !ruleLoaded) return <div className="flex items-center justify-center min-h-[60vh]"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
 
   if (!cart || cart.items.length === 0) {
     return (
@@ -95,10 +94,11 @@ export default function CartPage() {
     );
   }
 
-  const shippingPaise = cart.subtotalPaise >= FREE_SHIPPING_THRESHOLD ? 0 : 9900;
-  const totalPaise = cart.subtotalPaise + shippingPaise;
-  const freeShippingMet = cart.subtotalPaise >= FREE_SHIPPING_THRESHOLD;
-  const shippingProgress = Math.min(100, (cart.subtotalPaise / FREE_SHIPPING_THRESHOLD) * 100);
+  // null = the shipping rule could not be loaded; show "at checkout" instead of guessing
+  const shippingPaise = rule ? shippingFor(cart.subtotalPaise, rule) : null;
+  const totalPaise = cart.subtotalPaise + (shippingPaise ?? 0);
+  const freeShippingMet = shippingPaise === 0;
+  const shippingProgress = rule ? shippingProgressPercent(cart.subtotalPaise, rule) : 0;
 
   return (
     <div className="page-container lg:grid lg:grid-cols-[1fr_380px] lg:gap-8 lg:py-8">
@@ -106,19 +106,19 @@ export default function CartPage() {
         <h1 className="font-sans text-title-sm text-text-primary mb-4 pt-4 lg:pt-0">My Bag ({cart.itemCount})</h1>
 
         {/* Shipping meter */}
-        <div className="card mb-4">
+        {rule && <div className="card mb-4">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <Truck size={16} className="text-accent" strokeWidth={2} />
               <span className="font-sans text-body-sm text-accent font-medium">
-                {freeShippingMet ? 'Free delivery unlocked!' : `₹${((FREE_SHIPPING_THRESHOLD - cart.subtotalPaise) / 100).toLocaleString('en-IN')} more for free shipping`}
+                {freeShippingMet ? 'Free delivery unlocked!' : `₹${(remainingForFreeShipping(cart.subtotalPaise, rule) / 100).toLocaleString('en-IN')} more for free shipping`}
               </span>
             </div>
           </div>
           <div className="w-full h-1.5 bg-surface-container-high rounded-full overflow-hidden">
             <div className="h-full bg-accent rounded-full transition-all" style={{ width: `${shippingProgress}%` }} />
           </div>
-        </div>
+        </div>}
 
         {/* Items */}
         {cart.items.map((item) => {
@@ -185,14 +185,14 @@ export default function CartPage() {
           <div className="flex justify-between mb-2">
             <span className="font-sans text-body-md text-text-secondary">Shipping</span>
             <span className={`font-sans text-body-md ${shippingPaise === 0 ? 'text-accent font-semibold' : 'text-text-primary'}`}>
-              {shippingPaise === 0 ? 'FREE' : formatPaise(shippingPaise)}
+              {shippingPaise === null ? 'At checkout' : shippingPaise === 0 ? 'FREE' : formatPaise(shippingPaise)}
             </span>
           </div>
           <div className="h-px bg-border my-3" />
           <div className="flex justify-between items-start">
             <div>
               <p className="font-sans text-title-sm text-text-primary">Total Amount</p>
-              <p className="font-sans text-body-sm text-text-tertiary">Inclusive of all taxes</p>
+              <p className="font-sans text-body-sm text-text-tertiary">{shippingPaise === null ? 'Shipping is added at checkout' : 'Inclusive of all taxes'}</p>
             </div>
             <span className="font-serif text-price-lg text-text-primary">{formatPaise(totalPaise)}</span>
           </div>

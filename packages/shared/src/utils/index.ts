@@ -1,4 +1,4 @@
-import { CURRENCY, ORDER_NUMBER_PREFIX } from '../constants';
+import { CURRENCY, ORDER_NUMBER_PREFIX, SHIPPING } from '../constants';
 
 /**
  * Convert paise (integer) to rupee display string.
@@ -71,4 +71,12 @@ export function isValidIndianPhone(phone: string): boolean {
  */
 export function isValidPinCode(pinCode: string): boolean {
   return /^[1-9][0-9]{5}$/.test(pinCode);
+}
+
+/**
+ * The shipping charge for an order subtotal (both in paise).
+ * e.g., 350000 → 9900 (₹99); 500000 or more → 0 (free)
+ */
+export function calculateShippingPaise(subtotalPaise: number): number {
+  return subtotalPaise >= SHIPPING.FREE_ABOVE_PAISE ? 0 : SHIPPING.FLAT_PAISE;
 }

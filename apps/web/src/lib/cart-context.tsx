@@ -1,7 +1,9 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { loadToken, getCart } from './api';
+import { readLocalCart } from './cart-events';
+import { startCartRefresh } from './cart-refresh';
 
 interface CartContextType {
   itemCount: number;
@@ -12,37 +14,25 @@ const CartContext = createContext<CartContextType>({ itemCount: 0, refreshCount:
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [itemCount, setItemCount] = useState(0);
+  const latest = useRef(0);
 
   const refreshCount = useCallback(async () => {
+    // If two refreshes overlap, only the newest one may update the badge
+    const id = ++latest.current;
+    const localCount = () => readLocalCart().reduce((sum: number, i: any) => sum + i.quantity, 0);
+    let count: number;
     try {
-      if (loadToken()) {
-        const cart = await getCart();
-        setItemCount(cart.itemCount);
-      } else {
-        // Check local cart
-        if (typeof window !== 'undefined') {
-          const local = JSON.parse(localStorage.getItem('juhar_local_cart') || '[]');
-          setItemCount(local.reduce((sum: number, i: any) => sum + i.quantity, 0));
-        }
-      }
+      count = loadToken() ? (await getCart()).itemCount : localCount();
     } catch {
-      // Fallback to local cart
-      if (typeof window !== 'undefined') {
-        const local = JSON.parse(localStorage.getItem('juhar_local_cart') || '[]');
-        setItemCount(local.reduce((sum: number, i: any) => sum + i.quantity, 0));
-      }
+      count = localCount(); // fall back to the guest cart
     }
+    if (id === latest.current) setItemCount(count);
   }, []);
 
-  useEffect(() => { refreshCount(); }, [refreshCount]);
-
-  // Listen for storage changes (local cart updates)
+  // Refresh once now, then only when the cart changes, the customer returns, or every 5 minutes
   useEffect(() => {
-    const onStorage = () => refreshCount();
-    window.addEventListener('storage', onStorage);
-    // Also poll every 2s for same-tab updates
-    const interval = setInterval(refreshCount, 2000);
-    return () => { window.removeEventListener('storage', onStorage); clearInterval(interval); };
+    refreshCount();
+    return startCartRefresh(refreshCount);
   }, [refreshCount]);
 
   return (

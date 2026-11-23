@@ -1,14 +1,17 @@
 import {
-  Injectable, NotFoundException, BadRequestException,
+  Injectable, BadRequestException, Logger, NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { indiaDayBounds } from '../../common/time/india-day';
 import { InventoryService } from '../inventory/inventory.service';
 import { OrderQueryDto, AdminOrderQueryDto, UpdateOrderStatusDto, CancelOrderDto } from './dto';
-import { canTransitionOrder, OrderStatus, PAGINATION } from '@juhar/shared';
+import { canTransitionOrder, INVENTORY, OrderStatus, PAGINATION } from '@juhar/shared';
 
 @Injectable()
 export class OrdersService {
+  private readonly logger = new Logger(OrdersService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly inventoryService: InventoryService,
@@ -87,7 +90,7 @@ export class OrdersService {
       );
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       // Release inventory reservations
       const reservations = await tx.inventoryReservation.findMany({
         where: { orderId, status: { in: ['held', 'committed'] } },
@@ -109,6 +112,8 @@ export class OrdersService {
 
       return this.toOrderDetail(updated);
     });
+    this.logger.log(`order ${order.publicNumber ?? orderId} ${order.status} -> cancelled by the customer user=${userId}`);
+    return result;
   }
 
   // ─────────────────────────────────────────
@@ -118,8 +123,9 @@ export class OrdersService {
   /**
    * Admin: list all orders with search/filter.
    */
-  async findAllAdmin(query: AdminOrderQueryDto) {
+  async findAllAdmin(query: AdminOrderQueryDto, now: Date = new Date()) {
     const limit = query.limit ?? PAGINATION.DEFAULT_LIMIT;
+    const overdueWhere = this.overdueWhere(now);
 
     const where: Prisma.OrderWhereInput = {};
     if (query.status) where.status = query.status;
@@ -129,6 +135,7 @@ export class OrdersService {
         { user: { phone: { contains: query.search } } },
       ];
     }
+    if (query.overdue) where.AND = [overdueWhere];
 
     const findArgs: Prisma.OrderFindManyArgs = {
       where,
@@ -147,7 +154,23 @@ export class OrdersService {
       findArgs.skip = 1;
     }
 
-    const orders = await this.prisma.order.findMany(findArgs);
+    // The counts cover all orders (not just this page or this filter) so the dashboard
+    // and the filter button always show the real numbers.
+    const today = indiaDayBounds(now);
+    const [orders, placed, overdue, todayTotals] = await Promise.all([
+      this.prisma.order.findMany(findArgs),
+      this.prisma.order.count({ where: { status: OrderStatus.PLACED } }),
+      this.prisma.order.count({ where: overdueWhere }),
+      // Today (India time): orders placed today, cancelled ones left out, and their value (GMV)
+      this.prisma.order.aggregate({
+        where: {
+          createdAt: { gte: today.start, lt: today.end },
+          status: { not: OrderStatus.CANCELLED },
+        },
+        _count: { _all: true },
+        _sum: { totalPaise: true },
+      }),
+    ]);
     const hasMore = orders.length > limit;
     const items = hasMore ? orders.slice(0, limit) : orders;
 
@@ -155,9 +178,39 @@ export class OrdersService {
       items: items.map((o: any) => ({
         ...this.toOrderSummary(o),
         customer: o.user ? { phone: o.user.phone, name: o.user.name } : null,
+        ...this.waitingInfo(o, now),
       })),
       cursor: hasMore ? items[items.length - 1].id : null,
       hasMore,
+      counts: {
+        placed,
+        overdue,
+        today: {
+          date: today.date,
+          orders: todayTotals._count._all,
+          gmvPaise: todayTotals._sum.totalPaise ?? 0,
+        },
+      },
+    };
+  }
+
+  /**
+   * Cash-on-delivery orders keep their stock held until an admin acts (the expiry job skips
+   * them), so one that is still "placed" after the COD hold window (24 hours) is overdue:
+   * it is only flagged, never cancelled automatically.
+   */
+  private overdueWhere(now: Date): Prisma.OrderWhereInput {
+    const cutoff = new Date(now.getTime() - INVENTORY.COD_RESERVATION_MINUTES * 60_000);
+    return { status: OrderStatus.PLACED, paymentMode: 'cod', createdAt: { lt: cutoff } };
+  }
+
+  /** How long a "placed" order has waited for an admin, and whether that is overdue. */
+  private waitingInfo(order: any, now: Date): { waitingMinutes: number | null; overdue: boolean } {
+    if (order.status !== OrderStatus.PLACED) return { waitingMinutes: null, overdue: false };
+    const waitedMs = now.getTime() - new Date(order.createdAt).getTime();
+    return {
+      waitingMinutes: Math.max(0, Math.floor(waitedMs / 60_000)),
+      overdue: order.paymentMode === 'cod' && waitedMs > INVENTORY.COD_RESERVATION_MINUTES * 60_000,
     };
   }
 
@@ -180,7 +233,7 @@ export class OrdersService {
       );
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       // Build update data with timestamps
       const data: Prisma.OrderUpdateInput = { status: dto.status };
 
@@ -252,6 +305,12 @@ export class OrdersService {
 
       return this.toOrderDetail(updated);
     });
+
+    this.logger.log(
+      `order ${order.publicNumber ?? orderId} ${order.status} -> ${dto.status} by admin ${adminId}` +
+        (dto.status === OrderStatus.CANCELLED ? ' (reason recorded)' : ''),
+    );
+    return result;
   }
 
   // ─────────────────────────────────────────

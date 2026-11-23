@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { MapPin, Plus, ChevronRight, ShieldCheck, Phone, Pencil, Truck, Leaf, Home, Briefcase } from 'lucide-react';
-import { loadToken, getAddresses, type Address } from '@/lib/api';
+import { loadToken, getAddresses, formatPaise, type Address } from '@/lib/api';
+import { useShippingRule } from '@/lib/shipping';
 
 const LABEL_ICONS: Record<string, typeof Home> = { Home, Office: Briefcase };
 
@@ -12,6 +13,7 @@ export default function SelectAddressPage() {
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const { rule } = useShippingRule();
 
   useEffect(() => {
     if (!loadToken()) { router.push('/account'); return; }
@@ -146,10 +148,12 @@ export default function SelectAddressPage() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 mt-4 p-3 rounded-xl bg-surface-container-low/50">
-                <Truck size={16} className="text-accent" strokeWidth={1.5} />
-                <span className="font-sans text-body-sm text-accent font-medium">Free shipping on orders above ₹5,000</span>
-              </div>
+              {rule && (
+                <div className="flex items-center gap-2 mt-4 p-3 rounded-xl bg-surface-container-low/50">
+                  <Truck size={16} className="text-accent" strokeWidth={1.5} />
+                  <span className="font-sans text-body-sm text-accent font-medium">Free shipping on orders above {formatPaise(rule.freeAbovePaise)}</span>
+                </div>
+              )}
             </div>
           )}
 

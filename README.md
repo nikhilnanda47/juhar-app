@@ -110,11 +110,10 @@ Juhar is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce pl
 Open items as of 2026-11-22, grouped by urgency. The team tracker holds owners and deadlines; this list is the code-level summary.
 
 ### Security and reliability — fix before real users
-- **Mock login.** OTP login uses a mock provider that always accepts `123456`, so anyone can sign in as any phone number, including the seeded admin. The `OTP_PROVIDER` environment variable is not read yet, and OTP codes are kept in server memory (lost on restart, not shared across instances).
+- **Mock login.** OTP login uses a mock provider that always accepts `123456`, so anyone can sign in as any phone number, including the seeded admin. The `OTP_PROVIDER` setting is read (only `mock` is supported until a real SMS provider is built), and the API **refuses to start with `NODE_ENV=production`** while it is `mock` or unset, so the mock cannot reach customers by accident. OTP codes are kept in server memory (lost on restart, not shared across instances).
 
 ### Orders and catalog
-- **Price sorting** (`price_asc` / `price_desc`) only sorts within each page of results.
-- **Cash-on-delivery stock holds do not expire.** A COD order reserves its units until an admin confirms, ships or cancels it, so an order nobody acts on keeps that stock locked and nothing flags it yet. Unpaid UPI holds still expire after 30 minutes, but that does not cancel the order (payments are Phase 4).
+- **Cash-on-delivery stock holds do not expire.** A COD order reserves its units until an admin confirms, ships or cancels it, so an order nobody acts on keeps that stock locked. The admin panel flags these: a COD order still `placed` after 24 hours gets an **Overdue** badge and its waiting time on the Orders page, an **Overdue (n)** filter, and an "n overdue" link under the dashboard's Pending count. Nothing is cancelled automatically. Unpaid UPI holds still expire after 30 minutes, but that does not cancel the order (payments are Phase 4).
 - **Order numbers can skip.** They come from a database sequence (`order_number_seq`), so a number used by an order that then fails is not reused. Orders placed before the `JUH-` rename keep their old `SAJ-` numbers.
 - **Cancellations.** Customer-side order cancellation is out of scope for now (in discovery). An API endpoint for it exists but no app uses it, and it writes no audit entry (admin cancellations do).
 - **Support number.** The "Need help?" link on the web order page uses a placeholder WhatsApp number (WhatsApp integration is pending).
@@ -127,8 +126,6 @@ Open items as of 2026-11-22, grouped by urgency. The team tracker holds owners a
 ### Engineering hygiene
 - Test coverage is early: the order state machine, stock (reserve, release, commit, ship, adjust, expiry job), admin order status changes, checkout (quote, order placement, shipping and totals) and rate limiting have tests (`npm test -w apps/api`). The automatic token refresh in the admin, web and mobile API clients is also tested (`npm test -w apps/admin`, `npm test -w apps/web`, and `npm test` inside `apps/mobile`). Auth, cart, the orders service, products and the web and mobile screens are not covered yet. Most of these tests use a fake database, so they cannot prove real concurrent locking or real SQL. The one exception is the test of the database `CHECK` constraints (`apps/api/src/database/check-constraints.spec.ts`), which runs against a real migrated Postgres only when you set `DB_TESTS=1` (CI does): `cd apps/api && npx prisma migrate deploy && DB_TESTS=1 npm test -- check-constraints`.
 - No ESLint configuration, so the `lint` scripts do not run.
-- The cart badge polls the server every 2–3 seconds.
-- The shipping rate and free-shipping threshold are duplicated between the API and the mobile cart screen.
 - `apps/mobile/src/navigation/TabNavigator.tsx` has `@ts-nocheck`.
 
 ## Tech Stack
@@ -357,6 +354,14 @@ psql postgres -c "CREATE DATABASE juhar_dev OWNER juhar;"
 psql postgres -c "GRANT ALL PRIVILEGES ON DATABASE juhar_dev TO juhar;"
 ```
 
+**Linux (apt):** `psql postgres` fails for your normal user ("role ... does not exist"). Run the same three commands as the `postgres` user instead, for example:
+
+```bash
+sudo -u postgres psql -c "CREATE USER juhar WITH PASSWORD 'juhar_dev_password' CREATEDB;"
+sudo -u postgres psql -c "CREATE DATABASE juhar_dev OWNER juhar;"
+sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE juhar_dev TO juhar;"
+```
+
 </details>
 
 <details>
@@ -387,6 +392,8 @@ Or use **pgAdmin GUI:**
 ```bash
 docker compose up -d
 ```
+
+This starts only PostgreSQL (same user, password and database name as Option A). The apps themselves still run with `npm`, as in step 7.
 
 ### 3. Install dependencies
 
@@ -451,7 +458,6 @@ npm run dev
 
 # Terminal 2 — Customer Website (localhost:3001)
 cd apps/web
-npm install        # first time only
 npm run dev
 
 # Terminal 3 — Admin Panel (localhost:3002)
@@ -486,12 +492,30 @@ cd apps/mobile && npx expo start --web
 cd apps/api && npx prisma studio
 ```
 
+The API, website and admin panel are covered by the root `npm install` in step 3; the mobile app needs its own (`apps/mobile`).
+
+> **Mobile app:** it runs in the browser preview at `localhost:8081`. A phone or Expo Go cannot reach `localhost` on your computer, and the API address is fixed in `apps/mobile/src/services/api.ts`, so testing on a real device needs that address changed first.
+
 ### 8. Test login
 
 - **Website**: `localhost:3001/account` → `+919876543210` → OTP `123456`
 - **Mobile App**: Account tab → `+919876543210` → OTP `123456`
 - **Admin Panel**: `localhost:3002` → same phone/OTP
 - Dev mode always accepts OTP `123456`
+- The seeded admin is `+919876543210`. Any other Indian mobile number (`+91` then 10 digits starting 6 to 9) signs in as a new customer.
+- OTP login is rate limited: 3 OTP requests and 5 verify attempts per phone number per 10 minutes. If you see "Too many attempts. Please wait a few minutes and try again", wait, or restart the API (the counters are in its memory).
+
+### Reading the API logs
+
+Every request gets one ID. It is in the `requestId` of the reply, in the `X-Request-Id` response header, and at the start of every log line for that request as `req=<id>`. To follow one request, search the API's terminal (or the Railway logs) for that ID:
+
+```
+LOG  [HTTP] req=bf1fd942-... POST /api/v1/orders 201 23ms user=6e7e4675-...
+LOG  [CheckoutService] req=bf1fd942-... order placed JUH-20261123-0096 total=₹1,599 items=1 payment=cod user=6e7e4675-...
+WARN [HTTP] req=84f9f661-... POST /api/v1/orders 409 12ms user=6e7e4675-... code=HTTP_409 "INSUFFICIENT_STOCK"
+```
+
+Successful requests are normal lines, client mistakes (wrong OTP, bad input, unknown page) are warnings without a stack trace, and real failures (500) are errors with the stack. Phone numbers are masked (`+91******3210`) and tokens, request bodies, addresses and query strings are never logged. Set `LOG_LEVEL` in `apps/api/.env` to `error`, `warn`, `log` (default), `debug` or `verbose` to change how much is written; in production the lines have no colour codes. The apps do not show the request ID to customers yet.
 
 ### After you `git pull`
 
@@ -507,6 +531,15 @@ Check what changed (`git diff HEAD@{1} --stat`), then use this table. Dev server
 | Source files only in `apps/web`, `apps/admin`, `apps/mobile` | — | Nothing (hot reload) |
 | Docs or CI files only | — | Nothing |
 
+### Working on a change
+
+`main` is protected: nobody pushes to it directly. Work on your own branch and open a pull request.
+
+1. Create a branch named `develop-<yourname>` (CI runs on every push to `main` and `develop-*`): `git checkout -b develop-<yourname>`
+2. Push it with `git push -u origin develop-<yourname>` and open a pull request into `main`.
+3. The pull request needs **1 approving review** and a passing `build` check (the CI gate job). History on `main` must stay linear, so merge with **Squash and merge** or **Rebase and merge**, not a plain merge commit.
+4. After a squash merge, bring `main` back into your branch so your next pull request only shows new work: `git checkout develop-<yourname> && git pull origin main`, then `git push`.
+
 ### Useful commands
 
 | Command | Where to run | Description |
@@ -517,7 +550,7 @@ Check what changed (`git diff HEAD@{1} --stat`), then use this table. Dev server
 | `cd apps/mobile && npx expo start --web` | Root | Start mobile app (web preview) |
 | `cd apps/api && npx prisma studio` | Root | Visual database browser |
 | `cd apps/api && npx prisma migrate deploy` | Root | Apply migrations that already exist (use this after `git pull`; no extra database permission needed) |
-| `cd apps/api && npx prisma migrate dev --name <name>` | Root | Create a new migration (needs the database user to be allowed to create databases, see Troubleshooting) |
+| `cd apps/api && npx prisma migrate dev --name <name>` | Root | Create a new migration (needs the database user to be allowed to create databases, see the `P3014` note in step 5) |
 | `cd apps/api && npx prisma generate` | Root | Regenerate Prisma client |
 | `cd apps/api && npx ts-node prisma/seed.ts` | Root | Re-seed database |
 | `psql -U juhar -d juhar_dev` | Anywhere | Connect to database CLI |
@@ -526,6 +559,10 @@ Check what changed (`git diff HEAD@{1} --stat`), then use this table. Dev server
 | `npm run typecheck -w apps/web` (or `apps/admin`, `apps/api`) | Root | Typecheck one app |
 | `npm test -w apps/api` | Root | Run the API unit tests (Jest, no database needed) |
 | `npm test -w apps/admin` | Root | Run the admin unit tests (Jest) |
+| `npm test -w apps/web` | Root | Run the website unit tests (Jest) |
+| `cd apps/mobile && npm test` | Root | Run the mobile unit tests (Jest) |
+| `npm test` | Root | Run the API, admin and website tests together (mobile has its own, above) |
+| `cd apps/api && DB_TESTS=1 npm test -- check-constraints` | Root | Also run the database tests against your migrated local database (they roll back and leave no data) |
 | `npm run build:web` | Root | Production build of the website (catches errors dev mode hides) |
 
 ### Service ports

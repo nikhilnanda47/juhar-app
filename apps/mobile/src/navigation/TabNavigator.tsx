@@ -1,11 +1,14 @@
 // @ts-nocheck
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { AppState } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Home, Search, ShoppingBag, Package, User } from 'lucide-react-native';
 import { useTheme, type ColorPalette, spacing, elevation } from '../theme';
 import { loadToken, getCart } from '../services/api';
 import { getLocalCart, localCartToResponse } from '../services/localCart';
+import { onCartChanged } from '../services/cartEvents';
+import { startCartRefresh } from '../services/cartRefresh';
 import HomeScreen from '../screens/HomeScreen';
 import ExploreScreen from '../screens/ExploreScreen';
 import ProductDetailScreen from '../screens/ProductDetailScreen';
@@ -77,31 +80,42 @@ function OrdersStackScreen() {
 export default function TabNavigator() {
   const { colors } = useTheme();
   const [cartCount, setCartCount] = useState(0);
+  const latestRefresh = useRef(0);
 
   const refreshCartCount = useCallback(async () => {
+    // If two refreshes overlap, only the newest one may update the badge
+    const id = ++latestRefresh.current;
+    let count = 0;
     try {
       const hasToken = await loadToken();
       if (hasToken) {
-        const cart = await getCart();
-        setCartCount(cart.itemCount);
+        count = (await getCart()).itemCount;
       } else {
-        const localItems = await getLocalCart();
-        const local = localCartToResponse(localItems);
-        setCartCount(local.itemCount);
+        count = localCartToResponse(await getLocalCart()).itemCount;
       }
     } catch {
       try {
-        const localItems = await getLocalCart();
-        const local = localCartToResponse(localItems);
-        setCartCount(local.itemCount);
-      } catch { setCartCount(0); }
+        count = localCartToResponse(await getLocalCart()).itemCount;
+      } catch { count = 0; }
     }
+    if (id === latestRefresh.current) setCartCount(count);
   }, []);
 
+  // Refresh once now, then only when the cart changes, the app returns to the foreground,
+  // or every 5 minutes while it is open (instead of every 3 seconds)
   useEffect(() => {
     refreshCartCount();
-    const interval = setInterval(refreshCartCount, 3000);
-    return () => clearInterval(interval);
+    return startCartRefresh({
+      refresh: refreshCartCount,
+      subscribe: onCartChanged,
+      onForeground: (listener) => {
+        const subscription = AppState.addEventListener('change', (state) => {
+          if (state === 'active') listener();
+        });
+        return () => subscription.remove();
+      },
+      isActive: () => AppState.currentState === 'active',
+    });
   }, [refreshCartCount]);
 
   return (

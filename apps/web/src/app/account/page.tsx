@@ -10,6 +10,7 @@ import {
   isLoggedIn, loadToken, requestOtp, verifyOtp, clearTokens,
   getProfile, updateProfile, getAddresses, getOrders, type UserProfile,
 } from '@/lib/api';
+import { readLocalCart, clearLocalCart } from '@/lib/cart-events';
 import { useTheme } from '@/lib/theme-context';
 
 type Screen = 'loading' | 'login' | 'otp' | 'profile' | 'editName';
@@ -59,13 +60,13 @@ export default function AccountPage() {
     try {
       const result = await verifyOtp('+91' + phone, otp);
       // Sync local cart
-      const localCart = JSON.parse(localStorage.getItem('juhar_local_cart') || '[]');
+      const localCart = readLocalCart();
       if (localCart.length > 0) {
         const { addToCart } = await import('@/lib/api');
         for (const item of localCart) {
           try { await addToCart(item.variantId, item.quantity); } catch {}
         }
-        localStorage.removeItem('juhar_local_cart');
+        clearLocalCart();
       }
       const p = await getProfile(); setProfile(p);
       fetchCounts();

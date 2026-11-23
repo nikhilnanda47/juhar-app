@@ -167,7 +167,7 @@ Users can browse and add to cart without logging in:
 2. **Cart tab** → renders local cart with full stepper/remove functionality
 3. **Proceed to Checkout** → redirected to login
 4. **After login** → `syncLocalCartToServer()` pushes local items to server cart, clears local storage
-5. **Cart badge** → updates on both platforms, polling every 2–3 seconds
+5. **Cart badge** → updates on both platforms as soon as the cart changes (no polling; it also refreshes when the customer returns to the app and every 5 minutes as a safety net)
 
 **Files:** `apps/mobile/src/services/localCart.ts`, `apps/web/src/lib/cart-context.tsx`
 
@@ -359,6 +359,7 @@ Key constraints: integer paise for money, UTC timestamps, UUID PKs, indexes on S
 | POST | /api/v1/cart/items | Customer | Add to cart |
 | PATCH | /api/v1/cart/items/:id | Customer | Update cart item quantity |
 | DELETE | /api/v1/cart/items/:id | Customer | Remove from cart |
+| GET | /api/v1/config/shipping | Public | Shipping rule (flat charge, free-above amount) for the apps to display |
 | POST | /api/v1/checkout/quote | Customer | Server-calculated totals |
 | POST | /api/v1/orders | Customer | Place order (idempotent) |
 | GET | /api/v1/orders | Customer | Order history |
@@ -489,7 +490,7 @@ Push → Lint + Typecheck + Test (parallel) → Build → Deploy Staging (auto) 
 | Audit | All admin mutations logged in audit_events table |
 
 > **Implementation status (2026-11-22):** The rows above are the design target. Gaps in the code today:
-> - **OTP provider:** `AuthModule` always uses `MockOtpProvider` (fixed OTP `123456`, logged to the console). `OTP_PROVIDER` in `.env` is not read. Anyone can log in as any phone number, including the seeded admin, so this must be replaced before any real use.
+> - **OTP provider:** `AuthModule` builds the provider from `OTP_PROVIDER`; only `MockOtpProvider` exists (fixed OTP `123456`, logged to the console), so anyone can log in as any phone number, including the seeded admin. The API refuses to start with `NODE_ENV=production` while the provider is `mock` or unset, so the mock cannot reach customers by accident. A real SMS provider must still be built before any real use.
 > - **OTP store:** hashed OTPs and attempt counts live in an in-memory map, so they reset on restart and do not work across multiple instances.
 > - **Rate limiting:** enforced since 2026-11-22 by a global `AppThrottlerGuard`. OTP request: 3/phone and 10/IP per 10 minutes; OTP verify: 5/phone and 20/IP per 10 minutes; all other endpoints: 100 req/min per logged-in user (per IP when logged out). Blocked calls get 429 `RATE_LIMITED`. Behind a proxy the API needs `TRUST_PROXY`. Counters are in memory (per instance, reset on restart). Details are in LLD section 5.3.
 > - **Refresh tokens:** the API issues and verifies them (`POST /auth/refresh`), and the admin, web and mobile clients all use it (on a 401 the client refreshes once and repeats the request; a rejected refresh token ends the session and shows the login screen), so sessions last up to 7 days. Refresh tokens cannot be revoked.
@@ -564,6 +565,6 @@ juhar-app/
 | 8 | Initial SKU count | ~20–30 designs from factory audit | Merchandising |
 | 9 | WhatsApp provider | Gupshup / Wati | Tech |
 | 10 | Stock ownership | Reserved allocation to Juhar (not shared) | Ops |
-| 11 | Unconfirmed COD orders: what should happen to a COD order nobody confirms? | **Decided 2026-11-22:** keep the stock held until an admin acts (confirm, ship or cancel); the expiry worker no longer releases COD holds. Follow-up: flag stale unconfirmed orders to the admin. | Ops |
+| 11 | Unconfirmed COD orders: what should happen to a COD order nobody confirms? | **Decided 2026-11-22:** keep the stock held until an admin acts (confirm, ship or cancel); the expiry worker no longer releases COD holds. **Follow-up done 2026-11-23:** a COD order still `placed` after 24 hours is flagged as overdue in the admin panel (badge, filter and dashboard count); it is never cancelled automatically. | Ops |
 | 12 | Should admins be able to cancel an order after it is packed? The state machine allows cancellation only from `placed` and `confirmed`. | Keep as is; handle post-pack problems as returns | TBD |
 | 13 | Real customer support / WhatsApp number. WhatsApp integration is pending, and the web order page links to a placeholder number. | Use one business number once the integration exists; hide the link until then | TBD |

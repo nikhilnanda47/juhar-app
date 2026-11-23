@@ -8,6 +8,7 @@ import {
   Banknote, ShieldCheck, Truck, Star, MapPin,
 } from 'lucide-react';
 import { getProductBySlug, getProducts, formatPaise, isLoggedIn, addToCart, type Product, type ProductVariant } from '@/lib/api';
+import { readLocalCart, saveLocalCart } from '@/lib/cart-events';
 
 export default function ProductDetailPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -47,7 +48,7 @@ export default function ProductDetailPage() {
       if (isLoggedIn()) {
         await addToCart(selectedVariant.id, 1);
       } else {
-        const localCart = JSON.parse(localStorage.getItem('juhar_local_cart') || '[]');
+        const localCart = readLocalCart();
         const existing = localCart.find((c: any) => c.variantId === selectedVariant.id);
         if (existing) { existing.quantity += 1; }
         else {
@@ -59,7 +60,7 @@ export default function ProductDetailPage() {
             compareAtPaise: selectedVariant.compareAtPaise, available: selectedVariant.available,
           });
         }
-        localStorage.setItem('juhar_local_cart', JSON.stringify(localCart));
+        saveLocalCart(localCart);
       }
       setAddedToCart(true);
       setShowToast(true);

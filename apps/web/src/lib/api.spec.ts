@@ -35,7 +35,7 @@ function signedIn(access = 'OLD', refresh: string | null = 'REFRESH') {
 beforeEach(() => {
   calls = [];
   store = {};
-  (global as any).window = {};
+  (global as any).window = { dispatchEvent: () => true };
   (global as any).localStorage = {
     getItem: (k: string) => store[k] ?? null,
     setItem: (k: string, v: string) => { store[k] = v; },

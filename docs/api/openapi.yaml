@@ -108,7 +108,11 @@ components:
           type: object
         requestId:
           type: string
-          example: req_abc123
+          description: >-
+            One ID per request. It is also sent in the `X-Request-Id` response header and is the first
+            thing in every log line for the request (`req=<id>`), so quote it when reporting a problem.
+            If the caller sends a valid `X-Request-Id` (8 to 64 letters, digits, `.`, `_` or `-`) it is reused.
+          example: 7f3a9c21-4b0e-4d8a-9c1f-2e6b5a0d1c33
 
     ErrorResponse:
       type: object
@@ -131,7 +135,11 @@ components:
               type: object
         requestId:
           type: string
-          example: req_abc123
+          description: >-
+            One ID per request. It is also sent in the `X-Request-Id` response header and is the first
+            thing in every log line for the request (`req=<id>`), so quote it when reporting a problem.
+            If the caller sends a valid `X-Request-Id` (8 to 64 letters, digits, `.`, `_` or `-`) it is reused.
+          example: 7f3a9c21-4b0e-4d8a-9c1f-2e6b5a0d1c33
 
     ValidationError:
       type: object
@@ -834,6 +842,7 @@ components:
           description: Sum of all line totals in paise
         itemCount:
           type: integer
+          description: Total quantity of pieces in the cart (3 sarees = 3), not the number of different products
 
     CartItem:
       type: object
@@ -1478,6 +1487,32 @@ paths:
               schema:
                 $ref: '#/components/schemas/HealthResponse'
 
+  # ── Config ──
+  /api/v1/config/shipping:
+    get:
+      tags: [Checkout]
+      summary: Shipping rule
+      description: >
+        The delivery charge rule the API uses at checkout: a flat charge, free once the subtotal reaches
+        the threshold. Public (no login), so guests see the same figures. Web and mobile read it instead
+        of typing the amounts into screens. Amounts are in paise.
+      operationId: getShippingRule
+      security: []
+      responses:
+        "200":
+          description: The current rule
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    type: object
+                    properties:
+                      flatPaise: { type: integer, example: 9900, description: Delivery charge below the threshold }
+                      freeAbovePaise: { type: integer, example: 500000, description: Delivery is free when the subtotal is this or more }
+
   # ────────────────────────────────────────────
   # AUTH
   # ────────────────────────────────────────────
@@ -1848,6 +1883,13 @@ paths:
           description: Maximum price in paise
         - name: sortBy
           in: query
+          description: >-
+            `newest` (default): newest first. `price_asc` / `price_desc`: the whole catalog (not
+            just one page) by the cheapest active variant, which is the price shown on the card;
+            products with the same price are ordered by id. The `cursor` is the id of the last
+            product on the previous page and continues from that place in whichever order you
+            asked for; a cursor that no longer matches a listed product returns an empty page.
+            `relevance` is not implemented and behaves like `newest`.
           schema:
             type: string
             enum: [newest, price_asc, price_desc, relevance]
@@ -2812,6 +2854,10 @@ paths:
       tags: ["Admin: Orders"]
       summary: Search orders
       operationId: adminListOrders
+      description: >-
+        Implemented filters: `status`, `search`, `overdue`, `cursor`, `limit`. `paymentMode`, `fromDate`
+        and `toDate` are **not implemented**: the API refuses unknown query parameters with 400.
+        Every order carries `waitingMinutes` and `overdue`, and the response has `counts` over all orders.
       security:
         - BearerAuth: []
       parameters:
@@ -2820,8 +2866,16 @@ paths:
           schema:
             type: string
             enum: [placed, confirmed, packed, shipped, delivered, cancelled, return_requested, return_approved, return_rejected, returned, refund_pending, refunded]
+        - name: overdue
+          in: query
+          description: >-
+            `true` keeps only cash-on-delivery orders still `placed` for more than 24 hours (their stock
+            is still held). They are flagged only, never cancelled automatically.
+          schema:
+            type: boolean
         - name: paymentMode
           in: query
+          description: Not implemented (400)
           schema:
             type: string
             enum: [upi, cod]
@@ -2857,12 +2911,48 @@ paths:
                           items:
                             type: array
                             items:
-                              $ref: '#/components/schemas/Order'
+                              allOf:
+                                - $ref: '#/components/schemas/Order'
+                                - type: object
+                                  properties:
+                                    waitingMinutes:
+                                      type: integer
+                                      nullable: true
+                                      description: Minutes since the order was placed; only while its status is `placed`, otherwise null
+                                    overdue:
+                                      type: boolean
+                                      description: A COD order still `placed` for more than 24 hours
                           cursor:
                             type: string
                             nullable: true
                           hasMore:
                             type: boolean
+                          counts:
+                            type: object
+                            description: Over all orders, whatever page, filter or search was asked for
+                            properties:
+                              placed:
+                                type: integer
+                                description: Orders with status `placed`
+                              overdue:
+                                type: integer
+                                description: COD orders still `placed` for more than 24 hours
+                              today:
+                                type: object
+                                description: >-
+                                  Today in India (UTC+5:30, midnight to midnight), for the dashboard.
+                                  Cancelled orders are left out of both numbers.
+                                properties:
+                                  date:
+                                    type: string
+                                    example: "2026-11-23"
+                                    description: The India calendar date these numbers are for
+                                  orders:
+                                    type: integer
+                                    description: Orders placed today that are not cancelled
+                                  gmvPaise:
+                                    type: integer
+                                    description: Sum of `totalPaise` of those orders (GMV)
 
   /api/v1/admin/orders/{id}:
     get:

@@ -1,4 +1,5 @@
-import { IsOptional, IsString, IsEnum } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { IsBoolean, IsOptional, IsString, IsEnum } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { OrderStatus } from '@juhar/shared';
@@ -20,4 +21,15 @@ export class AdminOrderQueryDto extends PaginationDto {
   @IsOptional()
   @IsString()
   search?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Only cash-on-delivery orders still "placed" for more than 24 hours (their stock is still held). ' +
+      'Send true to filter; false or missing means no filter.',
+  })
+  @IsOptional()
+  // The global pipe converts "false" to true on its own, so read the raw value
+  @Transform(({ obj }) => obj.overdue === true || obj.overdue === 'true')
+  @IsBoolean()
+  overdue?: boolean;
 }
