@@ -110,7 +110,7 @@ Juhar is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce pl
 Open items as of 2026-11-22, grouped by urgency. The team tracker holds owners and deadlines; this list is the code-level summary.
 
 ### Security and reliability — fix before real users
-- **Mock login.** OTP login uses a mock provider that always accepts `123456`, so anyone can sign in as any phone number, including the seeded admin. The `OTP_PROVIDER` environment variable is not read yet, and OTP codes are kept in server memory (lost on restart, not shared across instances).
+- **Mock login.** OTP login uses a mock provider that always accepts `123456`, so anyone can sign in as any phone number, including the seeded admin. The `OTP_PROVIDER` setting is read (only `mock` is supported until a real SMS provider is built), and the API **refuses to start with `NODE_ENV=production`** while it is `mock` or unset, so the mock cannot reach customers by accident. OTP codes are kept in server memory (lost on restart, not shared across instances).
 
 ### Orders and catalog
 - **Price sorting** (`price_asc` / `price_desc`) only sorts within each page of results.

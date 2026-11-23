@@ -5,8 +5,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
-import { MockOtpProvider } from './providers/mock-otp.provider';
 import { OTP_PROVIDER } from './providers/otp-provider.interface';
+import { createOtpProvider } from './providers/otp-provider.factory';
 
 @Module({
   imports: [
@@ -26,7 +26,8 @@ import { OTP_PROVIDER } from './providers/otp-provider.interface';
     JwtStrategy,
     {
       provide: OTP_PROVIDER,
-      useClass: MockOtpProvider, // Swap with real provider for production
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => createOtpProvider(configService.get('OTP_PROVIDER')),
     },
   ],
   exports: [AuthService, JwtModule, PassportModule],
