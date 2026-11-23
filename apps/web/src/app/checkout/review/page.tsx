@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Phone, ArrowRight, Package, Handshake } from 'lucide-react';
 import { loadToken, getAddresses, getCart, placeOrder, formatPaise, type Address, type CartResponse } from '@/lib/api';
+import { shippingFor, useShippingRule } from '@/lib/shipping';
 
 function OrderReviewContent() {
   const router = useRouter();
@@ -13,6 +14,7 @@ function OrderReviewContent() {
   const [cart, setCart] = useState<CartResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [placing, setPlacing] = useState(false);
+  const { rule, loaded: ruleLoaded } = useShippingRule();
 
   useEffect(() => {
     if (!loadToken()) { router.push('/account'); return; }
@@ -22,8 +24,9 @@ function OrderReviewContent() {
     }).catch(() => {}).finally(() => setLoading(false));
   }, [addressId]);
 
-  const shippingPaise = (cart?.subtotalPaise ?? 0) >= 500000 ? 0 : 9900;
-  const totalPaise = (cart?.subtotalPaise ?? 0) + shippingPaise;
+  // null = the shipping rule could not be loaded; the order total is always worked out by the API when you place it
+  const shippingPaise = rule ? shippingFor(cart?.subtotalPaise ?? 0, rule) : null;
+  const totalPaise = (cart?.subtotalPaise ?? 0) + (shippingPaise ?? 0);
 
   const handlePlaceOrder = async () => {
     setPlacing(true);
@@ -35,7 +38,7 @@ function OrderReviewContent() {
     finally { setPlacing(false); }
   };
 
-  if (loading) return <div className="flex items-center justify-center min-h-[60vh]"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
+  if (loading || !ruleLoaded) return <div className="flex items-center justify-center min-h-[60vh]"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
 
   if (!cart || cart.items.length === 0) return <div className="flex items-center justify-center min-h-[60vh]"><p className="text-text-secondary">Your cart is empty</p></div>;
 
@@ -105,12 +108,12 @@ function OrderReviewContent() {
         <div className="flex justify-between mb-2">
           <span className="font-sans text-body-md text-text-secondary">Shipping</span>
           <span className={`font-sans text-body-md ${shippingPaise === 0 ? 'text-accent font-semibold' : ''}`}>
-            {shippingPaise === 0 ? 'FREE' : formatPaise(shippingPaise)}
+            {shippingPaise === null ? 'Added when you place the order' : shippingPaise === 0 ? 'FREE' : formatPaise(shippingPaise)}
           </span>
         </div>
         <div className="h-px bg-border my-3" />
         <div className="flex justify-between">
-          <span className="font-sans text-title-sm">Total</span>
+          <span className="font-sans text-title-sm">{shippingPaise === null ? 'Subtotal' : 'Total'}</span>
           <span className="font-sans text-price-lg text-text-primary">{formatPaise(totalPaise)}</span>
         </div>
       </div>
@@ -128,7 +131,7 @@ function OrderReviewContent() {
 
       {/* Place Order */}
       <button onClick={handlePlaceOrder} disabled={placing} className="btn-primary w-full disabled:opacity-50">
-        {placing ? 'Securing Order...' : `Place Order (${formatPaise(totalPaise)})`}
+        {placing ? 'Securing Order...' : shippingPaise === null ? 'Place Order' : `Place Order (${formatPaise(totalPaise)})`}
       </button>
     </div>
   );

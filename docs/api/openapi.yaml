@@ -1486,6 +1486,32 @@ paths:
               schema:
                 $ref: '#/components/schemas/HealthResponse'
 
+  # ── Config ──
+  /api/v1/config/shipping:
+    get:
+      tags: [Checkout]
+      summary: Shipping rule
+      description: >
+        The delivery charge rule the API uses at checkout: a flat charge, free once the subtotal reaches
+        the threshold. Public (no login), so guests see the same figures. Web and mobile read it instead
+        of typing the amounts into screens. Amounts are in paise.
+      operationId: getShippingRule
+      security: []
+      responses:
+        "200":
+          description: The current rule
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    type: object
+                    properties:
+                      flatPaise: { type: integer, example: 9900, description: Delivery charge below the threshold }
+                      freeAbovePaise: { type: integer, example: 500000, description: Delivery is free when the subtotal is this or more }
+
   # ────────────────────────────────────────────
   # AUTH
   # ────────────────────────────────────────────

@@ -266,3 +266,16 @@ export async function placeOrder(input: {
   notifyCartChanged(); // placing an order empties the cart
   return order;
 }
+
+// ── Shipping rule (public) ──
+// The rule lives in the API (one place); the screens only display what it says.
+export interface ShippingRule {
+  /** the charge, in paise, when the subtotal is below freeAbovePaise */
+  flatPaise: number;
+  /** delivery is free when the subtotal is this much (paise) or more */
+  freeAbovePaise: number;
+}
+
+export async function getShippingRule(): Promise<ShippingRule> {
+  return request<ShippingRule>('/api/v1/config/shipping');
+}

@@ -6,6 +6,7 @@ import {
 import { Truck, Phone, ArrowRight, Package, BadgeCheck, Handshake } from 'lucide-react-native';
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
 import { getAddresses, getCart, placeOrder, formatPaise, type Address, type CartResponse } from '../services/api';
+import { shippingFor, useShippingRule } from '../services/shipping';
 
 interface Props {
   navigation: any;
@@ -22,6 +23,7 @@ export default function OrderReviewScreen({ navigation, route }: Props) {
   const [placing, setPlacing] = useState(false);
   const [error, setError] = useState('');
   const [paymentMode] = useState<'cod'>('cod');
+  const { rule, loaded: ruleLoaded } = useShippingRule();
 
   useEffect(() => { loadData(); }, []);
 
@@ -34,8 +36,9 @@ export default function OrderReviewScreen({ navigation, route }: Props) {
     setLoading(false);
   };
 
-  const shippingPaise = (cart?.subtotalPaise ?? 0) >= 500000 ? 0 : 9900;
-  const totalPaise = (cart?.subtotalPaise ?? 0) + shippingPaise;
+  // null = the shipping rule could not be loaded; the order total is always worked out by the API when you place it
+  const shippingPaise = rule ? shippingFor(cart?.subtotalPaise ?? 0, rule) : null;
+  const totalPaise = (cart?.subtotalPaise ?? 0) + (shippingPaise ?? 0);
 
   const handlePlaceOrder = async () => {
     setPlacing(true);
@@ -51,7 +54,7 @@ export default function OrderReviewScreen({ navigation, route }: Props) {
     }
   };
 
-  if (loading) {
+  if (loading || !ruleLoaded) {
     return <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>;
   }
 
@@ -159,12 +162,12 @@ export default function OrderReviewScreen({ navigation, route }: Props) {
           <View style={styles.priceRow}>
             <Text style={styles.priceLabel}>Shipping</Text>
             <Text style={shippingPaise === 0 ? styles.priceAccent : styles.priceValue}>
-              {shippingPaise === 0 ? 'FREE' : formatPaise(shippingPaise)}
+              {shippingPaise === null ? 'Added when you place the order' : shippingPaise === 0 ? 'FREE' : formatPaise(shippingPaise)}
             </Text>
           </View>
           <View style={styles.priceDivider} />
           <View style={styles.priceRow}>
-            <Text style={styles.totalLabel}>Total</Text>
+            <Text style={styles.totalLabel}>{shippingPaise === null ? 'Subtotal' : 'Total'}</Text>
             <Text style={styles.totalValue}>{formatPaise(totalPaise)}</Text>
           </View>
         </View>
@@ -195,7 +198,7 @@ export default function OrderReviewScreen({ navigation, route }: Props) {
       {/* Sticky Bottom */}
       <View style={styles.stickyBar}>
         <View>
-          <Text style={styles.stickyLabel}>To Pay</Text>
+          <Text style={styles.stickyLabel}>{shippingPaise === null ? 'Subtotal' : 'To Pay'}</Text>
           <Text style={styles.stickyPrice}>{formatPaise(totalPaise)}</Text>
         </View>
         <TouchableOpacity
@@ -207,7 +210,7 @@ export default function OrderReviewScreen({ navigation, route }: Props) {
           <Text style={styles.placeBtnText}>
             {placing ? 'Securing Order...' : 'Place Order'}
           </Text>
-          <Text style={styles.placeBtnPrice}>({formatPaise(totalPaise)})</Text>
+          {shippingPaise !== null && <Text style={styles.placeBtnPrice}>({formatPaise(totalPaise)})</Text>}
         </TouchableOpacity>
       </View>
     </View>

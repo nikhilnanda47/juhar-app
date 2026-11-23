@@ -4,11 +4,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { InventoryService } from '../inventory/inventory.service';
 import { CheckoutQuoteDto, PlaceOrderDto } from './dto';
-import { generateOrderNumber, PaymentMode } from '@juhar/shared';
-
-// Pilot: flat shipping rate
-const SHIPPING_PAISE = 9900; // ₹99
-const FREE_SHIPPING_THRESHOLD = 500000; // ₹5,000+
+import { calculateShippingPaise, generateOrderNumber, PaymentMode } from '@juhar/shared';
 
 @Injectable()
 export class CheckoutService {
@@ -71,7 +67,7 @@ export class CheckoutService {
     });
 
     const subtotalPaise = items.reduce((sum, i) => sum + i.lineTotalPaise, 0);
-    const shippingPaise = subtotalPaise >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_PAISE;
+    const shippingPaise = calculateShippingPaise(subtotalPaise);
     const taxPaise = 0; // GST included in product price for pilot
     const totalPaise = subtotalPaise + shippingPaise + taxPaise;
 
@@ -156,7 +152,7 @@ export class CheckoutService {
       const subtotalPaise = cartItems.reduce(
         (sum, i) => sum + i.variant.pricePaise * i.quantity, 0,
       );
-      const shippingPaise = subtotalPaise >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_PAISE;
+      const shippingPaise = calculateShippingPaise(subtotalPaise);
       const taxPaise = 0;
       const totalPaise = subtotalPaise + shippingPaise + taxPaise;
 

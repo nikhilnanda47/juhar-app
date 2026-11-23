@@ -18,8 +18,7 @@ import {
   getLocalCart, updateLocalCartItem, removeLocalCartItem,
   localCartToResponse,
 } from '../services/localCart';
-
-const FREE_SHIPPING_THRESHOLD = 500000; // 5000 paise = ₹5,000
+import { remainingForFreeShipping, shippingFor, shippingProgressPercent, useShippingRule } from '../services/shipping';
 
 export default function CartScreen() {
   const navigation = useNavigation<any>();
@@ -32,6 +31,7 @@ export default function CartScreen() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
+  const { rule, loaded: ruleLoaded } = useShippingRule();
 
   useFocusEffect(useCallback(() => { checkAndLoad(); }, []));
 
@@ -87,7 +87,7 @@ export default function CartScreen() {
     setUpdating(null);
   };
 
-  if (loading) {
+  if (loading || !ruleLoaded) {
     return <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>;
   }
 
@@ -104,15 +104,16 @@ export default function CartScreen() {
     );
   }
 
-  const shippingPaise = cart.subtotalPaise >= FREE_SHIPPING_THRESHOLD ? 0 : 9900;
+  // null = the shipping rule could not be loaded; show "at checkout" instead of guessing
+  const shippingPaise = rule ? shippingFor(cart.subtotalPaise, rule) : null;
   const couponDiscount = appliedCoupon ? 10000 : 0; // ₹100 mock
-  const totalPaise = cart.subtotalPaise - couponDiscount + shippingPaise;
-  const freeShippingMet = cart.subtotalPaise >= FREE_SHIPPING_THRESHOLD;
-  const shippingProgress = Math.min(100, (cart.subtotalPaise / FREE_SHIPPING_THRESHOLD) * 100);
+  const totalPaise = cart.subtotalPaise - couponDiscount + (shippingPaise ?? 0);
+  const freeShippingMet = shippingPaise === 0;
+  const shippingProgress = rule ? shippingProgressPercent(cart.subtotalPaise, rule) : 0;
   const totalSavings = cart.items.reduce((sum, item) => {
     const compare = item.variant.compareAtPaise || item.variant.pricePaise;
     return sum + (compare - item.variant.pricePaise) * item.quantity;
-  }, 0) + couponDiscount + (shippingPaise === 0 ? 9900 : 0);
+  }, 0) + couponDiscount + (rule && shippingPaise === 0 ? rule.flatPaise : 0); // free shipping saves the flat charge
 
   return (
     <View style={styles.container}>
@@ -132,23 +133,23 @@ export default function CartScreen() {
         </View>
 
         {/* Free Shipping Meter */}
-        <View style={styles.shippingMeter}>
+        {rule && <View style={styles.shippingMeter}>
           <View style={styles.shippingRow}>
             <View style={styles.shippingLeft}>
               <Truck size={16} color={colors.accent} strokeWidth={2} />
               <Text style={styles.shippingText}>
                 {freeShippingMet
                   ? 'Free delivery unlocked!'
-                  : `₹${((FREE_SHIPPING_THRESHOLD - cart.subtotalPaise) / 100).toLocaleString('en-IN')} more for free shipping`
+                  : `${formatPaise(remainingForFreeShipping(cart.subtotalPaise, rule))} more for free shipping`
                 }
               </Text>
             </View>
-            {freeShippingMet && <Text style={styles.shippingGoal}>₹5,000 met</Text>}
+            {freeShippingMet && <Text style={styles.shippingGoal}>{formatPaise(rule.freeAbovePaise)} met</Text>}
           </View>
           <View style={styles.progressBar}>
             <View style={[styles.progressFill, { width: `${shippingProgress}%` }]} />
           </View>
-        </View>
+        </View>}
 
         {/* Cart Items */}
         {cart.items.map((item) => (
@@ -206,7 +207,7 @@ export default function CartScreen() {
           )}
           <PriceRow
             label="Shipping"
-            value={shippingPaise === 0 ? 'FREE' : formatPaise(shippingPaise)}
+            value={shippingPaise === null ? 'At checkout' : shippingPaise === 0 ? 'FREE' : formatPaise(shippingPaise)}
             valueColor={shippingPaise === 0 ? colors.accent : undefined}
             colors={colors}
           />
@@ -214,14 +215,14 @@ export default function CartScreen() {
           <View style={styles.totalRow}>
             <View>
               <Text style={styles.totalLabel}>Total Amount</Text>
-              <Text style={styles.totalTaxNote}>Inclusive of all taxes</Text>
+              <Text style={styles.totalTaxNote}>{shippingPaise === null ? 'Shipping is added at checkout' : 'Inclusive of all taxes'}</Text>
             </View>
             <Text style={styles.totalValue}>{formatPaise(totalPaise)}</Text>
           </View>
           {freeShippingMet && (
             <View style={styles.freeShipNote}>
               <Leaf size={16} color={colors.accent} strokeWidth={2} />
-              <Text style={styles.freeShipText}>Free shipping applied on orders above ₹5,000</Text>
+              <Text style={styles.freeShipText}>Free shipping applied on orders above {formatPaise(rule!.freeAbovePaise)}</Text>
             </View>
           )}
         </View>

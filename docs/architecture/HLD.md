@@ -359,6 +359,7 @@ Key constraints: integer paise for money, UTC timestamps, UUID PKs, indexes on S
 | POST | /api/v1/cart/items | Customer | Add to cart |
 | PATCH | /api/v1/cart/items/:id | Customer | Update cart item quantity |
 | DELETE | /api/v1/cart/items/:id | Customer | Remove from cart |
+| GET | /api/v1/config/shipping | Public | Shipping rule (flat charge, free-above amount) for the apps to display |
 | POST | /api/v1/checkout/quote | Customer | Server-calculated totals |
 | POST | /api/v1/orders | Customer | Place order (idempotent) |
 | GET | /api/v1/orders | Customer | Order history |

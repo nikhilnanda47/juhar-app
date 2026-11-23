@@ -1005,7 +1005,7 @@ Reusable refresh icon (`RefreshCw`) with spin animation on press. Used on Home, 
 │  Shipping              ₹99 │  ← or "FREE" in #3D8B63
 │  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  │
 │  Total              ₹6,199 │  ← 16px bold
-│  Free shipping on ₹5,000+  │  ← 12px #3D8B63, if sub < 5000
+│  Free shipping on ₹5,000+  │  ← 12px #3D8B63, if sub < the free-above amount (amounts come from GET /api/v1/config/shipping, not typed in)
 ├─────────────────────────────┤
 │ ┌─────────────────────────┐ │  ← Sticky bar, subtle shadow
 │ │   Proceed to Checkout   │ │     Blocked if OOS items remain
