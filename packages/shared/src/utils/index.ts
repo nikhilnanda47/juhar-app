@@ -44,7 +44,7 @@ export function generateSlug(text: string): string {
 
 /**
  * Generate a human-readable order number.
- * Format: SAJ-YYYYMMDD-XXXX (XXXX is a zero-padded sequence)
+ * Format: JUH-YYYYMMDD-XXXX (XXXX is a zero-padded sequence)
  */
 export function generateOrderNumber(sequence: number): string {
   const now = new Date();

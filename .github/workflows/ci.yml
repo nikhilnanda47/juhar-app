@@ -49,6 +49,18 @@ jobs:
         run: npx prisma generate
         working-directory: apps/api
 
+      - name: Apply database migrations
+        run: npx prisma migrate deploy
+        working-directory: apps/api
+        env:
+          DATABASE_URL: postgresql://juhar:juhar_test_password@localhost:5432/juhar_test
+
+      - name: Check the schema matches the migrations
+        run: npx prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel prisma/schema.prisma --exit-code
+        working-directory: apps/api
+        env:
+          DATABASE_URL: postgresql://juhar:juhar_test_password@localhost:5432/juhar_test
+
       - name: Typecheck
         run: |
           npm run typecheck -w packages/shared
@@ -61,6 +73,8 @@ jobs:
           JWT_SECRET: test-secret
           JWT_REFRESH_SECRET: test-refresh-secret
           NODE_ENV: test
+          # also run the tests that need the migrated database (CHECK constraints)
+          DB_TESTS: '1'
 
       - name: Build API
         run: npm run build -w apps/api
@@ -85,6 +99,9 @@ jobs:
       - name: Typecheck
         run: npm run typecheck -w apps/web
 
+      - name: Test
+        run: npm test -w apps/web
+
       - name: Build
         run: npm run build -w apps/web
 
@@ -107,6 +124,9 @@ jobs:
 
       - name: Typecheck
         run: npm run typecheck -w apps/admin
+
+      - name: Test
+        run: npm test -w apps/admin
 
       - name: Build
         run: npm run build -w apps/admin
@@ -136,6 +156,9 @@ jobs:
 
       - name: Typecheck
         run: npm run typecheck
+
+      - name: Test
+        run: npm test
 
   # The "main-protection" ruleset requires a check named "build".
   # This gate reports it and fails unless every job above succeeded.

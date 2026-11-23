@@ -3,9 +3,7 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Check, Truck, ShieldCheck, ArrowRight } from 'lucide-react';
-import { loadToken, formatPaise } from '@/lib/api';
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+import { loadToken, getOrder, formatPaise } from '@/lib/api';
 
 function OrderSuccessContent() {
   const router = useRouter();
@@ -16,10 +14,8 @@ function OrderSuccessContent() {
   useEffect(() => {
     if (!orderId) return;
     loadToken();
-    const token = localStorage.getItem('juhar_token');
-    fetch(`${API_BASE}/api/v1/orders/${orderId}`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json())
-      .then(j => { if (j.success) setOrder(j.data); })
+    getOrder(orderId)
+      .then(setOrder)
       .catch(() => {});
   }, [orderId]);
 

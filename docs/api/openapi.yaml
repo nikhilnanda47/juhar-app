@@ -25,12 +25,15 @@ info:
     - Admin endpoints: Bearer JWT with admin role claim
 
     ## Rate Limits
-    - OTP request: 3/phone/10min, 10/IP/hour
-    - Authenticated APIs: 100 req/min/user
-    - Public APIs: 30 req/min/IP
+    Enforced since 2026-11-22. Every attempt counts, including ones that fail validation.
+    - `POST /auth/otp/request`: 3 per phone and 10 per IP, per 10 minutes
+    - `POST /auth/otp/verify`: 5 per phone and 20 per IP, per 10 minutes (right or wrong)
+    - Every endpoint: 100 requests per minute per logged-in user, or per IP when logged out
+    - `GET /health` is not limited
 
-    These are the target limits. As of 2026-11-22 they are **not enforced**: the throttler is
-    configured but no throttler guard is registered, so no request is currently rate limited.
+    A blocked call returns **429** with error code `RATE_LIMITED` and a standard `Retry-After`
+    header (seconds). Counters are kept in the API process's memory, so they reset on restart
+    and are per instance.
   version: 1.0.0
   contact:
     name: Juhar Tech Team
@@ -1228,8 +1231,9 @@ components:
     UpdateOrderStatusBody:
       type: object
       description: |
-        Only `status`, `trackingId` and `courierName` are accepted; unknown fields are rejected with 400.
-        Planned additions: `cancellationReason`, `trackingUrl`, `adminNotes`.
+        Only `status`, `trackingId`, `courierName` and `reason` are accepted; unknown fields are rejected with 400.
+        `reason` is required (non-blank, at most 255 characters, trimmed) when `status` is `cancelled`.
+        Planned additions: `trackingUrl`, `adminNotes`.
       required: [status]
       properties:
         status:
@@ -1243,6 +1247,10 @@ components:
           type: string
           maxLength: 100
           description: Carrier name for the shipment (defaults to "Manual")
+        reason:
+          type: string
+          maxLength: 255
+          description: Why the order is cancelled. Required when status = cancelled; stored as the order's cancellation reason and in the audit entry.
 
     InitiateRefundBody:
       type: object
@@ -1503,7 +1511,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/ValidationError'
         "429":
-          description: Rate limited
+          description: Rate limited (`RATE_LIMITED`). Retry after the number of seconds in `Retry-After`.
+          headers:
+            Retry-After:
+              description: Seconds until the caller may try again
+              schema:
+                type: integer
           content:
             application/json:
               schema:
@@ -1549,6 +1562,11 @@ paths:
     post:
       tags: [Auth]
       summary: Refresh access token
+      description: >-
+        The admin, web and mobile API clients call this automatically when an access
+        token expires (a 401 on any other call) and then repeat the failed request.
+        A 401 here means the refresh token is invalid or expired and the user must
+        sign in again.
       operationId: refreshToken
       requestBody:
         required: true
@@ -2587,6 +2605,15 @@ paths:
                   - properties:
                       data:
                         $ref: '#/components/schemas/Variant'
+        "400":
+          description: >-
+            `PROD_005`: the compare-at price must be greater than the price, checked against the
+            values the variant will have after the update (for example a new price at or above the
+            stored compare-at price is refused; raise or remove the compare-at price).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   # ── Media Upload ──
   /api/v1/admin/media/upload-url:
@@ -2875,12 +2902,14 @@ paths:
         Implemented side effects:
         - shipped: when `trackingId` is sent, creates a shipment (carrier = `courierName`, default "Manual")
         - delivered: marks the shipment delivered
-        - cancelled: releases the held inventory reservations
+        - confirmed: the order's held inventory reservations become committed
+        - shipped: takes the shipped units off `on_hand` and releases the matching holds; responds `409 STOCK_MISMATCH` (and changes nothing) if `on_hand` is lower than an order line needs
+        - cancelled: releases the held/committed inventory reservations
 
         **Cancellation:** allowed only from `placed` or `confirmed` (the state machine has no
-        cancel transition from `packed` onwards). The request currently has **no reason field**,
-        so an admin cancel stores `cancelled_at` but no `cancellation_reason`
-        (customer cancels via `POST /orders/{id}/cancel` do store one).
+        cancel transition from `packed` onwards). A non-blank `reason` is required; it is stored as
+        `cancellation_reason` (like customer cancels via `POST /orders/{id}/cancel`) and recorded in the
+        audit entry. Without it the API answers 400 `A cancellation reason is required`.
 
         Planned (not implemented yet): refund initiation on cancel, restocking on `returned`,
         gateway refund on `refund_pending`, and the return/refund transitions' side effects (Phase 4).

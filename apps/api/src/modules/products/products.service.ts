@@ -463,6 +463,17 @@ export class ProductsService {
       throw new NotFoundException({ code: 'PROD_001', message: 'Variant not found' });
     }
 
+    // The database refuses a compare-at price that is not above the price, so check the
+    // values the variant will have after this update (the other one may be the stored value).
+    const newPrice = dto.pricePaise ?? variant.pricePaise;
+    const newCompareAt = dto.compareAtPaise !== undefined ? dto.compareAtPaise : variant.compareAtPaise;
+    if (newCompareAt != null && newCompareAt <= newPrice) {
+      throw new BadRequestException({
+        code: 'PROD_005',
+        message: 'Compare-at price must be greater than price. Raise the compare-at price or remove it.',
+      });
+    }
+
     return this.prisma.productVariant.update({
       where: { id: variantId },
       data: {

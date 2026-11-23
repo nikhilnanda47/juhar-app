@@ -57,8 +57,8 @@ async function main() {
       tags: ['silk', 'ikat', 'bapta', 'maroon', 'gold', 'handloom'],
       publishStatus: 'published',
       variants: [
-        { sku: 'SAJ-IKT-MRN-001', name: 'Deep Maroon & Gold', color: 'Maroon', pricePaise: 350000, compareAtPaise: 450000, stock: 5 },
-        { sku: 'SAJ-IKT-NVY-001', name: 'Navy Blue & Silver', color: 'Navy', pricePaise: 385000, compareAtPaise: 450000, stock: 3 },
+        { sku: 'JUH-IKT-MRN-001', name: 'Deep Maroon & Gold', color: 'Maroon', pricePaise: 350000, compareAtPaise: 450000, stock: 5 },
+        { sku: 'JUH-IKT-NVY-001', name: 'Navy Blue & Silver', color: 'Navy', pricePaise: 385000, compareAtPaise: 450000, stock: 3 },
       ],
     },
     {
@@ -79,7 +79,7 @@ async function main() {
       tags: ['silk', 'bomkai', 'green', 'handloom', 'heritage'],
       publishStatus: 'published',
       variants: [
-        { sku: 'SAJ-BMK-GRN-001', name: 'Forest Green & Terracotta', color: 'Green', pricePaise: 420000, compareAtPaise: 500000, stock: 4 },
+        { sku: 'JUH-BMK-GRN-001', name: 'Forest Green & Terracotta', color: 'Green', pricePaise: 420000, compareAtPaise: 500000, stock: 4 },
       ],
     },
     {
@@ -100,8 +100,8 @@ async function main() {
       tags: ['cotton', 'pasapalli', 'ivory', 'indigo', 'daily'],
       publishStatus: 'published',
       variants: [
-        { sku: 'SAJ-PSP-IVR-001', name: 'Ivory & Indigo', color: 'Ivory', pricePaise: 180000, compareAtPaise: null, stock: 6 },
-        { sku: 'SAJ-PSP-RED-001', name: 'Ivory & Red', color: 'Red', pricePaise: 180000, compareAtPaise: null, stock: 5 },
+        { sku: 'JUH-PSP-IVR-001', name: 'Ivory & Indigo', color: 'Ivory', pricePaise: 180000, compareAtPaise: null, stock: 6 },
+        { sku: 'JUH-PSP-RED-001', name: 'Ivory & Red', color: 'Red', pricePaise: 180000, compareAtPaise: null, stock: 5 },
       ],
     },
     {
@@ -122,7 +122,7 @@ async function main() {
       tags: ['tussar', 'silk', 'gold', 'natural', 'minimal'],
       publishStatus: 'published',
       variants: [
-        { sku: 'SAJ-TSR-GLD-001', name: 'Natural Gold', color: 'Gold', pricePaise: 280000, compareAtPaise: 320000, stock: 4 },
+        { sku: 'JUH-TSR-GLD-001', name: 'Natural Gold', color: 'Gold', pricePaise: 280000, compareAtPaise: 320000, stock: 4 },
       ],
     },
     {
@@ -143,8 +143,8 @@ async function main() {
       tags: ['bridal', 'zari', 'silk', 'maroon', 'wedding', 'premium'],
       publishStatus: 'published',
       variants: [
-        { sku: 'SAJ-BRD-MRN-001', name: 'Royal Maroon & Gold', color: 'Maroon', pricePaise: 850000, compareAtPaise: null, stock: 2 },
-        { sku: 'SAJ-BRD-RED-001', name: 'Bridal Red & Gold', color: 'Red', pricePaise: 920000, compareAtPaise: null, stock: 2 },
+        { sku: 'JUH-BRD-MRN-001', name: 'Royal Maroon & Gold', color: 'Maroon', pricePaise: 850000, compareAtPaise: null, stock: 2 },
+        { sku: 'JUH-BRD-RED-001', name: 'Bridal Red & Gold', color: 'Red', pricePaise: 920000, compareAtPaise: null, stock: 2 },
       ],
     },
     {
@@ -165,7 +165,7 @@ async function main() {
       tags: ['cotton', 'ikat', 'mustard', 'sonepuri', 'daily'],
       publishStatus: 'published',
       variants: [
-        { sku: 'SAJ-SON-MST-001', name: 'Mustard & Terracotta', color: 'Mustard', pricePaise: 150000, compareAtPaise: 180000, stock: 6 },
+        { sku: 'JUH-SON-MST-001', name: 'Mustard & Terracotta', color: 'Mustard', pricePaise: 150000, compareAtPaise: 180000, stock: 6 },
       ],
     },
     {
@@ -186,7 +186,7 @@ async function main() {
       tags: ['silk', 'kumbha', 'sapphire', 'heritage', 'rare'],
       publishStatus: 'published',
       variants: [
-        { sku: 'SAJ-KMB-SPH-001', name: 'Deep Sapphire & Paisley', color: 'Blue', pricePaise: 520000, compareAtPaise: null, stock: 3 },
+        { sku: 'JUH-KMB-SPH-001', name: 'Deep Sapphire & Paisley', color: 'Blue', pricePaise: 520000, compareAtPaise: null, stock: 3 },
       ],
     },
     {
@@ -207,7 +207,7 @@ async function main() {
       tags: ['blend', 'silk-cotton', 'olive', 'flora', 'office'],
       publishStatus: 'published',
       variants: [
-        { sku: 'SAJ-BLD-OLV-001', name: 'Olive Flora & Gold', color: 'Olive', pricePaise: 220000, compareAtPaise: 280000, stock: 5 },
+        { sku: 'JUH-BLD-OLV-001', name: 'Olive Flora & Gold', color: 'Olive', pricePaise: 220000, compareAtPaise: 280000, stock: 5 },
       ],
     },
   ];

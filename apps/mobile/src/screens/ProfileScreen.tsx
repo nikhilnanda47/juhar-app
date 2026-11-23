@@ -10,11 +10,8 @@ import {
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
 import {
   isLoggedIn, loadToken, requestOtp, verifyOtp, clearTokens,
-  getProfile, updateProfile, getAddresses, type UserProfile,
+  getProfile, updateProfile, getAddresses, getOrders, type UserProfile,
 } from '../services/api';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const API_BASE = __DEV__ ? 'http://localhost:3000' : 'https://api.juhar.in';
 import { useNavigation } from '@react-navigation/native';
 import { FadeInUp, ScalePress } from '../components/AnimatedUI';
 import RefreshButton from '../components/RefreshButton';
@@ -61,13 +58,8 @@ export default function ProfileScreen() {
 
   const fetchCounts = async () => {
     try {
-      const token = await AsyncStorage.getItem('juhar_token');
-      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
-      const [ordersRes, addrs] = await Promise.all([
-        fetch(`${API_BASE}/api/v1/orders`, { headers }).then(r => r.json()),
-        getAddresses(),
-      ]);
-      setOrderCount(ordersRes.success ? (ordersRes.data.items?.length ?? 0) : 0);
+      const [orders, addrs] = await Promise.all([getOrders(), getAddresses()]);
+      setOrderCount(orders.length);
       setAddressCount(addrs.length);
     } catch {}
   };

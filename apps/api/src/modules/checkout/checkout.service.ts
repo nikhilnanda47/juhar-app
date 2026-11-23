@@ -137,7 +137,7 @@ export class CheckoutService {
         if (dto.paymentMode === PaymentMode.UPI) {
           expiresAt.setMinutes(expiresAt.getMinutes() + 30); // 30 min for UPI
         } else {
-          expiresAt.setHours(expiresAt.getHours() + 24); // 24 hours for COD
+          expiresAt.setHours(expiresAt.getHours() + 24); // COD: 24h review window; the expiry job leaves COD holds alone
         }
 
         const reservation = await this.inventoryService.reserve(
@@ -154,9 +154,9 @@ export class CheckoutService {
       const taxPaise = 0;
       const totalPaise = subtotalPaise + shippingPaise + taxPaise;
 
-      // 5. Generate order number
-      const orderCount = await tx.order.count();
-      const publicNumber = generateOrderNumber(orderCount + 1);
+      // 5. Generate order number from the database sequence (safe for concurrent orders)
+      const [{ nextval }] = await tx.$queryRaw<{ nextval: bigint }[]>`SELECT nextval('order_number_seq') AS nextval`;
+      const publicNumber = generateOrderNumber(Number(nextval));
 
       // 6. Create order with address snapshot
       const order = await tx.order.create({

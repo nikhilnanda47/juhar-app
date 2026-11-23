@@ -1,26 +1,14 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, Linking, Alert, RefreshControl,
+  ActivityIndicator, Linking, RefreshControl,
 } from 'react-native';
 import {
   Check, Truck, MapPin, Phone, MessageCircle, ArrowRight, Copy, Info,
 } from 'lucide-react-native';
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
-import { formatPaise } from '../services/api';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const API_BASE = __DEV__ ? 'http://localhost:3000' : 'https://api.juhar.in';
-
-async function fetchOrderDetail(orderId: string) {
-  const token = await AsyncStorage.getItem('juhar_token');
-  const res = await fetch(`${API_BASE}/api/v1/orders/${orderId}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  const json = await res.json();
-  if (!json.success) throw new Error(json.error?.message);
-  return json.data;
-}
+import { getOrder, formatPaise } from '../services/api';
+import { useCopyToClipboard } from '../utils/useCopyToClipboard';
 
 const TIMELINE_STEPS = ['placed', 'confirmed', 'packed', 'shipped', 'delivered'];
 const STEP_LABELS: Record<string, string> = {
@@ -33,13 +21,14 @@ export default function OrderDetailScreen({ navigation, route }: Props) {
   const { orderId } = route.params;
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const { copiedKey, copy } = useCopyToClipboard();
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => { load(); }, [orderId]);
   const load = async () => {
-    try { setOrder(await fetchOrderDetail(orderId)); } catch {}
+    try { setOrder(await getOrder(orderId)); } catch {}
     setLoading(false);
   };
 
@@ -57,7 +46,7 @@ export default function OrderDetailScreen({ navigation, route }: Props) {
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={async () => {
           setRefreshing(true);
-          try { setOrder(await fetchOrderDetail(orderId)); } catch {}
+          try { setOrder(await getOrder(orderId)); } catch {}
           setRefreshing(false);
         }} tintColor={colors.primary} />
       }
@@ -144,10 +133,12 @@ export default function OrderDetailScreen({ navigation, route }: Props) {
                   </View>
                   <TouchableOpacity
                     style={styles.copyBtn}
-                    onPress={() => Alert.alert('Tracking ID', s.trackingId)}
+                    onPress={() => copy(s.id, s.trackingId)}
                   >
-                    <Text style={styles.copyBtnText}>Copy</Text>
-                    <Copy size={14} color={colors.primary} strokeWidth={2} />
+                    <Text style={styles.copyBtnText}>{copiedKey === s.id ? 'Copied' : 'Copy'}</Text>
+                    {copiedKey === s.id
+                      ? <Check size={14} color={colors.primary} strokeWidth={2.5} />
+                      : <Copy size={14} color={colors.primary} strokeWidth={2} />}
                   </TouchableOpacity>
                 </View>
               </View>

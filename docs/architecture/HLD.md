@@ -206,7 +206,7 @@ Users can browse and add to cart without logging in:
 | Reports | Orders, GMV, COD pending, refunds, stock summary, top products |
 | Settings | Admin user management, role assignment |
 
-> **Implementation status (2026-11-22):** Built: OTP login, dashboard (stats + recent orders), categories (list/create/activate), product catalog (list, create with variants, publish/unpublish), inventory (view only) and orders (search/filter; confirm → pack → ship with tracking ID → deliver). **Not built:** product edit, manual stock adjustment UI (the API endpoint exists), order detail page, **cancelling an order** (the API supports it from placed/confirmed, but the panel has no cancel action and the API stores no admin cancellation reason), returns and refunds, customers, reports, settings/RBAC management. The panel is light-theme only.
+> **Implementation status (2026-11-22):** Built: OTP login, dashboard (stats + recent orders), categories (list/create/activate), product catalog (list, create with variants, publish/unpublish), inventory (view only) and orders (search/filter; confirm → pack → ship with tracking ID → deliver; cancel a placed or confirmed order with a required reason). **Not built:** product edit, manual stock adjustment UI (the API endpoint exists), order detail page, returns and refunds, customers, reports, settings/RBAC management. The panel is light-theme only.
 
 ### 3.6 Shared Package (`packages/shared`)
 
@@ -215,7 +215,7 @@ Users can browse and add to cart without logging in:
 - Constants: state machine transitions (`ORDER_TRANSITIONS`, `canTransitionOrder`), rate limits, auth/inventory/cart limits, order-number prefix
 - Utils: paise ↔ rupee formatting, slug generation, order-number generation, phone and PIN validation
 
-> **Implementation status (2026-11-22):** The package compiles to `packages/shared/dist/` (`main`/`types` point there). A root `postinstall` script (`npm run build -w packages/shared`) builds it after every `npm install` / `npm ci`, so a fresh clone can typecheck and run the API without a separate step. Compiled output is git-ignored and no longer committed next to the sources. The API imports it as `@juhar/shared`. The admin panel maps it to the source via a tsconfig path but does not import it yet. The order-number prefix constant is still `SAJ` (a rebrand leftover), so generated numbers read `SAJ-YYYYMMDD-XXXX`, while the data-model docs show `JUH-…`.
+> **Implementation status (2026-11-22):** The package compiles to `packages/shared/dist/` (`main`/`types` point there). A root `postinstall` script (`npm run build -w packages/shared`) builds it after every `npm install` / `npm ci`, so a fresh clone can typecheck and run the API without a separate step. Compiled output is git-ignored and no longer committed next to the sources. The API imports it as `@juhar/shared`. The admin panel maps it to the source via a tsconfig path but does not import it yet. The order-number prefix constant is `JUH`, so generated numbers read `JUH-YYYYMMDD-XXXX` (orders placed before the rename may carry the old `SAJ-` prefix).
 
 ---
 
@@ -459,16 +459,17 @@ Push → Lint + Typecheck + Test (parallel) → Build → Deploy Staging (auto) 
 > Triggers: push to main and develop-*  ·  pull request into main  ·  manual dispatch
 > (a newer run on the same ref cancels the older one; each job has a 15-minute timeout)
 >
-> API     npm ci → prisma generate → typecheck (shared + api) → test → build
->         (Postgres 16 service container; JWT/DB env supplied for tests)
+> API     npm ci → prisma generate → migrate deploy → schema check → typecheck (shared + api) → test → build
+>         (Postgres 16 service container; JWT/DB env supplied for tests; migrations are applied to it
+>         and `prisma migrate diff` fails the job if schema.prisma has a change with no migration)
 > Web     npm ci → typecheck → next build
-> Admin   npm ci → typecheck → next build
+> Admin   npm ci → typecheck → test (Jest) → next build
 > Mobile  npm ci (inside apps/mobile) → tsc --noEmit
 > ```
 >
 > - `npm ci` at the repo root also runs the `postinstall` that builds `packages/shared` into `dist/`.
 > - Mobile has its own install because `apps/mobile` is not part of the root npm workspaces (Expo needs an isolated `node_modules`).
-> - There is no lint step (no ESLint config exists yet), and the API test job passes without running any tests (`jest --passWithNoTests`; no tests exist yet).
+> - There is no lint step (no ESLint config exists yet), and the API test job runs Jest (`npm test -w apps/api`); it now fails if no tests are found. Covered so far: the order state machine, stock reservation and checkout (fake database, no Postgres needed), plus the database `CHECK` constraints, which are tested against the migrated Postgres service (`DB_TESTS=1`).
 > - A fifth job, `build`, depends on the four above and fails unless they all succeeded. The repository ruleset `main-protection` requires a check with exactly that name, plus a pull request with 1 approving review, and blocks deletion and force-pushes on `main`. Renaming or removing the `build` job would make pull requests unmergeable until the ruleset is updated.
 
 ---
@@ -484,14 +485,14 @@ Push → Lint + Typecheck + Test (parallel) → Build → Deploy Staging (auto) 
 | Uploads | Signed URLs with content-type restriction; max 10MB images, 50MB video |
 | Secrets | Environment variables only; .env in .gitignore |
 | HTTPS | TLS enforced; platform handles certs |
-| Rate limiting | OTP: 3/phone/10min, 10/IP/hour, 5 verify attempts per OTP; API: 100 req/min/user; Public: 30 req/min/IP |
+| Rate limiting | OTP: 3/phone/10min, 10/IP/hour, 5 verify attempts per OTP; API: 100 req/min/user; Public: 30 req/min/IP (design target; the enforced limits are listed below) |
 | Audit | All admin mutations logged in audit_events table |
 
 > **Implementation status (2026-11-22):** The rows above are the design target. Gaps in the code today:
 > - **OTP provider:** `AuthModule` always uses `MockOtpProvider` (fixed OTP `123456`, logged to the console). `OTP_PROVIDER` in `.env` is not read. Anyone can log in as any phone number, including the seeded admin, so this must be replaced before any real use.
 > - **OTP store:** hashed OTPs and attempt counts live in an in-memory map, so they reset on restart and do not work across multiple instances.
-> - **Rate limiting:** `ThrottlerModule` is configured and `POST /auth/otp/request` carries a `@Throttle` decorator, but no `ThrottlerGuard` is registered, so none of the limits above are enforced. The OTP per-attempt limit (5 per OTP) is enforced in `AuthService`.
-> - **Refresh tokens:** the API issues and verifies them (`POST /auth/refresh`), but the web, mobile and admin clients store the refresh token without using it. A session therefore ends when the 15-minute access token expires.
+> - **Rate limiting:** enforced since 2026-11-22 by a global `AppThrottlerGuard`. OTP request: 3/phone and 10/IP per 10 minutes; OTP verify: 5/phone and 20/IP per 10 minutes; all other endpoints: 100 req/min per logged-in user (per IP when logged out). Blocked calls get 429 `RATE_LIMITED`. Behind a proxy the API needs `TRUST_PROXY`. Counters are in memory (per instance, reset on restart). Details are in LLD section 5.3.
+> - **Refresh tokens:** the API issues and verifies them (`POST /auth/refresh`), and the admin, web and mobile clients all use it (on a 401 the client refreshes once and repeats the request; a rejected refresh token ends the session and shows the login screen), so sessions last up to 7 days. Refresh tokens cannot be revoked.
 > - **Startup checks:** the API now refuses to start unless `DATABASE_URL`, `JWT_SECRET` and `JWT_REFRESH_SECRET` are set (`src/config/env.validation.ts`), naming the missing variables. `CORS_ORIGINS`, when set, replaces the built-in local origin list entirely.
 
 ---
@@ -543,7 +544,7 @@ juhar-app/
 └── tsconfig.base.json
 ```
 
-> **Implementation status (2026-11-22):** The root `postinstall` script builds `packages/shared` into `dist/`. There are no automated tests yet (no `test/` directory, no spec files).
+> **Implementation status (2026-11-22):** The root `postinstall` script builds `packages/shared` into `dist/`. API unit tests live next to the code as `*.spec.ts` files (Jest + ts-jest, config in `apps/api/jest.config.js`); they are excluded from the production build via `tsconfig.build.json`. The order state machine, stock reservation and checkout have tests so far, and there is no `test/` end-to-end directory.
 
 ---
 
@@ -563,6 +564,6 @@ juhar-app/
 | 8 | Initial SKU count | ~20–30 designs from factory audit | Merchandising |
 | 9 | WhatsApp provider | Gupshup / Wati | Tech |
 | 10 | Stock ownership | Reserved allocation to Juhar (not shared) | Ops |
-| 11 | Unconfirmed COD orders: a COD reservation holds stock for 24 hours and the expiry worker then releases it, even though the order is still `placed`. What should happen to a COD order nobody confirms within that time? | Auto-cancel it and release the stock (tell the customer once notifications exist) | TBD |
+| 11 | Unconfirmed COD orders: what should happen to a COD order nobody confirms? | **Decided 2026-11-22:** keep the stock held until an admin acts (confirm, ship or cancel); the expiry worker no longer releases COD holds. Follow-up: flag stale unconfirmed orders to the admin. | Ops |
 | 12 | Should admins be able to cancel an order after it is packed? The state machine allows cancellation only from `placed` and `confirmed`. | Keep as is; handle post-pack problems as returns | TBD |
 | 13 | Real customer support / WhatsApp number. WhatsApp integration is pending, and the web order page links to a placeholder number. | Use one business number once the integration exists; hide the link until then | TBD |
