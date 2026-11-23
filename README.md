@@ -357,6 +357,14 @@ psql postgres -c "CREATE DATABASE juhar_dev OWNER juhar;"
 psql postgres -c "GRANT ALL PRIVILEGES ON DATABASE juhar_dev TO juhar;"
 ```
 
+**Linux (apt):** `psql postgres` fails for your normal user ("role ... does not exist"). Run the same three commands as the `postgres` user instead, for example:
+
+```bash
+sudo -u postgres psql -c "CREATE USER juhar WITH PASSWORD 'juhar_dev_password' CREATEDB;"
+sudo -u postgres psql -c "CREATE DATABASE juhar_dev OWNER juhar;"
+sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE juhar_dev TO juhar;"
+```
+
 </details>
 
 <details>
@@ -387,6 +395,8 @@ Or use **pgAdmin GUI:**
 ```bash
 docker compose up -d
 ```
+
+This starts only PostgreSQL (same user, password and database name as Option A). The apps themselves still run with `npm`, as in step 7.
 
 ### 3. Install dependencies
 
@@ -451,7 +461,6 @@ npm run dev
 
 # Terminal 2 — Customer Website (localhost:3001)
 cd apps/web
-npm install        # first time only
 npm run dev
 
 # Terminal 3 — Admin Panel (localhost:3002)
@@ -486,12 +495,18 @@ cd apps/mobile && npx expo start --web
 cd apps/api && npx prisma studio
 ```
 
+The API, website and admin panel are covered by the root `npm install` in step 3; the mobile app needs its own (`apps/mobile`).
+
+> **Mobile app:** it runs in the browser preview at `localhost:8081`. A phone or Expo Go cannot reach `localhost` on your computer, and the API address is fixed in `apps/mobile/src/services/api.ts`, so testing on a real device needs that address changed first.
+
 ### 8. Test login
 
 - **Website**: `localhost:3001/account` → `+919876543210` → OTP `123456`
 - **Mobile App**: Account tab → `+919876543210` → OTP `123456`
 - **Admin Panel**: `localhost:3002` → same phone/OTP
 - Dev mode always accepts OTP `123456`
+- The seeded admin is `+919876543210`. Any other Indian mobile number (`+91` then 10 digits starting 6 to 9) signs in as a new customer.
+- OTP login is rate limited: 3 OTP requests and 5 verify attempts per phone number per 10 minutes. If you see "Too many attempts. Please wait a few minutes and try again", wait, or restart the API (the counters are in its memory).
 
 ### After you `git pull`
 
@@ -507,6 +522,15 @@ Check what changed (`git diff HEAD@{1} --stat`), then use this table. Dev server
 | Source files only in `apps/web`, `apps/admin`, `apps/mobile` | — | Nothing (hot reload) |
 | Docs or CI files only | — | Nothing |
 
+### Working on a change
+
+`main` is protected: nobody pushes to it directly. Work on your own branch and open a pull request.
+
+1. Create a branch named `develop-<yourname>` (CI runs on every push to `main` and `develop-*`): `git checkout -b develop-<yourname>`
+2. Push it with `git push -u origin develop-<yourname>` and open a pull request into `main`.
+3. The pull request needs **1 approving review** and a passing `build` check (the CI gate job). History on `main` must stay linear, so merge with **Squash and merge** or **Rebase and merge**, not a plain merge commit.
+4. After a squash merge, bring `main` back into your branch so your next pull request only shows new work: `git checkout develop-<yourname> && git pull origin main`, then `git push`.
+
 ### Useful commands
 
 | Command | Where to run | Description |
@@ -517,7 +541,7 @@ Check what changed (`git diff HEAD@{1} --stat`), then use this table. Dev server
 | `cd apps/mobile && npx expo start --web` | Root | Start mobile app (web preview) |
 | `cd apps/api && npx prisma studio` | Root | Visual database browser |
 | `cd apps/api && npx prisma migrate deploy` | Root | Apply migrations that already exist (use this after `git pull`; no extra database permission needed) |
-| `cd apps/api && npx prisma migrate dev --name <name>` | Root | Create a new migration (needs the database user to be allowed to create databases, see Troubleshooting) |
+| `cd apps/api && npx prisma migrate dev --name <name>` | Root | Create a new migration (needs the database user to be allowed to create databases, see the `P3014` note in step 5) |
 | `cd apps/api && npx prisma generate` | Root | Regenerate Prisma client |
 | `cd apps/api && npx ts-node prisma/seed.ts` | Root | Re-seed database |
 | `psql -U juhar -d juhar_dev` | Anywhere | Connect to database CLI |
@@ -526,6 +550,10 @@ Check what changed (`git diff HEAD@{1} --stat`), then use this table. Dev server
 | `npm run typecheck -w apps/web` (or `apps/admin`, `apps/api`) | Root | Typecheck one app |
 | `npm test -w apps/api` | Root | Run the API unit tests (Jest, no database needed) |
 | `npm test -w apps/admin` | Root | Run the admin unit tests (Jest) |
+| `npm test -w apps/web` | Root | Run the website unit tests (Jest) |
+| `cd apps/mobile && npm test` | Root | Run the mobile unit tests (Jest) |
+| `npm test` | Root | Run the API, admin and website tests together (mobile has its own, above) |
+| `cd apps/api && DB_TESTS=1 npm test -- check-constraints` | Root | Also run the database tests against your migrated local database (they roll back and leave no data) |
 | `npm run build:web` | Root | Production build of the website (catches errors dev mode hides) |
 
 ### Service ports
