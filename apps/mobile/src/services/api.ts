@@ -292,6 +292,52 @@ export async function getProductBySlug(slug: string): Promise<Product> {
   return request<Product>(`/api/v1/products/${slug}`);
 }
 
+// ── Wishlist types ──
+
+export interface WishlistVariant {
+  id: string;
+  sku: string;
+  name: string | null;
+  color: string | null;
+  pricePaise: number;
+  compareAtPaise: number | null;
+  available: number;
+  isAvailable: boolean;
+  product: {
+    id: string;
+    slug: string;
+    title: string;
+    origin: string | null;
+    fabric: string | null;
+    weaveMethod: string | null;
+  };
+}
+
+export interface WishlistItem {
+  id: string;
+  addedAt: string;
+  variant: WishlistVariant;
+}
+
+export interface WishlistResponse {
+  items: WishlistItem[];
+  total: number;
+}
+
+// ── Wishlist API calls ──
+
+export async function getWishlist(): Promise<WishlistResponse> {
+  return request<WishlistResponse>('/api/v1/wishlist');
+}
+
+export async function toggleWishlistItem(variantId: string): Promise<{ wishlisted: boolean; variantId: string }> {
+  return request(`/api/v1/wishlist/items/${variantId}/toggle`, { method: 'POST' });
+}
+
+export async function checkWishlistItem(variantId: string): Promise<{ wishlisted: boolean; variantId: string }> {
+  return request(`/api/v1/wishlist/${variantId}/check`);
+}
+
 // ── Helpers ──
 
 export function formatPaise(paise: number): string {

@@ -17,11 +17,13 @@ import OrderSuccessScreen from '../screens/OrderSuccessScreen';
 import OrdersScreen from '../screens/OrdersScreen';
 import OrderDetailScreen from '../screens/OrderDetailScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import WishlistScreen from '../screens/WishlistScreen';
 
 const Tab = createBottomTabNavigator();
 const ExploreStack = createNativeStackNavigator();
 const CartStack = createNativeStackNavigator();
 const OrdersStack = createNativeStackNavigator();
+const AccountStack = createNativeStackNavigator();
 
 function ExploreStackScreen() {
   const { colors } = useTheme();
@@ -71,6 +73,22 @@ function OrdersStackScreen() {
       <OrdersStack.Screen name="OrdersList" component={OrdersScreen} options={{ headerShown: false }} />
       <OrdersStack.Screen name="OrderDetail" component={OrderDetailScreen} options={{ headerTitle: 'Order Details' }} />
     </OrdersStack.Navigator>
+  );
+}
+
+function AccountStackScreen() {
+  const { colors } = useTheme();
+  return (
+    <AccountStack.Navigator screenOptions={{
+      headerStyle: { backgroundColor: colors.background },
+      headerTintColor: colors.textPrimary,
+      headerTitleStyle: { fontFamily: 'DMSans-Medium', fontWeight: '500', fontSize: 16, color: colors.textPrimary },
+      headerShadowVisible: false,
+      headerBackTitle: '',
+    }}>
+      <AccountStack.Screen name="Profile" component={ProfileScreen} options={{ headerShown: false }} />
+      <AccountStack.Screen name="Wishlist" component={WishlistScreen} options={{ headerShown: false }} />
+    </AccountStack.Navigator>
   );
 }
 
@@ -156,7 +174,7 @@ export default function TabNavigator() {
         }}
       />
       <Tab.Screen name="Orders" component={OrdersStackScreen} />
-      <Tab.Screen name="Account" component={ProfileScreen} />
+      <Tab.Screen name="Account" component={AccountStackScreen} />
     </Tab.Navigator>
   );
 }

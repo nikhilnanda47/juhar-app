@@ -12,6 +12,7 @@ import {
   isLoggedIn, loadToken, requestOtp, verifyOtp, clearTokens,
   getProfile, updateProfile, getAddresses, type UserProfile,
 } from '../services/api';
+import { useWishlist } from '../contexts/WishlistContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const API_BASE = __DEV__ ? 'http://localhost:3000' : 'https://api.juhar.in';
@@ -37,7 +38,7 @@ export default function ProfileScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [orderCount, setOrderCount] = useState(0);
   const [addressCount, setAddressCount] = useState(0);
-  const [savedCount] = useState(0); // wishlist not implemented yet
+  const { total: savedCount, refreshWishlist } = useWishlist();
 
   useEffect(() => { checkAuth(); }, []);
 
@@ -97,6 +98,7 @@ export default function ProfileScreen() {
       const p = await getProfile();
       setProfile(p);
       fetchCounts();
+      refreshWishlist();
       if (result.isNewUser || !p.name) {
         setEditName('');
         setScreen('editName');
@@ -343,7 +345,7 @@ export default function ProfileScreen() {
           <Text style={styles.tileLabel}>Orders</Text>
           <Text style={styles.tileSub}>{orderCount} placed</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.tile} activeOpacity={0.7}>
+        <TouchableOpacity style={styles.tile} activeOpacity={0.7} onPress={() => navigation.navigate('Wishlist')}>
           <View style={styles.tileIconWrap}>
             <Heart size={22} color={colors.textPrimary} strokeWidth={1.5} />
           </View>

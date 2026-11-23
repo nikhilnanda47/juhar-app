@@ -125,6 +125,7 @@ export class ProductsService {
         isAvailable: totalAvailable > 0,
         fabric: product.fabric,
         weaveMethod: product.weaveMethod,
+        firstVariantId: lowestVariant?.id ?? null,
       };
     });
 

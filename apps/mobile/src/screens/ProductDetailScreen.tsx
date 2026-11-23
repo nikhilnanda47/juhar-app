@@ -16,6 +16,7 @@ import {
   getProductBySlug, getProducts, formatPaise, getTotalStock, addToCart, isLoggedIn,
   type Product, type ProductVariant,
 } from '../services/api';
+import { useWishlist } from '../contexts/WishlistContext';
 
 const { width } = Dimensions.get('window');
 
@@ -35,7 +36,7 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
   const [error, setError] = useState('');
   const [addingToCart, setAddingToCart] = useState(false);
   const [addedToCart, setAddedToCart] = useState(false);
-  const [wishlisted, setWishlisted] = useState(false);
+  const { isWishlisted, toggleWishlist } = useWishlist();
   const [pinCode, setPinCode] = useState('');
   const [pinChecked, setPinChecked] = useState(false);
   const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
@@ -143,11 +144,11 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
             <ChevronLeft size={20} color={colors.textPrimary} strokeWidth={2} />
           </TouchableOpacity>
           <View style={styles.topBarRight}>
-            <TouchableOpacity style={styles.circleBtn} onPress={() => setWishlisted(!wishlisted)}>
+            <TouchableOpacity style={styles.circleBtn} onPress={() => selectedVariant && toggleWishlist(selectedVariant.id)}>
               <Heart
                 size={20}
-                color={wishlisted ? colors.primary : colors.textPrimary}
-                fill={wishlisted ? colors.primary : 'none'}
+                color={selectedVariant && isWishlisted(selectedVariant.id) ? colors.primary : colors.textPrimary}
+                fill={selectedVariant && isWishlisted(selectedVariant.id) ? colors.primary : 'none'}
                 strokeWidth={2}
               />
             </TouchableOpacity>

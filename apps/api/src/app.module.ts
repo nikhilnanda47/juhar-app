@@ -12,6 +12,7 @@ import { InventoryModule } from './modules/inventory/inventory.module';
 import { CartModule } from './modules/cart/cart.module';
 import { CheckoutModule } from './modules/checkout/checkout.module';
 import { OrdersModule } from './modules/orders/orders.module';
+import { WishlistModule } from './modules/wishlist/wishlist.module';
 import { HealthController } from './health.controller';
 import { validateEnv } from './config/env.validation';
 
@@ -49,6 +50,7 @@ import { validateEnv } from './config/env.validation';
     CartModule,
     CheckoutModule,
     OrdersModule,
+    WishlistModule,
     // PaymentsModule,
     // AdminModule,
   ],

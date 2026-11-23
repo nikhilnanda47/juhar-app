@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Search, SlidersHorizontal, Heart } from 'lucide-react';
-import { getProducts, getCategories, formatPaise, type Product, type Category } from '@/lib/api';
+import { getProducts, getCategories, formatPaise, isLoggedIn, type Product, type Category } from '@/lib/api';
+import { useWishlist } from '@/lib/wishlist-context';
 
 export default function ShopPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -11,6 +12,7 @@ export default function ShopPage() {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const { isWishlisted, toggleWishlist } = useWishlist();
 
   useEffect(() => {
     getCategories().then((c) => setCategories(c.filter((cat) => cat.active !== false))).catch(() => {});
@@ -97,12 +99,18 @@ export default function ShopPage() {
             >
               <div className="relative aspect-[3/4] rounded-xl bg-surface-container-low overflow-hidden mb-2 shadow-[0_1px_4px_rgba(0,0,0,0.03)] group-hover:shadow-md transition-shadow">
                 {/* Wishlist */}
-                <button
-                  className="absolute top-2 right-2 w-8 h-8 rounded-full bg-surface/80 backdrop-blur flex items-center justify-center z-10"
-                  onClick={(e) => e.preventDefault()}
-                >
-                  <Heart size={16} className="text-text-tertiary" strokeWidth={2} />
-                </button>
+                {(() => {
+                  const variantId = product.firstVariantId;
+                  const saved = variantId ? isWishlisted(variantId) : false;
+                  return (
+                    <button
+                      className="absolute top-2 right-2 w-8 h-8 rounded-full bg-surface/80 backdrop-blur flex items-center justify-center z-10"
+                      onClick={(e) => { e.preventDefault(); if (variantId && isLoggedIn()) toggleWishlist(variantId); }}
+                    >
+                      <Heart size={16} className={saved ? 'text-primary fill-primary' : 'text-text-tertiary'} strokeWidth={2} />
+                    </button>
+                  );
+                })()}
                 {/* Origin badge */}
                 <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-full bg-surface/90 backdrop-blur">
                   <span className="font-sans text-label-sm text-text-primary">{(product as any).fabric || 'Handloom'}</span>

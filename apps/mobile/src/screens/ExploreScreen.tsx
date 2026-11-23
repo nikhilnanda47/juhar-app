@@ -9,6 +9,7 @@ import {
   getCategories, getProducts, formatPaise,
   type Category, type Product,
 } from '../services/api';
+import { useWishlist } from '../contexts/WishlistContext';
 import { FadeInUp, ScalePress } from '../components/AnimatedUI';
 import RefreshButton from '../components/RefreshButton';
 
@@ -167,7 +168,9 @@ function ProductCard({ product, onPress }: { product: any; onPress: () => void }
   const price = product.startingPricePaise ?? 0;
   const compare = product.compareAtPaise ?? null;
   const lowStock = product.totalStock !== undefined && product.totalStock > 0 && product.totalStock <= 3;
-  const [wishlisted, setWishlisted] = useState(false);
+  const { isWishlisted, toggleWishlist } = useWishlist();
+  const variantId = product.variants?.[0]?.id;
+  const wishlisted = variantId ? isWishlisted(variantId) : false;
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.9}>
@@ -178,7 +181,7 @@ function ProductCard({ product, onPress }: { product: any; onPress: () => void }
         {/* Wishlist Button */}
         <TouchableOpacity
           style={styles.wishlistBtn}
-          onPress={(e) => { e.stopPropagation?.(); setWishlisted(!wishlisted); }}
+          onPress={(e) => { e.stopPropagation?.(); if (variantId) toggleWishlist(variantId); }}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
           <Heart

@@ -8,6 +8,7 @@ import {
   Banknote, ShieldCheck, Truck, Star, MapPin,
 } from 'lucide-react';
 import { getProductBySlug, getProducts, formatPaise, isLoggedIn, addToCart, type Product, type ProductVariant } from '@/lib/api';
+import { useWishlist } from '@/lib/wishlist-context';
 
 export default function ProductDetailPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -16,7 +17,7 @@ export default function ProductDetailPage() {
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
   const [addingToCart, setAddingToCart] = useState(false);
   const [addedToCart, setAddedToCart] = useState(false);
-  const [wishlisted, setWishlisted] = useState(false);
+  const { isWishlisted, toggleWishlist } = useWishlist();
   const [pinCode, setPinCode] = useState('');
   const [pinChecked, setPinChecked] = useState(false);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
@@ -98,8 +99,8 @@ export default function ProductDetailPage() {
           <ChevronLeft size={20} className="text-text-primary" />
         </button>
         <div className="flex gap-2">
-          <button onClick={() => setWishlisted(!wishlisted)} className="w-9 h-9 rounded-full bg-surface-container-low flex items-center justify-center">
-            <Heart size={18} className={wishlisted ? 'text-primary fill-primary' : 'text-text-secondary'} strokeWidth={1.5} />
+          <button onClick={() => selectedVariant && isLoggedIn() && toggleWishlist(selectedVariant.id)} className="w-9 h-9 rounded-full bg-surface-container-low flex items-center justify-center">
+            <Heart size={18} className={selectedVariant && isWishlisted(selectedVariant.id) ? 'text-primary fill-primary' : 'text-text-secondary'} strokeWidth={1.5} />
           </button>
           <button className="w-9 h-9 rounded-full bg-surface-container-low flex items-center justify-center">
             <Share2 size={18} className="text-text-secondary" strokeWidth={1.5} />
@@ -128,9 +129,9 @@ export default function ProductDetailPage() {
               </div>
               {/* Desktop actions */}
               <div className="hidden lg:flex absolute top-4 right-4 gap-2">
-                <button onClick={() => setWishlisted(!wishlisted)}
+                <button onClick={() => selectedVariant && isLoggedIn() && toggleWishlist(selectedVariant.id)}
                   className="w-10 h-10 rounded-full bg-surface/80 backdrop-blur flex items-center justify-center hover:bg-surface transition-colors">
-                  <Heart size={20} className={wishlisted ? 'text-primary fill-primary' : 'text-text-secondary'} strokeWidth={1.5} />
+                  <Heart size={20} className={selectedVariant && isWishlisted(selectedVariant.id) ? 'text-primary fill-primary' : 'text-text-secondary'} strokeWidth={1.5} />
                 </button>
                 <button className="w-10 h-10 rounded-full bg-surface/80 backdrop-blur flex items-center justify-center hover:bg-surface transition-colors">
                   <Share2 size={20} className="text-text-secondary" strokeWidth={1.5} />
@@ -259,9 +260,9 @@ export default function ProductDetailPage() {
                   {addingToCart ? 'Adding...' : stock > 0 ? 'Add to Bag' : 'Out of Stock'}
                 </button>
               )}
-              <button onClick={() => setWishlisted(!wishlisted)}
-                className={`w-14 h-14 rounded-xl border-2 flex items-center justify-center transition-all hover:scale-105 ${wishlisted ? 'border-primary bg-primary/5' : 'border-border'}`}>
-                <Heart size={22} className={wishlisted ? 'text-primary fill-primary' : 'text-text-secondary'} strokeWidth={1.5} />
+              <button onClick={() => selectedVariant && isLoggedIn() && toggleWishlist(selectedVariant.id)}
+                className={`w-14 h-14 rounded-xl border-2 flex items-center justify-center transition-all hover:scale-105 ${selectedVariant && isWishlisted(selectedVariant.id) ? 'border-primary bg-primary/5' : 'border-border'}`}>
+                <Heart size={22} className={selectedVariant && isWishlisted(selectedVariant.id) ? 'text-primary fill-primary' : 'text-text-secondary'} strokeWidth={1.5} />
               </button>
             </div>
 

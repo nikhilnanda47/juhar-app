@@ -44,16 +44,21 @@ export class HttpExceptionFilter implements ExceptionFilter {
       }
     }
 
-    // Log full error (never expose stack to client)
-    this.logger.error({
+    // 4xx client errors are expected; log at warn to reduce noise
+    const logPayload = {
       requestId,
       status,
       code,
       message,
       path: request.url,
       method: request.method,
-      ...(exception instanceof Error ? { stack: exception.stack } : {}),
-    });
+      ...(exception instanceof Error && status >= 500 ? { stack: exception.stack } : {}),
+    };
+    if (status >= 500) {
+      this.logger.error(logPayload);
+    } else {
+      this.logger.warn(logPayload);
+    }
 
     response.status(status).json({
       success: false,
