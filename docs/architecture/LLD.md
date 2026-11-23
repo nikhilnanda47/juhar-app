@@ -722,7 +722,7 @@ class UpdateCartItemDto {
 class CartResponse {
   items: CartItemResponse[];
   subtotalPaise: number;
-  itemCount: number;
+  itemCount: number;              // total quantity (3 sarees = 3), same as a guest cart
 }
 
 class CartItemResponse {

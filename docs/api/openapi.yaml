@@ -842,6 +842,7 @@ components:
           description: Sum of all line totals in paise
         itemCount:
           type: integer
+          description: Total quantity of pieces in the cart (3 sarees = 3), not the number of different products
 
     CartItem:
       type: object
