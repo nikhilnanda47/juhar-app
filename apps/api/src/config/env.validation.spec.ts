@@ -49,6 +49,21 @@ describe('validateEnv', () => {
   });
 });
 
+describe('validateEnv LOG_LEVEL', () => {
+  it.each(['error', 'warn', 'log', 'debug', 'verbose', 'WARN', ' debug '])('accepts %p', (value) => {
+    expect(() => validateEnv({ ...base, LOG_LEVEL: value })).not.toThrow();
+  });
+
+  it('is optional', () => {
+    expect(() => validateEnv({ ...base })).not.toThrow();
+    expect(() => validateEnv({ ...base, LOG_LEVEL: '' })).not.toThrow();
+  });
+
+  it('refuses an unknown level and names the valid ones', () => {
+    expect(() => validateEnv({ ...base, LOG_LEVEL: 'loud' })).toThrow(/Unsupported LOG_LEVEL "loud"\. Supported values: error, warn, log, debug, verbose/);
+  });
+});
+
 describe('createOtpProvider', () => {
   it.each([undefined, '', 'mock', 'MOCK'])('builds the mock provider for %p', (setting) => {
     expect(createOtpProvider(setting)).toBeInstanceOf(MockOtpProvider);

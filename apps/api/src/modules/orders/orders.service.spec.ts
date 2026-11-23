@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Logger, NotFoundException } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 
 function setup(currentStatus: string) {
@@ -173,5 +173,45 @@ describe('OrdersService.updateStatus and stock', () => {
         }),
       });
     });
+  });
+});
+
+describe('OrdersService event logging', () => {
+  let log: jest.SpyInstance;
+  beforeEach(() => { log = jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined); });
+  afterEach(() => log.mockRestore());
+  const messages = () => log.mock.calls.map((c) => String(c[0]));
+
+  function withNumber(status: string) {
+    const parts = setup(status);
+    parts.prisma.order.findUnique.mockResolvedValue({ id: 'order-1', publicNumber: 'JUH-20261122-0001', status });
+    return parts;
+  }
+
+  it('logs an admin status change: order number, from, to and who', async () => {
+    const { service } = withNumber('placed');
+    await changeTo(service, 'confirmed');
+    expect(messages()).toEqual(['order JUH-20261122-0001 placed -> confirmed by admin admin-1']);
+  });
+
+  it('logs a cancellation without the reason text (it can name the customer)', async () => {
+    const { service } = withNumber('placed');
+    await changeTo(service, 'cancelled', { reason: 'Customer Priya on 9876543210 asked to cancel' });
+    expect(messages()).toEqual(['order JUH-20261122-0001 placed -> cancelled by admin admin-1 (reason recorded)']);
+    expect(messages().join(' ')).not.toContain('Priya');
+    expect(messages().join(' ')).not.toContain('9876543210');
+  });
+
+  it('logs nothing when the change is refused', async () => {
+    const { service } = withNumber('delivered');
+    await expect(changeTo(service, 'confirmed')).rejects.toThrow();
+    expect(log).not.toHaveBeenCalled();
+  });
+
+  it('logs when a customer cancels their own order', async () => {
+    const { service, prisma } = withNumber('placed');
+    (prisma.order as any).findFirst = jest.fn().mockResolvedValue({ id: 'order-1', publicNumber: 'JUH-20261122-0001', status: 'placed' });
+    await service.cancelMyOrder('user-9', 'order-1', { reason: 'changed my mind' } as any);
+    expect(messages()).toEqual(['order JUH-20261122-0001 placed -> cancelled by the customer user=user-9']);
   });
 });

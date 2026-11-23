@@ -7,7 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
-import { v4 as uuid } from 'uuid';
+import { requestIdOf } from '../logging/request-id.middleware';
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
@@ -17,7 +17,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
-    const requestId = (request.headers['x-request-id'] as string) || uuid();
+    const requestId = requestIdOf(request);
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let code = 'INTERNAL_ERROR';
@@ -44,16 +44,22 @@ export class HttpExceptionFilter implements ExceptionFilter {
       }
     }
 
-    // Log full error (never expose stack to client)
-    this.logger.error({
-      requestId,
-      status,
-      code,
-      message,
-      path: request.url,
-      method: request.method,
-      ...(exception instanceof Error ? { stack: exception.stack } : {}),
-    });
+    // The access log line (common/logging) already records every response with its status and code.
+    // It reads these two values, so put them where it can find them.
+    response.locals.errorCode = code;
+    response.locals.errorMessage = message;
+
+    if (status >= 500) {
+      // A real failure: log the details, including the stack. Never send them to the client.
+      const detail = exception instanceof Error ? exception.message : String(exception);
+      this.logger.error(
+        `${request.method} ${request.path} failed with ${status} ${code}: ${detail}`,
+        exception instanceof Error ? exception.stack : undefined,
+      );
+    } else if (details) {
+      // Client mistakes (4xx) are warnings in the access log; the field details are for debugging
+      this.logger.debug(`${request.method} ${request.path} ${code} details: ${JSON.stringify(details)}`);
+    }
 
     response.status(status).json({
       success: false,

@@ -1,5 +1,5 @@
 import {
-  Injectable, NotFoundException, ConflictException, BadRequestException,
+  Injectable, NotFoundException, ConflictException, BadRequestException, Logger,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -7,6 +7,8 @@ import { AdjustStockDto } from './dto';
 
 @Injectable()
 export class InventoryService {
+  private readonly logger = new Logger(InventoryService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   /**
@@ -88,6 +90,7 @@ export class InventoryService {
 
     // 2. Check availability
     if (available < qty) {
+      this.logger.warn(`insufficient stock variant=${variantId} requested=${qty} available=${available}`);
       throw new ConflictException('INSUFFICIENT_STOCK');
     }
 
@@ -158,6 +161,7 @@ export class InventoryService {
       `;
       const onHand = rows[0]?.on_hand ?? 0;
       if (onHand < item.qty) {
+        this.logger.warn(`STOCK_MISMATCH sku=${item.sku} on_hand=${onHand} needed=${item.qty}`);
         throw new ConflictException(
           `STOCK_MISMATCH: ${item.sku} has ${onHand} on hand but the order needs ${item.qty}. Correct the stock count first.`,
         );

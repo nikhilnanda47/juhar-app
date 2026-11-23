@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Logger, NotFoundException } from '@nestjs/common';
 import { CheckoutService } from './checkout.service';
 
 const NOW = new Date('2026-11-22T10:00:00Z');
@@ -185,6 +185,42 @@ describe('CheckoutService', () => {
         expect(tx.order.create).not.toHaveBeenCalled();
         expect(tx.cartItem.deleteMany).not.toHaveBeenCalled();
         expect(tx.$queryRaw).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('logging', () => {
+      let log: jest.SpyInstance;
+      beforeEach(() => { log = jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined); });
+      afterEach(() => log.mockRestore());
+
+      it('logs the order that was placed: number, total, item count, payment mode and customer', async () => {
+        const { service } = setup([item({ price: 250000 }), item({ id: 'v2', price: 150000 })]);
+        const order = await service.placeOrder('user-1', placeDto());
+        const messages = log.mock.calls.map((c) => String(c[0]));
+        expect(messages).toContain(
+          `order placed ${order.publicNumber} total=₹4,099 items=2 payment=cod user=user-1`,
+        );
+      });
+
+      it('says so when the same order is asked for again', async () => {
+        const existing = { id: 'order-0', publicNumber: 'X-0001', status: 'placed', paymentMode: 'cod', totalPaise: 359900, items: [] };
+        const { service } = setup([item()], { existingOrder: existing });
+        await service.placeOrder('user-1', placeDto());
+        const messages = log.mock.calls.map((c) => String(c[0]));
+        expect(messages).toEqual(['order X-0001 returned again for the same idempotency key user=user-1']);
+      });
+
+      it('logs nothing about an order when checkout fails', async () => {
+        const { service } = setup([]);
+        await expect(service.placeOrder('user-1', placeDto())).rejects.toThrow();
+        expect(log).not.toHaveBeenCalled();
+      });
+
+      it('never logs the delivery address, phone number or notes', async () => {
+        const { service } = setup([item()]);
+        await service.placeOrder('user-1', placeDto());
+        const text = log.mock.calls.map((c) => String(c[0])).join(' ');
+        for (const secret of ['9876543210', 'Priya', 'Main Rd', 'Ring the bell']) expect(text).not.toContain(secret);
       });
     });
 

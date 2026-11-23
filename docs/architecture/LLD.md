@@ -32,8 +32,13 @@ src/
 │   │   ├── current-user.decorator.ts
 │   │   ├── roles.decorator.ts
 │   │   └── idempotency-key.decorator.ts
+│   ├── logging/                     # Request ID, access log, logger (see 5.1)
+│   │   ├── request-id.middleware.ts
+│   │   ├── access-log.middleware.ts
+│   │   ├── app-logger.ts
+│   │   ├── request-context.ts
+│   │   └── redact.ts
 │   ├── interceptors/
-│   │   ├── logging.interceptor.ts   # Request/response logging
 │   │   └── transform.interceptor.ts # Response envelope
 │   ├── filters/
 │   │   └── http-exception.filter.ts # Standard error format
@@ -1731,18 +1736,22 @@ class GlobalExceptionFilter implements ExceptionFilter {
 
 ### 5.1 Request Logging
 
-```typescript
-// Every request logs:
-{
-  requestId: "req_abc123",
-  method: "POST",
-  path: "/api/v1/orders",
-  userId: "user-uuid",       // From JWT
-  userType: "customer",
-  statusCode: 201,
-  durationMs: 145,
-  timestamp: "2026-11-13T10:30:00Z"
-}
+> **Implementation status (2026-11-23):** Logging is implemented as plain text lines (no JSON yet; JSON logs and error reporting are a separate task) in `apps/api/src/common/logging/`, set up in `main.ts`:
+>
+> - **Request ID:** `requestIdMiddleware` gives every request one ID (a valid `X-Request-Id` sent by the caller is reused: 8 to 64 letters, digits, `.`, `_`, `-`; anything else is replaced by a UUID). The same ID is in every log line of the request, in the reply's `requestId` (success and error) and in the `X-Request-Id` response header (exposed to browsers through CORS). It travels through the request with `AsyncLocalStorage` (`request-context.ts`), so lines written deep in a service carry it too.
+> - **Access log:** `createAccessLogMiddleware` writes one line per request when the response has been sent, so failures, rejected logins, rate-limited calls and unknown routes are logged too: `GET /api/v1/cart 200 12ms user=<id|anon>`, plus `code=<error code> "<message>"` for errors. 5xx is logged as an error, 4xx as a warning, everything else as normal output. `/health` and browser preflight (`OPTIONS`) requests are only logged at `debug`. Query strings, request bodies and headers are never logged. `user=` is `anon` for login requests because the caller is not authenticated until they succeed; the `login ok user=...` line has the ID.
+> - **Errors:** `HttpExceptionFilter` logs a 5xx with its message and stack (never sent to the client); a 4xx adds no extra line (the access line has the status, code and message), only a `debug` line with the field details.
+> - **Events (normal level):** `order placed <number> total=... items=... payment=... user=...` (or `returned again for the same idempotency key`), `order <number> <from> -> <to> by admin <id>` (cancellations say `(reason recorded)`, the text is not logged), `order ... cancelled by the customer`, `otp sent to +91******3210`, `login ok user=... type=... new=...`; warnings: `insufficient stock variant=... requested=... available=...`, `STOCK_MISMATCH sku=... on_hand=... needed=...`, `otp verify failed for +91******3210 (attempt n of 5)`, `Rate limit reached ...`.
+> - **Privacy:** `AppLogger` masks Indian mobile numbers (`+91******3210`) and login tokens (`[token]`) in anything that is logged, as a safety net; the code also avoids logging them. The dev-only mock OTP line still prints the code.
+> - **LOG_LEVEL:** `error`, `warn`, `log` (default), `debug` or `verbose`; each includes the quieter ones; an unknown value stops the API at startup. In production (or with `NO_COLOR` set) lines have no colour codes.
+> - **Finding a request:** take the `requestId` from a reply (or the `X-Request-Id` header) and search the logs for `req=<id>`. The apps do not show the ID to the customer yet.
+
+```
+Example (one order, lines shortened):
+LOG [HTTP] req=bf1fd942-... POST /api/v1/orders 201 23ms user=6e7e4675-...
+LOG [CheckoutService] req=bf1fd942-... order placed JUH-20261123-0096 total=₹1,599 items=1 payment=cod user=6e7e4675-...
+WARN [InventoryService] req=84f9f661-... insufficient stock variant=8b4c8006-... requested=5 available=2
+WARN [HTTP] req=84f9f661-... POST /api/v1/orders 409 12ms user=6e7e4675-... code=HTTP_409 "INSUFFICIENT_STOCK"
 ```
 
 ### 5.2 Response Envelope

@@ -1,5 +1,5 @@
 import {
-  Injectable, NotFoundException, BadRequestException,
+  Injectable, BadRequestException, Logger, NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -9,6 +9,8 @@ import { canTransitionOrder, INVENTORY, OrderStatus, PAGINATION } from '@juhar/s
 
 @Injectable()
 export class OrdersService {
+  private readonly logger = new Logger(OrdersService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly inventoryService: InventoryService,
@@ -87,7 +89,7 @@ export class OrdersService {
       );
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       // Release inventory reservations
       const reservations = await tx.inventoryReservation.findMany({
         where: { orderId, status: { in: ['held', 'committed'] } },
@@ -109,6 +111,8 @@ export class OrdersService {
 
       return this.toOrderDetail(updated);
     });
+    this.logger.log(`order ${order.publicNumber ?? orderId} ${order.status} -> cancelled by the customer user=${userId}`);
+    return result;
   }
 
   // ─────────────────────────────────────────
@@ -210,7 +214,7 @@ export class OrdersService {
       );
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       // Build update data with timestamps
       const data: Prisma.OrderUpdateInput = { status: dto.status };
 
@@ -282,6 +286,12 @@ export class OrdersService {
 
       return this.toOrderDetail(updated);
     });
+
+    this.logger.log(
+      `order ${order.publicNumber ?? orderId} ${order.status} -> ${dto.status} by admin ${adminId}` +
+        (dto.status === OrderStatus.CANCELLED ? ' (reason recorded)' : ''),
+    );
+    return result;
   }
 
   // ─────────────────────────────────────────

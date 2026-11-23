@@ -1,3 +1,4 @@
+import { LOG_LEVEL_NAMES, resolveLogLevel } from './log-level';
 import { SUPPORTED_OTP_PROVIDERS, resolveOtpProvider } from './otp-provider';
 
 const REQUIRED_ENV = ['DATABASE_URL', 'JWT_SECRET', 'JWT_REFRESH_SECRET'] as const;
@@ -13,6 +14,11 @@ export function validateEnv(config: Record<string, unknown>): Record<string, unk
       `Missing required environment variables: ${missing.join(', ')}. ` +
         'Copy apps/api/.env.example to apps/api/.env and set them.',
     );
+  }
+
+  const logLevel = resolveLogLevel(config.LOG_LEVEL);
+  if (!(LOG_LEVEL_NAMES as readonly string[]).includes(logLevel)) {
+    throw new Error(`Unsupported LOG_LEVEL "${logLevel}". Supported values: ${LOG_LEVEL_NAMES.join(', ')}.`);
   }
 
   const otpProvider = resolveOtpProvider(config.OTP_PROVIDER);

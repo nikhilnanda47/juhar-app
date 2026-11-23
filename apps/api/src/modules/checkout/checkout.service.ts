@@ -1,5 +1,5 @@
 import {
-  Injectable, BadRequestException, NotFoundException,
+  Injectable, BadRequestException, Logger, NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { InventoryService } from '../inventory/inventory.service';
@@ -12,6 +12,8 @@ const FREE_SHIPPING_THRESHOLD = 500000; // ₹5,000+
 
 @Injectable()
 export class CheckoutService {
+  private readonly logger = new Logger(CheckoutService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly inventoryService: InventoryService,
@@ -103,13 +105,17 @@ export class CheckoutService {
     });
     if (!address) throw new NotFoundException('ADDRESS_NOT_FOUND');
 
-    return this.prisma.$transaction(async (tx) => {
+    let replayed = false;
+    const order = await this.prisma.$transaction(async (tx) => {
       // 1. Idempotency check
       const existing = await tx.order.findUnique({
         where: { idempotencyKey: dto.idempotencyKey },
         include: { items: true },
       });
-      if (existing) return this.formatOrderResponse(existing);
+      if (existing) {
+        replayed = true;
+        return this.formatOrderResponse(existing);
+      }
 
       // 2. Fetch cart with current prices
       const cartItems = await tx.cartItem.findMany({
@@ -220,6 +226,14 @@ export class CheckoutService {
     }, {
       timeout: 10000, // 10s max transaction
     });
+
+    const total = `₹${(order.totalPaise / 100).toLocaleString('en-IN')}`;
+    this.logger.log(
+      replayed
+        ? `order ${order.publicNumber} returned again for the same idempotency key user=${userId}`
+        : `order placed ${order.publicNumber} total=${total} items=${order.items.length} payment=${order.paymentMode} user=${userId}`,
+    );
+    return order;
   }
 
   private formatOrderResponse(order: any) {

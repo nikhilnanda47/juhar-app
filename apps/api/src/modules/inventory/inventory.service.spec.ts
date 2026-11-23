@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Logger, NotFoundException } from '@nestjs/common';
 import { InventoryService } from './inventory.service';
 
 interface StockRow {
@@ -49,6 +49,21 @@ describe('InventoryService', () => {
       expect(tx.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(
         tx.inventory.update.mock.invocationCallOrder[0],
       );
+    });
+
+    it('logs a warning with the numbers when there is not enough stock', async () => {
+      const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+      const tx = makeTx([{ on_hand: 2, reserved: 1, unavailable: 0 }]);
+      await expect(newService().reserve(asTx(tx), 'variant-1', 3, expiresAt)).rejects.toThrow('INSUFFICIENT_STOCK');
+      expect(warn).toHaveBeenCalledWith('insufficient stock variant=variant-1 requested=3 available=1');
+      warn.mockRestore();
+    });
+
+    it('logs nothing when the stock is there', async () => {
+      const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+      await newService().reserve(asTx(makeTx([{ on_hand: 5, reserved: 0, unavailable: 0 }])), 'variant-1', 1, expiresAt);
+      expect(warn).not.toHaveBeenCalled();
+      warn.mockRestore();
     });
 
     it('fails when the variant has no stock row', async () => {
@@ -289,6 +304,14 @@ describe('InventoryService', () => {
       await expect(attempt).rejects.toThrow('STOCK_MISMATCH');
       expect(tx.inventory.update).not.toHaveBeenCalled();
       expect(tx.inventoryReservation.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('logs a warning with the numbers when the shelf count is too low to ship', async () => {
+      const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+      const tx = shipping(1, [line('v1', 2)], [hold('r1', 'v1', 2)]);
+      await expect(newService().settleShipment(asTx(tx), 'order-1')).rejects.toThrow('STOCK_MISMATCH');
+      expect(warn).toHaveBeenCalledWith('STOCK_MISMATCH sku=SKU-v1 on_hand=1 needed=2');
+      warn.mockRestore();
     });
 
     it('treats a missing stock row as nothing on hand', async () => {

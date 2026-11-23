@@ -334,6 +334,7 @@ MSG91_TEMPLATE_ID=<msg91-template-id>                 # not read by the code yet
 # ── Server ──
 PORT=3000
 NODE_ENV=production
+LOG_LEVEL=log                                         # error, warn, log, debug or verbose (optional; log is the default)
 TRUST_PROXY=1                                         # proxies in front of the API; needed so rate limits see each caller's real IP (see the security checklist)
 CORS_ORIGINS=https://juhar.co.in,https://www.juhar.co.in,https://admin.juhar.co.in   # replaces the built-in local origins
 
@@ -392,7 +393,7 @@ PAYMENT_GATEWAY=mock
 
 ### Monitoring (Free)
 
-- [ ] Railway built-in logs and metrics
+- [ ] Railway built-in logs and metrics. The API logs one line per request with `req=<request id>` (the same ID is in every reply as `requestId` and in the `X-Request-Id` header), so a customer's reported ID finds the whole story by searching the logs. Set `LOG_LEVEL` (default `log`; `warn` is quieter). Production lines have no colour codes
 - [ ] Supabase dashboard (DB stats, connections, storage)
 - [ ] Vercel analytics (customer website + admin panel)
 - [ ] Cloudflare analytics (image requests, bandwidth)

@@ -108,7 +108,11 @@ components:
           type: object
         requestId:
           type: string
-          example: req_abc123
+          description: >-
+            One ID per request. It is also sent in the `X-Request-Id` response header and is the first
+            thing in every log line for the request (`req=<id>`), so quote it when reporting a problem.
+            If the caller sends a valid `X-Request-Id` (8 to 64 letters, digits, `.`, `_` or `-`) it is reused.
+          example: 7f3a9c21-4b0e-4d8a-9c1f-2e6b5a0d1c33
 
     ErrorResponse:
       type: object
@@ -131,7 +135,11 @@ components:
               type: object
         requestId:
           type: string
-          example: req_abc123
+          description: >-
+            One ID per request. It is also sent in the `X-Request-Id` response header and is the first
+            thing in every log line for the request (`req=<id>`), so quote it when reporting a problem.
+            If the caller sends a valid `X-Request-Id` (8 to 64 letters, digits, `.`, `_` or `-`) it is reused.
+          example: 7f3a9c21-4b0e-4d8a-9c1f-2e6b5a0d1c33
 
     ValidationError:
       type: object

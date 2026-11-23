@@ -507,6 +507,18 @@ The API, website and admin panel are covered by the root `npm install` in step 3
 - The seeded admin is `+919876543210`. Any other Indian mobile number (`+91` then 10 digits starting 6 to 9) signs in as a new customer.
 - OTP login is rate limited: 3 OTP requests and 5 verify attempts per phone number per 10 minutes. If you see "Too many attempts. Please wait a few minutes and try again", wait, or restart the API (the counters are in its memory).
 
+### Reading the API logs
+
+Every request gets one ID. It is in the `requestId` of the reply, in the `X-Request-Id` response header, and at the start of every log line for that request as `req=<id>`. To follow one request, search the API's terminal (or the Railway logs) for that ID:
+
+```
+LOG  [HTTP] req=bf1fd942-... POST /api/v1/orders 201 23ms user=6e7e4675-...
+LOG  [CheckoutService] req=bf1fd942-... order placed JUH-20261123-0096 total=₹1,599 items=1 payment=cod user=6e7e4675-...
+WARN [HTTP] req=84f9f661-... POST /api/v1/orders 409 12ms user=6e7e4675-... code=HTTP_409 "INSUFFICIENT_STOCK"
+```
+
+Successful requests are normal lines, client mistakes (wrong OTP, bad input, unknown page) are warnings without a stack trace, and real failures (500) are errors with the stack. Phone numbers are masked (`+91******3210`) and tokens, request bodies, addresses and query strings are never logged. Set `LOG_LEVEL` in `apps/api/.env` to `error`, `warn`, `log` (default), `debug` or `verbose` to change how much is written; in production the lines have no colour codes. The apps do not show the request ID to customers yet.
+
 ### After you `git pull`
 
 Check what changed (`git diff HEAD@{1} --stat`), then use this table. Dev servers can stay running unless the first row applies.
