@@ -37,7 +37,7 @@ export default function ProfileScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [orderCount, setOrderCount] = useState(0);
   const [addressCount, setAddressCount] = useState(0);
-  const { total: savedCount, refreshWishlist } = useWishlist();
+  const { total: savedCount } = useWishlist();
 
   useEffect(() => { checkAuth(); }, []);
 
@@ -94,7 +94,6 @@ export default function ProfileScreen() {
       const p = await getProfile();
       setProfile(p);
       fetchCounts();
-      refreshWishlist();
       if (result.isNewUser || !p.name) {
         setEditName('');
         setScreen('editName');

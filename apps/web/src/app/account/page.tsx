@@ -29,7 +29,7 @@ export default function AccountPage() {
   const [errorRef, setErrorRef] = useState(''); // the API's reference for the failed request
   const [orderCount, setOrderCount] = useState(0);
   const [addressCount, setAddressCount] = useState(0);
-  const { total: wishlistCount, refreshWishlist } = useWishlist();
+  const { total: wishlistCount } = useWishlist();
 
   useEffect(() => { checkAuth(); }, []);
 
@@ -75,7 +75,6 @@ export default function AccountPage() {
       }
       const p = await getProfile(); setProfile(p);
       fetchCounts();
-      refreshWishlist();
       if (result.isNewUser || !p.name) { setEditName(''); setScreen('editName'); }
       else setScreen('profile');
     } catch (e: any) { setError(e.message || 'Invalid OTP'); setErrorRef(referenceOf(e)); }

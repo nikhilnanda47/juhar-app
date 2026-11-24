@@ -1,12 +1,12 @@
-// @ts-nocheck
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator,
 } from 'react-native';
 import { Heart, Trash2, ShoppingBag, ChevronLeft } from 'lucide-react-native';
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
-import { addToCart, formatPaise, isLoggedIn } from '../services/api';
+import { addToCart, formatPaise, isLoggedIn, referenceOf } from '../services/api';
 import { useWishlist } from '../contexts/WishlistContext';
+import { showAlert } from '../utils/showAlert';
 
 interface Props {
   navigation: any;
@@ -15,13 +15,22 @@ interface Props {
 export default function WishlistScreen({ navigation }: Props) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { wishlistItems, toggleWishlist, total } = useWishlist();
+  const { loaded, items, toggleVariant, total } = useWishlist();
+  const [addingId, setAddingId] = useState<string | null>(null);
+
+  // Wait for the answer instead of saying "no saved items" to someone who has some
+  if (!loaded) {
+    return <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>;
+  }
 
   if (!isLoggedIn()) {
     return (
       <View style={styles.center}>
         <Heart size={48} color={colors.textTertiary} strokeWidth={1.5} />
-        <Text style={styles.emptyTitle}>Sign in to see your saved items</Text>
+        <Text style={styles.emptyTitle}>
+          {total > 0 ? `${total} saved on this phone` : 'Sign in to see your saved items'}
+        </Text>
+        {total > 0 && <Text style={styles.emptySubtext}>Sign in to keep {total === 1 ? 'it' : 'them'} in your account.</Text>}
         <TouchableOpacity style={styles.ctaBtn} onPress={() => navigation.navigate('Account')}>
           <Text style={styles.ctaBtnText}>Sign In</Text>
         </TouchableOpacity>
@@ -30,7 +39,15 @@ export default function WishlistScreen({ navigation }: Props) {
   }
 
   const handleAddToCart = async (variantId: string) => {
-    try { await addToCart(variantId, 1); } catch {}
+    setAddingId(variantId);
+    try {
+      await addToCart(variantId, 1);
+    } catch (err: any) {
+      // used to fail without a word
+      const reference = referenceOf(err);
+      showAlert('Could not add to bag', `${err?.message || 'Please try again.'}${reference ? `\n\nReference: ${reference}` : ''}`);
+    }
+    setAddingId(null);
   };
 
   return (
@@ -57,15 +74,16 @@ export default function WishlistScreen({ navigation }: Props) {
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.list}>
-          {wishlistItems.map((item) => {
+          {items.map((item) => {
             const v = item.variant;
             const p = v.product;
             return (
               <TouchableOpacity
                 key={item.id}
                 style={styles.row}
-                activeOpacity={0.8}
-                onPress={() => navigation.navigate('Shop', { screen: 'ProductDetail', params: { slug: p.slug } })}
+                // a product that is no longer sold has no page to open
+                activeOpacity={v.isListed ? 0.8 : 1}
+                onPress={() => v.isListed && navigation.navigate('Shop', { screen: 'ProductDetail', params: { slug: p.slug } })}
               >
                 <View style={styles.rowImage} />
                 <View style={styles.rowInfo}>
@@ -77,20 +95,24 @@ export default function WishlistScreen({ navigation }: Props) {
                       <Text style={styles.comparePrice}>{formatPaise(v.compareAtPaise)}</Text>
                     )}
                   </View>
-                  {!v.isAvailable && <Text style={styles.outOfStock}>Out of Stock</Text>}
+                  {!v.isAvailable && (
+                    <Text style={styles.outOfStock}>{v.isListed ? 'Out of Stock' : 'No longer available'}</Text>
+                  )}
                   <View style={styles.rowActions}>
                     {v.isAvailable && (
                       <TouchableOpacity
-                        style={styles.addBtn}
+                        style={[styles.addBtn, addingId === v.id && { opacity: 0.6 }]}
                         onPress={() => handleAddToCart(v.id)}
+                        disabled={addingId === v.id}
                       >
                         <ShoppingBag size={14} color="#fff" strokeWidth={2} />
-                        <Text style={styles.addBtnText}>Add to Bag</Text>
+                        <Text style={styles.addBtnText}>{addingId === v.id ? 'Adding...' : 'Add to Bag'}</Text>
                       </TouchableOpacity>
                     )}
                     <TouchableOpacity
                       style={styles.removeBtn}
-                      onPress={() => toggleWishlist(v.id)}
+                      onPress={() => toggleVariant(v.id, p.id)}
+                      accessibilityLabel={`Remove ${p.title} from saved items`}
                     >
                       <Trash2 size={16} color={colors.textTertiary} strokeWidth={2} />
                     </TouchableOpacity>
@@ -117,7 +139,7 @@ function createStyles(colors: ColorPalette) {
     },
     backBtn: {
       width: 36, height: 36, borderRadius: 18,
-      backgroundColor: colors.surfaceContainerLow,
+      backgroundColor: colors.surfaceMuted,
       alignItems: 'center', justifyContent: 'center',
     },
     headerTitle: {
@@ -145,7 +167,7 @@ function createStyles(colors: ColorPalette) {
     },
     rowImage: {
       width: 80, aspectRatio: 0.75, borderRadius: borderRadius.md,
-      backgroundColor: colors.surfaceContainerLow,
+      backgroundColor: colors.surfaceMuted,
     },
     rowInfo: { flex: 1 },
     rowTitle: { fontFamily: 'DMSans-Medium', fontSize: 14, color: colors.textPrimary },

@@ -5,6 +5,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { notifyCartChanged } from './cartEvents';
+import { notifyAuthChanged } from './authEvents';
 
 const API_BASE = __DEV__
   ? 'http://localhost:3000'  // Dev: local API
@@ -73,6 +74,8 @@ export interface Product {
     slug: string;
   } | null;
   variants: ProductVariant[];
+  /** shop list cards only: the colour the card's price and its heart belong to */
+  firstVariantId?: string | null;
   media: Array<{
     id: string;
     url: string;
@@ -205,6 +208,7 @@ export async function saveTokens(access: string, refresh: string) {
   await AsyncStorage.setItem(TOKEN_KEY, access);
   await AsyncStorage.setItem(REFRESH_KEY, refresh);
   notifyCartChanged(); // the badge now shows the account's cart
+  notifyAuthChanged(); // saved items: move the guest's hearts into the account and load its list
 }
 
 export async function clearTokens() {
@@ -212,6 +216,7 @@ export async function clearTokens() {
   await AsyncStorage.removeItem(TOKEN_KEY);
   await AsyncStorage.removeItem(REFRESH_KEY);
   notifyCartChanged(); // the badge now shows the guest cart
+  notifyAuthChanged(); // anything that shows the previous customer's data (saved items) clears it
 }
 
 export function isLoggedIn(): boolean {
@@ -471,6 +476,9 @@ export interface WishlistVariant {
   pricePaise: number;
   compareAtPaise: number | null;
   available: number;
+  /** still sold: the product is published and this colour is active */
+  isListed: boolean;
+  /** listed and in stock */
   isAvailable: boolean;
   product: {
     id: string;

@@ -1,4 +1,5 @@
 import { notifyCartChanged } from './cart-events';
+import { notifyAuthChanged } from './auth-events';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
@@ -36,6 +37,7 @@ export function clearTokens() {
     localStorage.removeItem('juhar_refresh_token');
   }
   notifyCartChanged(); // the badge now shows the guest cart
+  notifyAuthChanged(); // anything that shows the previous customer's data (saved items) clears it
 }
 
 // ── Errors ──
@@ -285,6 +287,7 @@ export async function verifyOtp(phone: string, otp: string) {
     localStorage.setItem('juhar_refresh_token', data.refreshToken);
   }
   notifyCartChanged(); // the badge now shows the account's cart
+  notifyAuthChanged(); // saved items: move the guest's hearts into the account and load its list
   return data;
 }
 
@@ -370,7 +373,11 @@ export async function getShippingRule(): Promise<ShippingRule> {
 export interface WishlistVariant {
   id: string; sku: string; name: string | null; color: string | null;
   pricePaise: number; compareAtPaise: number | null;
-  available: number; isAvailable: boolean;
+  available: number;
+  /** still sold: the product is published and this colour is active */
+  isListed: boolean;
+  /** listed and in stock */
+  isAvailable: boolean;
   product: { id: string; slug: string; title: string; origin: string | null; fabric: string | null; weaveMethod: string | null };
 }
 

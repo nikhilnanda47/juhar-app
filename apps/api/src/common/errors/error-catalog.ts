@@ -16,6 +16,10 @@ const CATALOG: Record<string, Wording> = {
     'Sorry, one of the sarees in your bag is not in stock in the quantity you asked for. Please check your bag and try again.',
   QUANTITY_EXCEEDS_LIMIT: `You can order at most ${CART.MAX_QUANTITY_PER_VARIANT} of one saree.`,
 
+  // Saved items (wishlist)
+  ALREADY_IN_WISHLIST: 'This saree is already in your saved items.',
+  WISHLIST_ITEM_NOT_FOUND: 'That saree is not in your saved items.',
+
   // Stock handling (admin side)
   STOCK_WOULD_GO_NEGATIVE: 'That change would take the stock below zero.',
   RESERVATION_NOT_FOUND: 'We could not find the stock hold for this order.',

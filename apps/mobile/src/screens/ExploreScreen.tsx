@@ -397,9 +397,10 @@ function ProductCard({ product, onPress }: { product: any; onPress: () => void }
   const price = product.startingPricePaise ?? 0;
   const compare = product.compareAtPaise ?? null;
   const lowStock = product.totalStock !== undefined && product.totalStock > 0 && product.totalStock <= 3;
-  const { isWishlisted, toggleWishlist } = useWishlist();
-  const variantId = product.variants?.[0]?.id;
-  const wishlisted = variantId ? isWishlisted(variantId) : false;
+  // The heart is for the whole saree: filled when any colour of it is saved. (The list sends
+  // firstVariantId, the colour the card's price belongs to, and no variants array.)
+  const { isProductSaved, toggleProduct } = useWishlist();
+  const wishlisted = isProductSaved(product.id);
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.9}>
@@ -410,7 +411,8 @@ function ProductCard({ product, onPress }: { product: any; onPress: () => void }
         {/* Wishlist Button */}
         <TouchableOpacity
           style={styles.wishlistBtn}
-          onPress={(e) => { e.stopPropagation?.(); if (variantId) toggleWishlist(variantId); }}
+          onPress={(e) => { e.stopPropagation?.(); toggleProduct(product.id, product.firstVariantId); }}
+          accessibilityLabel={wishlisted ? 'Remove from saved items' : 'Save this saree'}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
           <Heart

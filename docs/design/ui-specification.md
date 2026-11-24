@@ -1218,6 +1218,12 @@ Reusable refresh icon (`RefreshCw`) with spin animation on press. Used on Home, 
 
 ---
 
+### Saved items (wishlist)
+
+> **Implementation status:** the heart is on every shop card and on the product page; the Account tile "Saved" opens the list. **Shop card:** one heart per saree, filled when any colour of it is saved. **Product page:** one heart for the selected colour; the page opens on the saved colour if there is one. **Saved list (web page and mobile screen):** a card per saved colour with price, an "Add to Bag" button and a remove (bin) button. A colour that is out of stock says "Out of Stock"; one whose product is no longer sold says "No longer available" and has no Add to Bag button and no link. While the list is loading a spinner shows (it never flashes "Sign in" at a logged-in customer). **Guests:** the hearts work and are kept on the device; the Saved page says "You have N saved on this device. Sign in to keep them in your account", and they move into the account at login. If Add to Bag fails the reason is shown with the Reference line (web inline, mobile alert).
+
+---
+
 ### 13.17 Orders List (Screen 17)
 
 **Purpose:** Order history with status badges. Newest first.

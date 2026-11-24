@@ -1,34 +1,26 @@
+// What a guest saved, kept on this phone until they log in (the guest bag works the same way).
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { parseGuestWishlist, type SavedEntry } from './wishlistState';
 
-const KEY = 'juhar_local_wishlist';
+export const GUEST_WISHLIST_KEY = 'juhar_local_wishlist';
 
-export async function getLocalWishlist(): Promise<string[]> {
+export async function getLocalWishlist(): Promise<SavedEntry[]> {
   try {
-    const raw = await AsyncStorage.getItem(KEY);
-    return raw ? JSON.parse(raw) : [];
+    return parseGuestWishlist(await AsyncStorage.getItem(GUEST_WISHLIST_KEY));
   } catch {
     return [];
   }
 }
 
-export async function addLocalWishlistItem(variantId: string): Promise<void> {
+export async function saveLocalWishlist(list: SavedEntry[]): Promise<void> {
   try {
-    const ids = await getLocalWishlist();
-    if (!ids.includes(variantId)) {
-      await AsyncStorage.setItem(KEY, JSON.stringify([...ids, variantId]));
-    }
-  } catch {}
-}
-
-export async function removeLocalWishlistItem(variantId: string): Promise<void> {
-  try {
-    const ids = await getLocalWishlist();
-    await AsyncStorage.setItem(KEY, JSON.stringify(ids.filter((id) => id !== variantId)));
-  } catch {}
+    if (list.length === 0) await AsyncStorage.removeItem(GUEST_WISHLIST_KEY);
+    else await AsyncStorage.setItem(GUEST_WISHLIST_KEY, JSON.stringify(list));
+  } catch {
+    // storage full or blocked: the hearts still work until the app is closed
+  }
 }
 
 export async function clearLocalWishlist(): Promise<void> {
-  try {
-    await AsyncStorage.removeItem(KEY);
-  } catch {}
+  await saveLocalWishlist([]);
 }
