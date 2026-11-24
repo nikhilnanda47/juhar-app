@@ -25,6 +25,8 @@ interface PaginatedData<T> {
   items: T[];
   cursor: string | null;
   hasMore: boolean;
+  /** how many items match the filters, over all pages (sent by the product list) */
+  total?: number;
 }
 
 export interface Category {
@@ -359,9 +361,11 @@ export async function getCategories(): Promise<Category[]> {
   return request<Category[]>('/api/v1/categories');
 }
 
-export async function getProducts(params?: Record<string, string>): Promise<PaginatedData<Product>> {
+export async function getProducts(params?: Record<string, string>): Promise<PaginatedData<Product> & { total: number }> {
   const query = params ? '?' + new URLSearchParams(params).toString() : '';
-  return request<PaginatedData<Product>>(`/api/v1/products${query}`);
+  const data = await request<PaginatedData<Product>>(`/api/v1/products${query}`);
+  const items = data.items ?? [];
+  return { items, cursor: data.cursor ?? null, hasMore: data.hasMore ?? false, total: data.total ?? items.length };
 }
 
 export async function getProductBySlug(slug: string): Promise<Product> {

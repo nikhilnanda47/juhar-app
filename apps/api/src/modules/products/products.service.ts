@@ -80,9 +80,10 @@ export class ProductsService {
     let items: any[];
     let hasMore: boolean;
     let nextCursor: string | null;
+    let total: number; // every product that matches the filters, over all pages ("58 sarees")
 
     if (query.sortBy === ProductSortBy.PRICE_ASC || query.sortBy === ProductSortBy.PRICE_DESC) {
-      ({ items, hasMore, nextCursor } = await this.findPageByPrice(
+      ({ items, hasMore, nextCursor, total } = await this.findPageByPrice(
         where,
         include,
         limit,
@@ -103,7 +104,11 @@ export class ProductsService {
         findArgs.skip = 1;
       }
 
-      const products = await this.prisma.product.findMany(findArgs as any);
+      const [products, count] = await Promise.all([
+        this.prisma.product.findMany(findArgs as any),
+        this.prisma.product.count({ where }),
+      ]);
+      total = count;
       hasMore = products.length > limit;
       items = hasMore ? products.slice(0, limit) : products;
       nextCursor = hasMore ? items[items.length - 1].id : null;
@@ -134,7 +139,7 @@ export class ProductsService {
       };
     });
 
-    return { items: cards, cursor: nextCursor, hasMore };
+    return { items: cards, cursor: nextCursor, hasMore, total };
   }
 
   /**
@@ -153,10 +158,10 @@ export class ProductsService {
     limit: number,
     cursor: string | undefined,
     descending: boolean,
-  ): Promise<{ items: any[]; hasMore: boolean; nextCursor: string | null }> {
+  ): Promise<{ items: any[]; hasMore: boolean; nextCursor: string | null; total: number }> {
     const matching = await this.prisma.product.findMany({ where, select: { id: true } });
     const ids = matching.map((p) => p.id);
-    if (ids.length === 0) return { items: [], hasMore: false, nextCursor: null };
+    if (ids.length === 0) return { items: [], hasMore: false, nextCursor: null, total: 0 };
 
     const direction = descending ? Prisma.sql`DESC` : Prisma.sql`ASC`;
     const ordered = await this.prisma.$queryRaw<{ id: string }[]>`
@@ -167,19 +172,20 @@ export class ProductsService {
       ORDER BY MIN(v.price_paise) ${direction}, v.product_id ASC
     `;
     const orderedIds = ordered.map((row) => row.id);
+    const total = orderedIds.length;
 
     let start = 0;
     if (cursor) {
       const position = orderedIds.indexOf(cursor);
       // A cursor that is not in the list (product removed or unpublished): nothing more to show
-      if (position === -1) return { items: [], hasMore: false, nextCursor: null };
+      if (position === -1) return { items: [], hasMore: false, nextCursor: null, total };
       start = position + 1;
     }
 
     const pageIds = orderedIds.slice(start, start + limit + 1);
     const hasMore = pageIds.length > limit;
     const idsOnPage = hasMore ? pageIds.slice(0, limit) : pageIds;
-    if (idsOnPage.length === 0) return { items: [], hasMore: false, nextCursor: null };
+    if (idsOnPage.length === 0) return { items: [], hasMore: false, nextCursor: null, total };
 
     const products = await this.prisma.product.findMany({
       where: { id: { in: idsOnPage } },
@@ -188,7 +194,7 @@ export class ProductsService {
     const byId = new Map<string, any>(products.map((product: any) => [product.id, product]));
     const items = idsOnPage.map((id) => byId.get(id)).filter(Boolean);
 
-    return { items, hasMore, nextCursor: hasMore ? idsOnPage[idsOnPage.length - 1] : null };
+    return { items, hasMore, nextCursor: hasMore ? idsOnPage[idsOnPage.length - 1] : null, total };
   }
 
   /**

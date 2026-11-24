@@ -574,7 +574,7 @@ Check what changed (`git diff HEAD@{1} --stat`), then use this table. Dev server
 | `npm test -w apps/web` | Root | Run the website unit tests (Jest) |
 | `cd apps/mobile && npm test` | Root | Run the mobile unit tests (Jest) |
 | `npm test` | Root | Run the API, admin and website tests together (mobile has its own, above) |
-| `cd apps/api && DB_TESTS=1 npm test -- check-constraints` | Root | Also run the database tests against your migrated local database (they roll back and leave no data) |
+| `cd apps/api && DB_TESTS=1 npm test -- check-constraints` | Root | Also run the database tests against your migrated local database (they roll back and leave no data). With `DB_TESTS=1` the test files run one at a time, because several count rows over the whole table and would disturb each other in parallel |
 | `npm run build:web` | Root | Production build of the website (catches errors dev mode hides) |
 
 ### Service ports

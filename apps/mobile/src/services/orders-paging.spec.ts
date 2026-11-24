@@ -47,3 +47,16 @@ describe('appendUnique', () => {
     expect(appendUnique([{ id: 'a' }, { id: 'b' }], [{ id: 'b' }, { id: 'c' }]).map((r) => r.id)).toEqual(['a', 'b', 'c']);
   });
 });
+
+describe('getProducts (shop list, one page at a time)', () => {
+  it('returns the page with its cursor and the total number of matching products', async () => {
+    const api = load(() => ok({ items: [{ id: 'a' }], cursor: 'a', hasMore: true, total: 58 }));
+    expect(await api.getProducts({ limit: '20', sortBy: 'price_asc' })).toEqual({ items: [{ id: 'a' }], cursor: 'a', hasMore: true, total: 58 });
+    expect(urlOf()).toBe('/api/v1/products?limit=20&sortBy=price_asc');
+  });
+
+  it('copes with an older API that sends no total (falls back to what it sent)', async () => {
+    const api = load(() => ok({ items: [{ id: 'a' }, { id: 'b' }], cursor: null, hasMore: false }));
+    expect((await api.getProducts()).total).toBe(2);
+  });
+});

@@ -1,14 +1,16 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, Dimensions, RefreshControl, TextInput,
 } from 'react-native';
-import { Search as SearchIcon, SlidersHorizontal, Heart, ChevronDown } from 'lucide-react-native';
+import { Search as SearchIcon, SlidersHorizontal, Heart, ChevronDown, Check } from 'lucide-react-native';
 import { useTheme, type ColorPalette, spacing, borderRadius, elevation } from '../theme';
 import {
   getCategories, getProducts, formatPaise,
   type Category, type Product,
 } from '../services/api';
+import { appendUnique } from '../services/paging';
+import { SORT_OPTIONS, shopQuery, sortLabel, type ShopSort } from '../services/shopList';
 import { FadeInUp, ScalePress } from '../components/AnimatedUI';
 import RefreshButton from '../components/RefreshButton';
 
@@ -26,38 +28,94 @@ export default function ExploreScreen({ navigation, route }: Props) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [sort, setSort] = useState<ShopSort>('newest');
+  const [sortOpen, setSortOpen] = useState(false);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [total, setTotal] = useState(0); // every saree that matches, not just the ones loaded
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const [loading, setLoading] = useState(true); // first load of the screen
+  const [listLoading, setListLoading] = useState(false); // a new category or sort is loading
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+  // Only the newest request may change the list (a slow answer for an old category or sort is dropped)
+  const requestId = useRef(0);
 
-  const loadData = useCallback(async (categoryId?: string | null) => {
+  // The first page of the list for a category and sort
+  const loadFirstPage = useCallback(async (categoryId: string | null, sortBy: ShopSort) => {
+    const mine = ++requestId.current;
+    setLoadError('');
     try {
+      const page = await getProducts(shopQuery({ categoryId, sort: sortBy }));
+      if (mine !== requestId.current) return;
+      setProducts(page.items);
+      setCursor(page.cursor);
+      setHasMore(page.hasMore);
+      setTotal(page.total);
       setError('');
-      const [cats, prods] = await Promise.all([
-        getCategories(),
-        getProducts(categoryId ? { categoryId } : undefined),
-      ]);
-      setCategories(cats.filter((c: any) => c.active !== false));
-      setProducts(prods.items || []);
     } catch (err: any) {
-      setError(err.message || 'Failed to load catalog');
+      if (mine === requestId.current) setError(err.message || 'Failed to load catalog');
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (mine === requestId.current) {
+        setLoading(false);
+        setListLoading(false);
+        setRefreshing(false);
+      }
     }
   }, []);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  const loadCategories = useCallback(async () => {
+    try {
+      const cats = await getCategories();
+      setCategories(cats.filter((c: any) => c.active !== false));
+    } catch {
+      // the list below still works without the chips
+    }
+  }, []);
+
+  useEffect(() => {
+    loadCategories();
+    loadFirstPage(null, 'newest');
+  }, [loadCategories, loadFirstPage]);
 
   const selectCategory = (catId: string | null) => {
     setSelectedCategory(catId);
-    setLoading(true);
-    loadData(catId);
+    setListLoading(true);
+    loadFirstPage(catId, sort);
+  };
+
+  const chooseSort = (next: ShopSort) => {
+    setSortOpen(false);
+    if (next === sort) return;
+    setSort(next);
+    setListLoading(true);
+    loadFirstPage(selectedCategory, next);
   };
 
   const onRefresh = () => {
     setRefreshing(true);
-    loadData(selectedCategory);
+    loadCategories();
+    loadFirstPage(selectedCategory, sort);
+  };
+
+  const loadMore = async () => {
+    if (!cursor || loadingMore) return;
+    const mine = requestId.current;
+    setLoadingMore(true);
+    setLoadError('');
+    try {
+      const page = await getProducts(shopQuery({ categoryId: selectedCategory, sort, cursor }));
+      if (mine !== requestId.current) return; // the category or sort changed meanwhile
+      setProducts((shown) => appendUnique(shown, page.items));
+      setCursor(page.cursor);
+      setHasMore(page.hasMore);
+      setTotal(page.total);
+    } catch {
+      setLoadError('Could not load more sarees. Tap to try again.');
+    } finally {
+      setLoadingMore(false);
+    }
   };
 
   if (loading && !refreshing) {
@@ -128,16 +186,29 @@ export default function ExploreScreen({ navigation, route }: Props) {
       <View style={styles.countSortRow}>
         <View style={styles.countRow}>
           <View style={styles.countDot} />
-          <Text style={styles.countText}>{products.length} sarees</Text>
+          <Text style={styles.countText}>{total} {total === 1 ? 'saree' : 'sarees'}</Text>
         </View>
-        <TouchableOpacity style={styles.sortBtn}>
-          <Text style={styles.sortBtnText}>Featured</Text>
+        <TouchableOpacity style={styles.sortBtn} onPress={() => setSortOpen((open) => !open)} activeOpacity={0.8}>
+          <Text style={styles.sortBtnText}>{sortLabel(sort)}</Text>
           <ChevronDown size={14} color={colors.textTertiary} strokeWidth={2} />
         </TouchableOpacity>
       </View>
 
+      {sortOpen && (
+        <View style={styles.sortMenu}>
+          {SORT_OPTIONS.map((o) => (
+            <TouchableOpacity key={o.value} style={styles.sortOption} onPress={() => chooseSort(o.value)} activeOpacity={0.7}>
+              <Text style={[styles.sortOptionText, o.value === sort && styles.sortOptionTextActive]}>{o.label}</Text>
+              {o.value === sort && <Check size={16} color={colors.primary} strokeWidth={2.5} />}
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+
+      {listLoading && <ActivityIndicator style={{ marginVertical: spacing.md }} color={colors.primary} />}
+
       {/* Product Grid */}
-      <View style={styles.grid}>
+      <View style={[styles.grid, listLoading && { opacity: 0.4 }]}>
         {products.map((product: any, idx: number) => (
           <FadeInUp key={product.id} delay={idx * 80} duration={400} distance={12}>
             <ProductCard
@@ -148,11 +219,27 @@ export default function ExploreScreen({ navigation, route }: Props) {
         ))}
       </View>
 
-      {products.length === 0 && !loading && (
+      {products.length > 0 && (
+        <View style={styles.loadMoreWrap}>
+          {hasMore && (
+            <TouchableOpacity style={styles.loadMoreBtn} onPress={loadMore} disabled={loadingMore} activeOpacity={0.8}>
+              {loadingMore
+                ? <ActivityIndicator size="small" color={colors.primary} />
+                : <Text style={styles.loadMoreText}>Load more sarees</Text>}
+            </TouchableOpacity>
+          )}
+          {!!loadError && <Text style={styles.loadErrorText}>{loadError}</Text>}
+          <Text style={styles.shownText}>
+            {hasMore ? `Showing ${products.length} of ${total} sarees` : `All ${products.length} ${products.length === 1 ? 'saree' : 'sarees'} shown`}
+          </Text>
+        </View>
+      )}
+
+      {products.length === 0 && !loading && !listLoading && (
         <View style={styles.emptyState}>
           <SearchIcon size={48} color={colors.textTertiary} strokeWidth={1.5} />
-          <Text style={styles.emptyTitle}>No sarees found</Text>
-          <Text style={styles.emptySubtext}>Try a different category</Text>
+          <Text style={styles.emptyTitle}>{error ? 'Could not load sarees' : 'No sarees found'}</Text>
+          <Text style={styles.emptySubtext}>{error ? error : 'Try a different category'}</Text>
         </View>
       )}
 
@@ -353,6 +440,43 @@ const createStyles = (colors: ColorPalette) => StyleSheet.create({
     color: colors.textPrimary,
     letterSpacing: 0.3,
   },
+  sortMenu: {
+    marginHorizontal: spacing.margin,
+    marginBottom: spacing.sm,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
+  },
+  sortOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  sortOptionText: { fontFamily: 'DMSans-Regular', fontSize: 14, color: colors.textPrimary },
+  sortOptionTextActive: { fontFamily: 'DMSans-SemiBold', color: colors.primary },
+
+  // Load more
+  loadMoreWrap: {
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: spacing.margin,
+    paddingTop: spacing.lg,
+  },
+  loadMoreBtn: {
+    alignSelf: 'stretch',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  loadMoreText: { fontFamily: 'DMSans-SemiBold', fontSize: 14, color: colors.primary },
+  loadErrorText: { fontFamily: 'DMSans-Regular', fontSize: 13, color: colors.error, textAlign: 'center' },
+  shownText: { fontFamily: 'DMSans-Regular', fontSize: 12, color: colors.textTertiary },
 
   // Grid
   grid: {

@@ -145,22 +145,44 @@ describe('ProductsService.findAll price sorting (fake database)', () => {
   it('returns an empty page for a cursor that is not in the list', async () => {
     const { service } = setup(ids, ids);
     const page = await service.findAll({ sortBy: ProductSortBy.PRICE_DESC, limit: 2, cursor: 'gone' } as any);
-    expect(page).toEqual({ items: [], cursor: null, hasMore: false });
+    expect(page).toEqual({ items: [], cursor: null, hasMore: false, total: 5 }); // still says how many there are
   });
 
   it('does not query prices at all when nothing matches', async () => {
     const { service, queryRaw } = setup([], []);
     const page = await service.findAll({ sortBy: ProductSortBy.PRICE_ASC, limit: 5 } as any);
-    expect(page).toEqual({ items: [], cursor: null, hasMore: false });
+    expect(page).toEqual({ items: [], cursor: null, hasMore: false, total: 0 });
     expect(queryRaw).not.toHaveBeenCalled();
   });
 
   it('newest-first: ordered by creation date (id breaks ties) and never touches the price query', async () => {
     const findMany = jest.fn(async () => [card('a', 1000), card('b', 2000)]);
+    const count = jest.fn(async () => 2);
     const queryRaw = jest.fn();
-    const service = new ProductsService({ product: { findMany }, $queryRaw: queryRaw } as any);
+    const service = new ProductsService({ product: { findMany, count }, $queryRaw: queryRaw } as any);
     await service.findAll({ sortBy: ProductSortBy.NEWEST, limit: 10 } as any);
     expect((findMany.mock.calls[0] as unknown as any[])[0]).toMatchObject({ orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 11 });
     expect(queryRaw).not.toHaveBeenCalled();
+  });
+
+  describe('total (how many sarees match, over all pages)', () => {
+    it('newest-first: counts with the same filters as the list, not just the page', async () => {
+      const findMany = jest.fn(async () => [card('a', 1000), card('b', 2000)]);
+      const count = jest.fn(async () => 58);
+      const service = new ProductsService({ product: { findMany, count }, $queryRaw: jest.fn() } as any);
+      const page = await service.findAll({ sortBy: ProductSortBy.NEWEST, limit: 2, categoryId: 'cat-1' } as any);
+      expect(page.total).toBe(58);
+      const listWhere = (findMany.mock.calls[0] as unknown as any[])[0].where;
+      expect((count.mock.calls[0] as unknown as any[])[0].where).toEqual(listWhere);
+      expect(listWhere.categoryId).toBe('cat-1');
+    });
+
+    it('price sort: the total is every matching product, on every page', async () => {
+      const { service } = setup(ids, ids);
+      const first = await service.findAll({ sortBy: ProductSortBy.PRICE_ASC, limit: 2 } as any);
+      const last = await service.findAll({ sortBy: ProductSortBy.PRICE_ASC, limit: 2, cursor: 'd' } as any);
+      expect(first.total).toBe(5);
+      expect(last.total).toBe(5);
+    });
   });
 });

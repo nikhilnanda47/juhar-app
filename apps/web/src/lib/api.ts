@@ -170,9 +170,20 @@ export async function getCategories(): Promise<Category[]> {
   return request<Category[]>('/api/v1/categories');
 }
 
-export async function getProducts(params?: Record<string, string>): Promise<{ items: Product[]; total: number }> {
+export interface ProductsPage {
+  items: Product[];
+  /** pass this back as `cursor` to get the next page; null on the last page */
+  cursor: string | null;
+  hasMore: boolean;
+  /** how many products match the filters, over all pages */
+  total: number;
+}
+
+export async function getProducts(params?: Record<string, string>): Promise<ProductsPage> {
   const query = params ? '?' + new URLSearchParams(params).toString() : '';
-  return request(`/api/v1/products${query}`);
+  const data = await request<Partial<ProductsPage>>(`/api/v1/products${query}`);
+  const items = data.items ?? [];
+  return { items, cursor: data.cursor ?? null, hasMore: data.hasMore ?? false, total: data.total ?? items.length };
 }
 
 export async function getProductBySlug(slug: string): Promise<Product> {

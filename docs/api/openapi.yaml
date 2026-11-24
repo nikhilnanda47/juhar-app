@@ -1917,6 +1917,9 @@ paths:
                             nullable: true
                           hasMore:
                             type: boolean
+                          total:
+                            type: integer
+                            description: How many products match the filters, over every page (for "58 sarees")
 
   /api/v1/products/{slug}:
     get:

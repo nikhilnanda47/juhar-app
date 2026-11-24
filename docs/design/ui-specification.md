@@ -892,6 +892,8 @@ Reusable refresh icon (`RefreshCw`) with spin animation on press. Used on Home, 
 - Radio list, 48px rows, `#8B3A4A` active dot
 - Drag handle, backdrop dim, 16px top radius
 
+> **Implementation status:** the sort control is a small pill under the category chips (mobile: tap it for a three-row menu with a check on the active row; web: a select). It offers the three sorts the API supports (Newest, Price: low to high, Price: high to low); "Popular" is not built. The sort covers the whole catalog and works together with the category chip. The count is the real total ("58 sarees"), not the number loaded. Instead of shimmer or infinite scroll, 20 sarees load first and an outlined "Load more sarees" button adds the next 20; below it a line says "Showing 20 of 58 sarees" (then "All 58 sarees shown"). Changing the sort, category or search starts again from the first page. The web search waits for a short pause in typing before asking the API.
+
 **Empty state:** Lucide `search` 48px + "No sarees found" + "Try a different category"
 
 ---
