@@ -1252,6 +1252,12 @@ Reusable refresh icon (`RefreshCw`) with spin animation on press. Used on Home, 
 
 ---
 
+### Error references (all apps)
+
+When an API call fails, the error message in the web and mobile apps (sign-in, saving an address, adding to the bag, placing an order) has a small line under it: `Reference: <id>` with a **Copy** button (11 to 12px, tertiary text colour, so it stays out of the way). A customer can read the id out to support, who search the logs for `req=<id>`. Where the error is an alert box (mobile "Add to Bag"), the line is added to the alert text. Nothing is shown when there is no id, for example when the network is down. Admin: each row of the Orders table shows the customer's user id (`ID 683855ca`, a Copy button copies the full id).
+
+---
+
 ### 13.18 Order Detail (Screen 18)
 
 **Purpose:** Full order info with status timeline, tracking, items, address.

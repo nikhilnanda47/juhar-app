@@ -83,15 +83,26 @@ export interface Product {
   createdAt: string;
 }
 
-class ApiError extends Error {
+/**
+ * A failed API call. `message` is what the customer reads; `requestId` is the reference the API
+ * gave this request (it is in every log line as req=<id>), so a customer can read it out and
+ * support can find exactly what happened.
+ */
+export class ApiError extends Error {
   constructor(
     public code: string,
     message: string,
     public status: number,
+    public requestId: string = '',
   ) {
     super(message);
     this.name = 'ApiError';
   }
+}
+
+/** The request reference of an error, or '' (a network failure has none). */
+export function referenceOf(error: unknown): string {
+  return error instanceof ApiError ? error.requestId : '';
 }
 
 // Sign-in and token-refresh calls must never trigger a refresh themselves.
@@ -162,7 +173,8 @@ async function request<T>(path: string, options: RequestInit = {}, retried = fal
   if (!json.success) {
     const err = (json as any).error || { code: 'UNKNOWN', message: 'Request failed' };
     const details = Array.isArray(err.details) ? err.details.join('; ') : '';
-    throw new ApiError(err.code, details ? `${err.message}: ${details}` : err.message, res.status);
+    const requestId = String((json as any).requestId || res.headers?.get?.('x-request-id') || '');
+    throw new ApiError(err.code, details ? `${err.message}: ${details}` : err.message, res.status, requestId);
   }
 
   return json.data;

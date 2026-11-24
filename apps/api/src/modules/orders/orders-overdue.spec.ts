@@ -17,7 +17,7 @@ function order(id: string, status: string, paymentMode: string, minutesAgo: numb
     totalPaise: 100000,
     items: [],
     createdAt: ago(minutesAgo),
-    user: { phone: '+919876543210', name: 'Asha' },
+    user: { id: 'user-asha', phone: '+919876543210', name: 'Asha' },
   };
 }
 

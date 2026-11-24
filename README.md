@@ -526,6 +526,8 @@ LOG  [CheckoutService] req=bf1fd942-... order placed JUH-20261123-0096 total=₹
 WARN [HTTP] req=84f9f661-... POST /api/v1/orders 409 12ms user=6e7e4675-... code=HTTP_409 "INSUFFICIENT_STOCK"
 ```
 
+**From a customer to the log.** When something fails in the web or mobile app (sign-in, saving an address, adding to the bag, placing an order), the error message has a small `Reference: <id>` line with a Copy button. Ask the customer for it and search the logs for `req=<id>`. To find out who a log line's `user=<id>` is, open the admin Orders page: each order shows the customer's user id (first 8 characters, with a Copy button that copies the whole id).
+
 Successful requests are normal lines, client mistakes (wrong OTP, bad input, unknown page) are warnings without a stack trace, and real failures (500) are errors with the stack. Phone numbers are masked (`+91******3210`) and tokens, request bodies, addresses and query strings are never logged. Set `LOG_LEVEL` in `apps/api/.env` to `error`, `warn`, `log` (default), `debug` or `verbose` to change how much is written; in production the lines have no colour codes. The apps do not show the request ID to customers yet.
 
 ### After you `git pull`

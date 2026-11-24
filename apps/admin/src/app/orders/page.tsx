@@ -59,6 +59,7 @@ export default function OrdersPage() {
   const [cancelReason, setCancelReason] = useState('');
   const [cancelError, setCancelError] = useState('');
   const [cancelling, setCancelling] = useState(false);
+  const [copiedUser, setCopiedUser] = useState<string | null>(null); // the user id just copied (shows "Copied")
 
   // The dashboard links here with ?filter=overdue; read it once before the first load
   useEffect(() => {
@@ -173,6 +174,23 @@ export default function OrdersPage() {
     setUpdating(null);
   };
 
+  // Copy a customer's user id, the same "user=<id>" that the API logs show
+  const copyUserId = async (id: string) => {
+    try {
+      await navigator.clipboard.writeText(id);
+    } catch {
+      // clipboard blocked (plain http, old browser): select the text the old way
+      const box = document.createElement('textarea');
+      box.value = id;
+      document.body.appendChild(box);
+      box.select();
+      document.execCommand('copy');
+      document.body.removeChild(box);
+    }
+    setCopiedUser(id);
+    setTimeout(() => setCopiedUser((current) => (current === id ? null : current)), 1500);
+  };
+
   const closeCancelModal = () => {
     setCancelModal(null);
     setCancelReason('');
@@ -257,6 +275,18 @@ export default function OrdersPage() {
                   <td>
                     <div className={styles.customerName}>{order.customer?.name || '—'}</div>
                     <div className={styles.phone}>{order.customer?.phone}</div>
+                    {order.customer?.id && (
+                      <div className={styles.userIdRow} title={`User ID: ${order.customer.id}`}>
+                        <span className={styles.userId}>ID {order.customer.id.slice(0, 8)}</span>
+                        <button
+                          className={styles.copyBtn}
+                          onClick={() => copyUserId(order.customer.id)}
+                          aria-label={`Copy user ID ${order.customer.id}`}
+                        >
+                          {copiedUser === order.customer.id ? 'Copied' : 'Copy'}
+                        </button>
+                      </div>
+                    )}
                   </td>
                   <td className={styles.date}>
                     {new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}

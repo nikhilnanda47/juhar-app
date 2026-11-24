@@ -159,6 +159,11 @@ describeDb('paging long lists (real Postgres)', () => {
       expect(new Set(ids).size).toBe(ORDERS);
     });
 
+    it('every order names its customer with the same user id the logs show', async () => {
+      const page = await orders.findAllAdmin({ search: phone, limit: 5 } as any);
+      expect(page.items.every((o: any) => o.customer?.id === userId && o.customer?.phone === phone)).toBe(true);
+    });
+
     it('the status filter and paging work together', async () => {
       const { ids } = await walk((cursor) => orders.findAllAdmin({ search: phone, status: 'placed', limit: 7, cursor } as any));
       expect(ids).toHaveLength(ORDERS - Math.ceil(ORDERS / 3));

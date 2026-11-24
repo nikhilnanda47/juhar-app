@@ -3006,6 +3006,20 @@ paths:
                                       type: integer
                                       nullable: true
                                       description: Minutes since the order was placed; only while its status is `placed`, otherwise null
+                                    customer:
+                                      type: object
+                                      nullable: true
+                                      description: Who placed the order
+                                      properties:
+                                        id:
+                                          type: string
+                                          format: uuid
+                                          description: The customer's user id, the same `user=<id>` the API logs show
+                                        phone:
+                                          type: string
+                                        name:
+                                          type: string
+                                          nullable: true
                                     overdue:
                                       type: boolean
                                       description: A COD order still `placed` for more than 24 hours

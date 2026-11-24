@@ -38,6 +38,29 @@ export function clearTokens() {
   notifyCartChanged(); // the badge now shows the guest cart
 }
 
+// ── Errors ──
+/**
+ * A failed API call. `message` is what the customer reads; `requestId` is the reference the API
+ * gave this request (it is in every log line as req=<id>), so a customer can read it out and
+ * support can find exactly what happened.
+ */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public code: string,
+    public status: number,
+    public requestId: string,
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
+/** The request reference of an error, or '' (a network failure has none). */
+export function referenceOf(error: unknown): string {
+  return error instanceof ApiError ? error.requestId : '';
+}
+
 // ── Generic request ──
 // Sign-in and token-refresh calls must never trigger a refresh themselves.
 const NO_REFRESH_PATHS = [
@@ -97,7 +120,8 @@ async function request<T>(path: string, options: RequestInit = {}, retried = fal
   if (!json.success) {
     const message = json.error?.message || 'Request failed';
     const details = Array.isArray(json.error?.details) ? json.error.details.join('; ') : '';
-    throw new Error(details ? `${message}: ${details}` : message);
+    const requestId = String(json.requestId || res.headers?.get?.('x-request-id') || '');
+    throw new ApiError(details ? `${message}: ${details}` : message, json.error?.code || 'UNKNOWN', res.status, requestId);
   }
   return json.data;
 }

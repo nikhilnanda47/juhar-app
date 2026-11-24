@@ -155,7 +155,7 @@ export class OrdersService {
         items: {
           select: { productTitle: true, qty: true, totalPaise: true },
         },
-        user: { select: { phone: true, name: true } },
+        user: { select: { id: true, phone: true, name: true } },
       },
     };
 
@@ -187,7 +187,8 @@ export class OrdersService {
     return {
       items: items.map((o: any) => ({
         ...this.toOrderSummary(o),
-        customer: o.user ? { phone: o.user.phone, name: o.user.name } : null,
+        // id is the same "user=<id>" that the logs show, so a log line can be matched to a customer
+        customer: o.user ? { id: o.user.id, phone: o.user.phone, name: o.user.name } : null,
         ...this.waitingInfo(o, now),
       })),
       cursor: hasMore ? items[items.length - 1].id : null,
