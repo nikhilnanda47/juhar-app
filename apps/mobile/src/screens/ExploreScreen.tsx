@@ -1,16 +1,19 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, Dimensions, RefreshControl, TextInput,
+  ActivityIndicator, Dimensions, RefreshControl, TextInput, Modal,
 } from 'react-native';
-import { Search as SearchIcon, SlidersHorizontal, Heart, ChevronDown, Check } from 'lucide-react-native';
+import { Search as SearchIcon, SlidersHorizontal, Heart, ChevronDown, Check, X } from 'lucide-react-native';
 import { useTheme, type ColorPalette, spacing, borderRadius, elevation } from '../theme';
 import {
-  getCategories, getProducts, formatPaise,
-  type Category, type Product,
+  getCategories, getProducts, getProductFilters, formatPaise,
+  type Category, type Product, type ProductFilterOptions,
 } from '../services/api';
 import { appendUnique } from '../services/paging';
-import { SORT_OPTIONS, shopQuery, sortLabel, type ShopSort } from '../services/shopList';
+import {
+  NO_FILTERS, SORT_OPTIONS, activeFilterCount, effectiveSearch, filterChips, priceRangeError,
+  removeFilter, shopQuery, sortLabel, type ShopFilters, type ShopSort,
+} from '../services/shopList';
 import { FadeInUp, ScalePress } from '../components/AnimatedUI';
 import RefreshButton from '../components/RefreshButton';
 
@@ -30,24 +33,37 @@ export default function ExploreScreen({ navigation, route }: Props) {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [sort, setSort] = useState<ShopSort>('newest');
   const [sortOpen, setSortOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [filters, setFilters] = useState<ShopFilters>(NO_FILTERS); // the filters in use
+  const [draft, setDraft] = useState<ShopFilters>(NO_FILTERS); // what is being chosen in the sheet
+  const [filterOptions, setFilterOptions] = useState<ProductFilterOptions | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [total, setTotal] = useState(0); // every saree that matches, not just the ones loaded
   const [loadingMore, setLoadingMore] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [loading, setLoading] = useState(true); // first load of the screen
-  const [listLoading, setListLoading] = useState(false); // a new category or sort is loading
+  const [listLoading, setListLoading] = useState(false); // a new category, sort, search or filter is loading
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
-  // Only the newest request may change the list (a slow answer for an old category or sort is dropped)
+  // Only the newest request may change the list (a slow answer for an old choice is dropped)
   const requestId = useRef(0);
 
-  // The first page of the list for a category and sort
-  const loadFirstPage = useCallback(async (categoryId: string | null, sortBy: ShopSort) => {
+  // Wait for a pause in typing before asking the API
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+  const searchTerm = effectiveSearch(debouncedSearch); // a single letter is not searched
+
+  // The first page of the list for the current category, sort, search and filters
+  const loadFirstPage = useCallback(async () => {
     const mine = ++requestId.current;
     setLoadError('');
     try {
-      const page = await getProducts(shopQuery({ categoryId, sort: sortBy }));
+      const page = await getProducts(shopQuery({ categoryId: selectedCategory, search: searchTerm, sort, filters }));
       if (mine !== requestId.current) return;
       setProducts(page.items);
       setCursor(page.cursor);
@@ -63,7 +79,7 @@ export default function ExploreScreen({ navigation, route }: Props) {
         setRefreshing(false);
       }
     }
-  }, []);
+  }, [selectedCategory, searchTerm, sort, filters]);
 
   const loadCategories = useCallback(async () => {
     try {
@@ -76,27 +92,39 @@ export default function ExploreScreen({ navigation, route }: Props) {
 
   useEffect(() => {
     loadCategories();
-    loadFirstPage(null, 'newest');
-  }, [loadCategories, loadFirstPage]);
+    getProductFilters().then(setFilterOptions).catch(() => {});
+  }, [loadCategories]);
 
-  const selectCategory = (catId: string | null) => {
-    setSelectedCategory(catId);
-    setListLoading(true);
-    loadFirstPage(catId, sort);
-  };
+  // Runs on the first load and again whenever the category, sort, search or filters change
+  const firstLoad = useRef(true);
+  useEffect(() => {
+    if (!firstLoad.current) setListLoading(true);
+    firstLoad.current = false;
+    loadFirstPage();
+  }, [loadFirstPage]);
+
+  const selectCategory = (catId: string | null) => setSelectedCategory(catId);
 
   const chooseSort = (next: ShopSort) => {
     setSortOpen(false);
-    if (next === sort) return;
     setSort(next);
-    setListLoading(true);
-    loadFirstPage(selectedCategory, next);
+  };
+
+  const openSheet = () => {
+    setDraft(filters);
+    setSheetOpen(true);
+  };
+
+  const applyFilters = () => {
+    if (priceRangeError(draft)) return;
+    setFilters(draft);
+    setSheetOpen(false);
   };
 
   const onRefresh = () => {
     setRefreshing(true);
     loadCategories();
-    loadFirstPage(selectedCategory, sort);
+    loadFirstPage();
   };
 
   const loadMore = async () => {
@@ -105,8 +133,8 @@ export default function ExploreScreen({ navigation, route }: Props) {
     setLoadingMore(true);
     setLoadError('');
     try {
-      const page = await getProducts(shopQuery({ categoryId: selectedCategory, sort, cursor }));
-      if (mine !== requestId.current) return; // the category or sort changed meanwhile
+      const page = await getProducts(shopQuery({ categoryId: selectedCategory, search: searchTerm, sort, filters, cursor }));
+      if (mine !== requestId.current) return; // the category, sort, search or filters changed meanwhile
       setProducts((shown) => appendUnique(shown, page.items));
       setCursor(page.cursor);
       setHasMore(page.hasMore);
@@ -117,6 +145,9 @@ export default function ExploreScreen({ navigation, route }: Props) {
       setLoadingMore(false);
     }
   };
+
+  const chips = filterChips(filters);
+  const draftError = priceRangeError(draft);
 
   if (loading && !refreshing) {
     return (
@@ -149,10 +180,23 @@ export default function ExploreScreen({ navigation, route }: Props) {
           style={styles.searchInput}
           placeholder="Search handwoven sarees, weaves..."
           placeholderTextColor={colors.textTertiary}
-          editable={false}
+          value={search}
+          onChangeText={setSearch}
+          autoCapitalize="none"
+          autoCorrect={false}
+          returnKeyType="search"
+          accessibilityLabel="Search sarees"
         />
-        <TouchableOpacity>
-          <SlidersHorizontal size={18} color={colors.textTertiary} strokeWidth={1.5} />
+        {search.length > 0 && (
+          <TouchableOpacity onPress={() => setSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel="Clear search">
+            <X size={18} color={colors.textTertiary} strokeWidth={1.5} />
+          </TouchableOpacity>
+        )}
+        <TouchableOpacity onPress={openSheet} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel="Filters">
+          <SlidersHorizontal size={18} color={chips.length > 0 ? colors.primary : colors.textTertiary} strokeWidth={1.5} />
+          {chips.length > 0 && (
+            <View style={styles.filterBadge}><Text style={styles.filterBadgeText}>{activeFilterCount(filters)}</Text></View>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -181,6 +225,23 @@ export default function ExploreScreen({ navigation, route }: Props) {
           </TouchableOpacity>
         ))}
       </ScrollView>
+
+      {/* Filters that are on */}
+      {chips.length > 0 && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll} contentContainerStyle={styles.chipContent}>
+          {chips.map((chip) => (
+            <TouchableOpacity
+              key={chip.key}
+              style={styles.activeFilterChip}
+              onPress={() => setFilters(removeFilter(filters, chip.key))}
+              accessibilityLabel={`Remove filter ${chip.label}`}
+            >
+              <Text style={styles.activeFilterText}>{chip.label}</Text>
+              <X size={14} color={colors.primary} strokeWidth={2.5} />
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      )}
 
       {/* Count & Sort Bar */}
       <View style={styles.countSortRow}>
@@ -238,12 +299,93 @@ export default function ExploreScreen({ navigation, route }: Props) {
       {products.length === 0 && !loading && !listLoading && (
         <View style={styles.emptyState}>
           <SearchIcon size={48} color={colors.textTertiary} strokeWidth={1.5} />
-          <Text style={styles.emptyTitle}>{error ? 'Could not load sarees' : 'No sarees found'}</Text>
-          <Text style={styles.emptySubtext}>{error ? error : 'Try a different category'}</Text>
+          <Text style={styles.emptyTitle}>
+            {error ? 'Could not load sarees' : searchTerm ? `No results for "${searchTerm}"` : 'No sarees found'}
+          </Text>
+          <Text style={styles.emptySubtext}>
+            {error ? error : searchTerm || chips.length > 0 ? 'Try a different search or fewer filters' : 'Try a different category'}
+          </Text>
+          {!error && (searchTerm || chips.length > 0 || selectedCategory) && (
+            <TouchableOpacity
+              style={styles.browseAllBtn}
+              onPress={() => { setSearch(''); setFilters(NO_FILTERS); setSelectedCategory(null); }}
+            >
+              <Text style={styles.browseAllText}>Browse all</Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
 
       <View style={{ height: spacing.lg }} />
+
+      {/* Filter sheet */}
+      <Modal visible={sheetOpen} transparent animationType="slide" onRequestClose={() => setSheetOpen(false)}>
+        <View style={styles.sheetBackdrop}>
+          <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setSheetOpen(false)} accessibilityLabel="Close filters" />
+          <View style={styles.sheet}>
+            <View style={styles.sheetHeader}>
+              <Text style={styles.sheetTitle}>Filters</Text>
+              <TouchableOpacity onPress={() => setSheetOpen(false)} accessibilityLabel="Close filters">
+                <X size={22} color={colors.textPrimary} strokeWidth={1.5} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={{ maxHeight: 440 }} contentContainerStyle={{ paddingBottom: spacing.md }}>
+              {([
+                ['fabric', 'Fabric', filterOptions?.fabrics ?? []],
+                ['weaveMethod', 'Weave', filterOptions?.weaveMethods ?? []],
+                ['color', 'Colour', filterOptions?.colors ?? []],
+              ] as const).map(([key, label, options]) => (
+                options.length > 0 && (
+                  <View key={key} style={styles.sheetGroup}>
+                    <Text style={styles.sheetGroupLabel}>{label}</Text>
+                    <View style={styles.optionWrap}>
+                      {options.map((o) => {
+                        const on = draft[key] === o;
+                        return (
+                          <TouchableOpacity
+                            key={o}
+                            style={[styles.optionChip, on && styles.optionChipOn]}
+                            onPress={() => setDraft({ ...draft, [key]: on ? null : o })}
+                            accessibilityLabel={`${label} ${o}`}
+                          >
+                            <Text style={[styles.optionChipText, on && styles.optionChipTextOn]}>{o}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
+                )
+              ))}
+              <View style={styles.sheetGroup}>
+                <Text style={styles.sheetGroupLabel}>Price (₹)</Text>
+                <View style={styles.priceRow}>
+                  {([['minRupees', 'Lowest'], ['maxRupees', 'Highest']] as const).map(([key, label]) => (
+                    <TextInput
+                      key={key}
+                      style={styles.priceInput}
+                      placeholder={label}
+                      placeholderTextColor={colors.textTertiary}
+                      keyboardType="number-pad"
+                      value={draft[key]}
+                      onChangeText={(text) => setDraft({ ...draft, [key]: text })}
+                      accessibilityLabel={`${label} price`}
+                    />
+                  ))}
+                </View>
+                {!!draftError && <Text style={styles.priceError}>{draftError}</Text>}
+              </View>
+            </ScrollView>
+            <View style={styles.sheetActions}>
+              <TouchableOpacity style={styles.clearBtn} onPress={() => setDraft(NO_FILTERS)}>
+                <Text style={styles.clearBtnText}>Clear all</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.applyBtn, !!draftError && { opacity: 0.5 }]} onPress={applyFilters} disabled={!!draftError}>
+                <Text style={styles.applyBtnText}>Show sarees</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -458,6 +600,53 @@ const createStyles = (colors: ColorPalette) => StyleSheet.create({
   },
   sortOptionText: { fontFamily: 'DMSans-Regular', fontSize: 14, color: colors.textPrimary },
   sortOptionTextActive: { fontFamily: 'DMSans-SemiBold', color: colors.primary },
+
+  // Filters
+  filterBadge: {
+    position: 'absolute', top: -8, right: -10, minWidth: 16, height: 16, borderRadius: 8,
+    backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3,
+  },
+  filterBadgeText: { fontFamily: 'DMSans-Bold', fontSize: 10, color: colors.white },
+  activeFilterChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: borderRadius.full,
+    backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.primary,
+  },
+  activeFilterText: { fontFamily: 'DMSans-Medium', fontSize: 13, color: colors.primary },
+  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  sheet: {
+    backgroundColor: colors.background, borderTopLeftRadius: 16, borderTopRightRadius: 16,
+    paddingHorizontal: spacing.margin, paddingTop: spacing.md, paddingBottom: spacing.lg,
+  },
+  sheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm },
+  sheetTitle: { fontFamily: 'NotoSerif-Medium', fontSize: 20, color: colors.textPrimary },
+  sheetGroup: { marginTop: spacing.md },
+  sheetGroupLabel: { fontFamily: 'DMSans-SemiBold', fontSize: 13, color: colors.textSecondary, marginBottom: 8, letterSpacing: 0.3 },
+  optionWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  optionChip: {
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: borderRadius.full,
+    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
+  },
+  optionChipOn: { backgroundColor: colors.primary, borderColor: colors.primary },
+  optionChipText: { fontFamily: 'DMSans-Medium', fontSize: 13, color: colors.textPrimary },
+  optionChipTextOn: { color: colors.white },
+  priceRow: { flexDirection: 'row', gap: 12 },
+  priceInput: {
+    flex: 1, height: 44, borderRadius: 8, borderWidth: 1, borderColor: colors.border,
+    backgroundColor: colors.surface, paddingHorizontal: 12, fontFamily: 'DMSans-Regular', fontSize: 15, color: colors.textPrimary,
+  },
+  priceError: { fontFamily: 'DMSans-Regular', fontSize: 12, color: colors.error, marginTop: 6 },
+  sheetActions: { flexDirection: 'row', gap: 12, marginTop: spacing.md },
+  clearBtn: {
+    flex: 1, height: 46, borderRadius: 8, borderWidth: 1, borderColor: colors.primary, alignItems: 'center', justifyContent: 'center',
+  },
+  clearBtnText: { fontFamily: 'DMSans-SemiBold', fontSize: 14, color: colors.primary },
+  applyBtn: { flex: 2, height: 46, borderRadius: 8, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
+  applyBtnText: { fontFamily: 'DMSans-SemiBold', fontSize: 14, color: colors.white },
+  browseAllBtn: {
+    marginTop: spacing.md, paddingVertical: 12, paddingHorizontal: 32, borderRadius: 6, borderWidth: 1, borderColor: colors.primary,
+  },
+  browseAllText: { fontFamily: 'DMSans-SemiBold', fontSize: 14, color: colors.primary },
 
   // Load more
   loadMoreWrap: {

@@ -53,3 +53,16 @@ describe('getProducts (shop list, one page at a time)', () => {
     expect((await api.getProducts()).total).toBe(2);
   });
 });
+
+describe('getProductFilters (what the shop filters offer)', () => {
+  it('returns the lists and the price range the API sent', async () => {
+    const api = load(() => ok({ fabrics: ['Pure Silk'], weaveMethods: ['Bomkai'], colors: ['Maroon'], minPricePaise: 120000, maxPricePaise: 1490000 }));
+    expect(await api.getProductFilters()).toEqual({ fabrics: ['Pure Silk'], weaveMethods: ['Bomkai'], colors: ['Maroon'], minPricePaise: 120000, maxPricePaise: 1490000 });
+    expect(urlOf()).toBe('/api/v1/products/filters');
+  });
+
+  it('copes with an older API that has no filter endpoint data (empty lists, no range)', async () => {
+    const api = load(() => ok({}));
+    expect(await api.getProductFilters()).toEqual({ fabrics: [], weaveMethods: [], colors: [], minPricePaise: null, maxPricePaise: null });
+  });
+});

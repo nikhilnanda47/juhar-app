@@ -368,6 +368,26 @@ export async function getProducts(params?: Record<string, string>): Promise<Pagi
   return { items, cursor: data.cursor ?? null, hasMore: data.hasMore ?? false, total: data.total ?? items.length };
 }
 
+/** What the shop filters can be chosen from, read from the catalog by the API. */
+export interface ProductFilterOptions {
+  fabrics: string[];
+  weaveMethods: string[];
+  colors: string[];
+  minPricePaise: number | null;
+  maxPricePaise: number | null;
+}
+
+export async function getProductFilters(): Promise<ProductFilterOptions> {
+  const data = await request<Partial<ProductFilterOptions>>('/api/v1/products/filters');
+  return {
+    fabrics: data.fabrics ?? [],
+    weaveMethods: data.weaveMethods ?? [],
+    colors: data.colors ?? [],
+    minPricePaise: data.minPricePaise ?? null,
+    maxPricePaise: data.maxPricePaise ?? null,
+  };
+}
+
 export async function getProductBySlug(slug: string): Promise<Product> {
   return request<Product>(`/api/v1/products/${slug}`);
 }

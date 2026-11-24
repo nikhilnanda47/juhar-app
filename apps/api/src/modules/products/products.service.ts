@@ -198,6 +198,35 @@ export class ProductsService {
   }
 
   /**
+   * What the shop's filters can be chosen from: the fabrics, weaves and colours that the visible
+   * catalog really has, and its price range. Read from the data, so the filter lists never offer
+   * a value that matches nothing and never miss a new one. "Visible" is the same as in the list:
+   * published products, active variants only.
+   */
+  async findFilterOptions() {
+    const visibleProduct: Prisma.ProductWhereInput = {
+      publishStatus: 'published',
+      variants: { some: { active: true } },
+    };
+    const visibleVariant: Prisma.ProductVariantWhereInput = { active: true, product: { publishStatus: 'published' } };
+
+    const [fabrics, weaves, colors, prices] = await Promise.all([
+      this.prisma.product.groupBy({ by: ['fabric'], where: { ...visibleProduct, fabric: { not: null } } }),
+      this.prisma.product.groupBy({ by: ['weaveMethod'], where: { ...visibleProduct, weaveMethod: { not: null } } }),
+      this.prisma.productVariant.groupBy({ by: ['color'], where: { ...visibleVariant, color: { not: null } } }),
+      this.prisma.productVariant.aggregate({ where: visibleVariant, _min: { pricePaise: true }, _max: { pricePaise: true } }),
+    ]);
+
+    return {
+      fabrics: distinctSorted(fabrics.map((row) => row.fabric)),
+      weaveMethods: distinctSorted(weaves.map((row) => row.weaveMethod)),
+      colors: distinctSorted(colors.map((row) => row.color)),
+      minPricePaise: prices._min.pricePaise ?? null,
+      maxPricePaise: prices._max.pricePaise ?? null,
+    };
+  }
+
+  /**
    * Full product detail by slug (public).
    */
   async findBySlug(slug: string) {
@@ -592,4 +621,17 @@ export class ProductsService {
       include: { inventory: true },
     });
   }
+}
+
+/**
+ * Distinct, trimmed, non-empty values in alphabetical order. The list filters compare without
+ * regard to capital letters ("Maroon" and "maroon" are the same filter), so the first spelling wins.
+ */
+function distinctSorted(values: (string | null)[]): string[] {
+  const seen = new Map<string, string>();
+  for (const value of values) {
+    const trimmed = value?.trim();
+    if (trimmed && !seen.has(trimmed.toLowerCase())) seen.set(trimmed.toLowerCase(), trimmed);
+  }
+  return [...seen.values()].sort((a, b) => a.localeCompare(b, 'en', { sensitivity: 'base' }));
 }

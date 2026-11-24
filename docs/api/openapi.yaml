@@ -1875,12 +1875,14 @@ paths:
           in: query
           schema:
             type: integer
-          description: Minimum price in paise
+          description: >-
+            Minimum price in paise. A product matches when one of its active variants is in the
+            range (the card shows the cheapest variant, so a card can show a price below the minimum).
         - name: maxPrice
           in: query
           schema:
             type: integer
-          description: Maximum price in paise
+          description: Maximum price in paise (same rule as `minPrice`)
         - name: sortBy
           in: query
           description: >-
@@ -1920,6 +1922,50 @@ paths:
                           total:
                             type: integer
                             description: How many products match the filters, over every page (for "58 sarees")
+
+  /api/v1/products/filters:
+    get:
+      tags: [Products]
+      summary: Shop filter options
+      description: >-
+        What the shop's filters can be chosen from, read from the catalog: the fabrics, weave methods
+        and colours that customers can see (published products, active variants), each once, in
+        alphabetical order (capital letters ignored: "Maroon" and "maroon" are one colour), and the
+        cheapest and dearest active price. Public. Every value returned works as a filter on
+        `GET /products` (`fabric`, `weaveMethod`, `color`, `minPrice`, `maxPrice`).
+      operationId: getProductFilterOptions
+      security: []
+      responses:
+        "200":
+          description: The filter options
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          fabrics:
+                            type: array
+                            items:
+                              type: string
+                          weaveMethods:
+                            type: array
+                            items:
+                              type: string
+                          colors:
+                            type: array
+                            items:
+                              type: string
+                          minPricePaise:
+                            type: integer
+                            nullable: true
+                            description: Cheapest active variant price; null when nothing is for sale
+                          maxPricePaise:
+                            type: integer
+                            nullable: true
 
   /api/v1/products/{slug}:
     get:

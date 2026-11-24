@@ -20,6 +20,13 @@ export class ProductsController {
     return this.productsService.findAll(query);
   }
 
+  // Must stay above ':slug', or "filters" would be read as a product slug
+  @Get('filters')
+  @ApiOperation({ summary: 'The values the shop filters can be chosen from (fabrics, weaves, colours, price range)' })
+  async findFilterOptions() {
+    return this.productsService.findFilterOptions();
+  }
+
   @Get(':slug')
   @ApiOperation({ summary: 'Get product detail by slug' })
   async findBySlug(@Param('slug') slug: string) {
