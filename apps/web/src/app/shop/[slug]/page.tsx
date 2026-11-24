@@ -7,7 +7,8 @@ import {
   ChevronLeft, Heart, Share2, Check, CheckCircle, Zap, Package, RefreshCw,
   Banknote, ShieldCheck, Truck, Star, MapPin,
 } from 'lucide-react';
-import { getProductBySlug, getProducts, formatPaise, isLoggedIn, addToCart, type Product, type ProductVariant } from '@/lib/api';
+import { getProductBySlug, getProducts, formatPaise, isLoggedIn, addToCart, referenceOf, type Product, type ProductVariant } from '@/lib/api';
+import ErrorReference from '@/components/ErrorReference';
 import { useWishlist } from '@/lib/wishlist-context';
 import { readLocalCart, saveLocalCart } from '@/lib/cart-events';
 
@@ -17,6 +18,8 @@ export default function ProductDetailPage() {
   const [product, setProduct] = useState<Product | null>(null);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
   const [addingToCart, setAddingToCart] = useState(false);
+  const [cartError, setCartError] = useState('');
+  const [cartErrorRef, setCartErrorRef] = useState(''); // the API's reference for the failed request
   const [addedToCart, setAddedToCart] = useState(false);
   const { isWishlisted, toggleWishlist } = useWishlist();
   const [pinCode, setPinCode] = useState('');
@@ -45,6 +48,7 @@ export default function ProductDetailPage() {
   const handleAddToCart = async () => {
     if (!selectedVariant || !product) return;
     setAddingToCart(true);
+    setCartError(''); setCartErrorRef('');
     try {
       if (isLoggedIn()) {
         await addToCart(selectedVariant.id, 1);
@@ -66,7 +70,11 @@ export default function ProductDetailPage() {
       setAddedToCart(true);
       setShowToast(true);
       setTimeout(() => setShowToast(false), 2500);
-    } catch {}
+    } catch (e: any) {
+      // used to fail without a word: say so, with the reference for support
+      setCartError(e?.message || 'Could not add this saree to your bag. Please try again.');
+      setCartErrorRef(referenceOf(e));
+    }
     setAddingToCart(false);
   };
 
@@ -266,6 +274,13 @@ export default function ProductDetailPage() {
                 <Heart size={22} className={selectedVariant && isWishlisted(selectedVariant.id) ? 'text-primary fill-primary' : 'text-text-secondary'} strokeWidth={1.5} />
               </button>
             </div>
+
+            {cartError && (
+              <div role="alert" className="mt-3">
+                <p className="font-sans text-body-sm text-error">{cartError}</p>
+                <ErrorReference id={cartErrorRef} />
+              </div>
+            )}
 
             {/* Delivery promises */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-6">

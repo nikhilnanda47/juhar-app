@@ -63,15 +63,9 @@ export default function DashboardPage() {
       const todaysOrders = allOrders.counts?.today?.orders ?? 0;
       const gmvTodayPaise = allOrders.counts?.today?.gmvPaise ?? 0;
 
-      const products = await api.getProducts();
-      let lowStock = 0;
-      (products.items || []).forEach((p: any) => {
-        (p.variants || []).forEach((v: any) => {
-          const inv = v.inventory;
-          const available = inv ? inv.onHand - inv.reserved - inv.unavailable : 0;
-          if (available > 0 && available <= 3) lowStock++;
-        });
-      });
+      // Counted by the API over the whole catalog (a page of products would miss the rest)
+      const products = await api.getProducts({ limit: '1' });
+      const lowStock = products.counts?.lowStock ?? 0;
 
       setStats({
         todaysOrders,

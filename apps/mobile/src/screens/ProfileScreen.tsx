@@ -10,10 +10,11 @@ import {
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
 import {
   isLoggedIn, loadToken, requestOtp, verifyOtp, clearTokens,
-  getProfile, updateProfile, getAddresses, getOrders, type UserProfile,
+  getProfile, updateProfile, getAddresses, getOrders, referenceOf, type UserProfile,
 } from '../services/api';
 import { useWishlist } from '../contexts/WishlistContext';
 import { useNavigation } from '@react-navigation/native';
+import ErrorReference from '../components/ErrorReference';
 import { FadeInUp, ScalePress } from '../components/AnimatedUI';
 import RefreshButton from '../components/RefreshButton';
 import { syncLocalCartToServer } from '../services/localCart';
@@ -32,6 +33,7 @@ export default function ProfileScreen() {
   const [editName, setEditName] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [errorRef, setErrorRef] = useState(''); // the API's reference for the failed request
   const [refreshing, setRefreshing] = useState(false);
   const [orderCount, setOrderCount] = useState(0);
   const [addressCount, setAddressCount] = useState(0);
@@ -59,8 +61,9 @@ export default function ProfileScreen() {
 
   const fetchCounts = async () => {
     try {
-      const [orders, addrs] = await Promise.all([getOrders(), getAddresses()]);
-      setOrderCount(orders.length);
+      // limit 1: only the total is needed, and it counts every order, not just the first page
+      const [orders, addrs] = await Promise.all([getOrders({ limit: 1 }), getAddresses()]);
+      setOrderCount(orders.total);
       setAddressCount(addrs.length);
     } catch {}
   };
@@ -68,12 +71,13 @@ export default function ProfileScreen() {
   const handleRequestOtp = async () => {
     const fullPhone = '+91' + phone;
     setBusy(true);
-    setError('');
+    setError(''); setErrorRef('');
     try {
       await requestOtp(fullPhone);
       setScreen('otp');
     } catch (err: any) {
       setError(err.message || 'Failed to send OTP');
+      setErrorRef(referenceOf(err));
     } finally {
       setBusy(false);
     }
@@ -82,7 +86,7 @@ export default function ProfileScreen() {
   const handleVerifyOtp = async () => {
     const fullPhone = '+91' + phone;
     setBusy(true);
-    setError('');
+    setError(''); setErrorRef('');
     try {
       const result = await verifyOtp(fullPhone, otp);
       // Sync guest cart to server after login
@@ -99,6 +103,7 @@ export default function ProfileScreen() {
       }
     } catch (err: any) {
       setError(err.message || 'Invalid OTP');
+      setErrorRef(referenceOf(err));
     } finally {
       setBusy(false);
     }
@@ -107,13 +112,14 @@ export default function ProfileScreen() {
   const handleSaveName = async () => {
     if (!editName.trim() || editName.trim().length < 2) return;
     setBusy(true);
-    setError('');
+    setError(''); setErrorRef('');
     try {
       const p = await updateProfile({ name: editName.trim() });
       setProfile(p);
       setScreen('profile');
     } catch (err: any) {
       setError(err.message || 'Failed to save name');
+      setErrorRef(referenceOf(err));
     } finally {
       setBusy(false);
     }
@@ -181,6 +187,7 @@ export default function ProfileScreen() {
           </View>
 
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
+          <ErrorReference id={errorRef} />
 
           <TouchableOpacity
             style={[styles.primaryBtn, (busy || phone.length < 10) && styles.disabledBtn]}
@@ -221,6 +228,7 @@ export default function ProfileScreen() {
           </View>
 
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
+          <ErrorReference id={errorRef} />
 
           <TouchableOpacity
             style={[styles.primaryBtn, (busy || otp.length < 6) && styles.disabledBtn]}
@@ -230,7 +238,7 @@ export default function ProfileScreen() {
             <Text style={styles.primaryBtnText}>{busy ? 'Verifying...' : 'Verify'}</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => { setOtp(''); setError(''); setScreen('login'); }}>
+          <TouchableOpacity onPress={() => { setOtp(''); setError(''); setErrorRef(''); setScreen('login'); }}>
             <Text style={styles.ghostLink}>Change number</Text>
           </TouchableOpacity>
         </View>
@@ -259,6 +267,7 @@ export default function ProfileScreen() {
           </View>
 
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
+          <ErrorReference id={errorRef} />
 
           <TouchableOpacity
             style={[styles.primaryBtn, (busy || editName.trim().length < 2) && styles.disabledBtn]}

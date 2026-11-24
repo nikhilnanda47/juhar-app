@@ -50,6 +50,8 @@ export const INVENTORY = {
   UPI_RESERVATION_MINUTES: 30,
   COD_RESERVATION_MINUTES: 1440, // 24 hours
   EXPIRY_WORKER_INTERVAL_SECONDS: 60,
+  /** A variant with this many pieces or fewer (but at least 1) available is "low stock" */
+  LOW_STOCK_THRESHOLD: 3,
 } as const;
 
 // ── Cart ──

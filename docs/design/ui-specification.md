@@ -892,6 +892,10 @@ Reusable refresh icon (`RefreshCw`) with spin animation on press. Used on Home, 
 - Radio list, 48px rows, `#8B3A4A` active dot
 - Drag handle, backdrop dim, 16px top radius
 
+> **Implementation status:** the sort control is a small pill under the category chips (mobile: tap it for a three-row menu with a check on the active row; web: a select). It offers the three sorts the API supports (Newest, Price: low to high, Price: high to low); "Popular" is not built. The sort covers the whole catalog and works together with the category chip. The count is the real total ("58 sarees"), not the number loaded. Instead of shimmer or infinite scroll, 20 sarees load first and an outlined "Load more sarees" button adds the next 20; below it a line says "Showing 20 of 58 sarees" (then "All 58 sarees shown"). Changing the sort, category or search starts again from the first page. The web search waits for a short pause in typing before asking the API.
+>
+> **Search and filters (step 47):** the search box on both apps searches the shop in place (not a separate Search screen): it waits 300 ms after typing, needs 2 letters, and has a ✕ that clears it. When nothing matches it says `No results for "…"` with a "Browse all" button that clears the search, the filters and the category. The filter icon next to the search box shows a badge with the number of filters on. Mobile: it opens a bottom sheet with chips for Fabric, Weave and Colour (one choice each, tap again to switch off), two price boxes in rupees and the buttons "Clear all" and "Show sarees". Web: it opens a panel under the search box with three dropdowns and two price boxes that apply after a short pause. The lists are read from the catalog (`GET /products/filters`), and the filters that are on show as removable chips under the category chips. A price range whose lowest is above its highest shows a message and is not applied.
+
 **Empty state:** Lucide `search` 48px + "No sarees found" + "Try a different category"
 
 ---
@@ -1241,10 +1245,16 @@ Reusable refresh icon (`RefreshCw`) with spin animation on press. Used on Home, 
 └─────────────────────────────┘
 ```
 
-- Paginated, pull-to-refresh
+- Paginated, pull-to-refresh. 20 orders load first; an outlined "Load more orders" button under the list adds the next 20, and the footer says "Showing 20 of 55 orders" (then "All 55 orders shown"). The header count is the customer's real total, not the number loaded. On the web the status chips are applied by the server and show the real number of orders in each status
 - Empty state: Lucide `package` + "No orders yet" + "Start Shopping" secondary button
 - Not logged in: Lucide `user` + "Log in to view orders" + "Log In" primary button
 - Shimmer: 3 card placeholders
+
+---
+
+### Error references (all apps)
+
+When an API call fails, the error message in the web and mobile apps (sign-in, saving an address, adding to the bag, placing an order) has a small line under it: `Reference: <id>` with a **Copy** button (11 to 12px, tertiary text colour, so it stays out of the way). A customer can read the id out to support, who search the logs for `req=<id>`. Where the error is an alert box (mobile "Add to Bag"), the line is added to the alert text. Nothing is shown when there is no id, for example when the network is down (the message then says "We could not reach the server. Please check your internet connection and try again."). The message itself is always a plain sentence a customer can act on ("Sorry, one of the sarees in your bag is not in stock in the quantity you asked for. Please check your bag and try again."), never a code such as `INSUFFICIENT_STOCK`: the API sends the code separately and the wording comes from one catalog in the API. Admin: each row of the Orders table shows the customer's user id (`ID 683855ca`, a Copy button copies the full id).
 
 ---
 

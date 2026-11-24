@@ -489,3 +489,77 @@
     width: 100%;
   }
 }
+
+/* "Load more" under a long list */
+.loadMoreBar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 1rem 0 0.5rem;
+}
+
+.loadMoreInfo {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.loadMoreBtn {
+  padding: 0.5rem 1.4rem;
+  background: var(--bg-card);
+  color: var(--maroon);
+  border: 1px solid var(--maroon);
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.loadMoreBtn:hover:not(:disabled) {
+  background: var(--maroon);
+  color: white;
+}
+
+.loadMoreBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.loadMoreError {
+  width: 100%;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--error, #C44A4A);
+}
+
+/* The customer's user id under their phone, with a Copy button (the same id the logs show) */
+.userIdRow {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 2px;
+}
+
+.userId {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.copyBtn {
+  padding: 0 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 0.65rem;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.copyBtn:hover {
+  border-color: var(--maroon);
+  color: var(--maroon);
+}

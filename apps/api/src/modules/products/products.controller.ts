@@ -3,7 +3,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ProductsService } from './products.service';
-import { ProductQueryDto, CreateProductDto, UpdateProductDto, UpdateVariantDto } from './dto';
+import { ProductQueryDto, AdminProductQueryDto, CreateProductDto, UpdateProductDto, UpdateVariantDto } from './dto';
 import { CreateVariantDto } from './dto/create-product.dto';
 import { JwtAuthGuard, AdminAuthGuard, RolesGuard } from '../auth/guards';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -18,6 +18,13 @@ export class ProductsController {
   @ApiOperation({ summary: 'Search and filter products' })
   async findAll(@Query() query: ProductQueryDto) {
     return this.productsService.findAll(query);
+  }
+
+  // Must stay above ':slug', or "filters" would be read as a product slug
+  @Get('filters')
+  @ApiOperation({ summary: 'The values the shop filters can be chosen from (fabrics, weaves, colours, price range)' })
+  async findFilterOptions() {
+    return this.productsService.findFilterOptions();
   }
 
   @Get(':slug')
@@ -37,7 +44,7 @@ export class ProductsAdminController {
 
   @Get()
   @ApiOperation({ summary: 'List all products (including drafts)' })
-  async findAll(@Query() query: ProductQueryDto & { publishStatus?: string }) {
+  async findAll(@Query() query: AdminProductQueryDto) {
     return this.productsService.findAllAdmin(query);
   }
 

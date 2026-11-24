@@ -5,7 +5,8 @@ import {
 } from 'react-native';
 import { Truck, Check } from 'lucide-react-native';
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
-import { createAddress } from '../services/api';
+import { createAddress, referenceOf } from '../services/api';
+import ErrorReference from '../components/ErrorReference';
 
 interface Props { navigation: any; }
 
@@ -25,6 +26,7 @@ export default function AddAddressScreen({ navigation }: Props) {
   const [isDefault, setIsDefault] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [errorRef, setErrorRef] = useState(''); // the API's reference for the failed request
 
   const problems: string[] = [];
   if (recipientName.length < 2) problems.push('full name');
@@ -40,7 +42,7 @@ export default function AddAddressScreen({ navigation }: Props) {
   const handleSave = async () => {
     if (!isValid) return;
     setSaving(true);
-    setError('');
+    setError(''); setErrorRef('');
     try {
       await createAddress({
         recipientName, recipientPhone: '+91' + recipientPhone, line1,
@@ -50,6 +52,7 @@ export default function AddAddressScreen({ navigation }: Props) {
       navigation.goBack();
     } catch (err: any) {
       setError(err.message || 'Failed to save address');
+      setErrorRef(referenceOf(err));
     } finally {
       setSaving(false);
     }
@@ -134,6 +137,7 @@ export default function AddAddressScreen({ navigation }: Props) {
           <Text style={styles.hintText}>Still needed to save: {problems.join(', ')}.</Text>
         )}
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
+        <ErrorReference id={errorRef} />
         <TouchableOpacity
           style={[styles.saveBtn, (!isValid || saving) && styles.saveBtnDisabled]}
           onPress={handleSave}

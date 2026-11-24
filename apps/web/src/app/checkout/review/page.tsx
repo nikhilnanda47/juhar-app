@@ -3,7 +3,8 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Phone, ArrowRight, Package, Handshake } from 'lucide-react';
-import { loadToken, getAddresses, getCart, placeOrder, formatPaise, type Address, type CartResponse } from '@/lib/api';
+import { loadToken, getAddresses, getCart, placeOrder, formatPaise, referenceOf, type Address, type CartResponse } from '@/lib/api';
+import ErrorReference from '@/components/ErrorReference';
 import { shippingFor, useShippingRule } from '@/lib/shipping';
 
 function OrderReviewContent() {
@@ -14,6 +15,8 @@ function OrderReviewContent() {
   const [cart, setCart] = useState<CartResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [placing, setPlacing] = useState(false);
+  const [error, setError] = useState('');
+  const [errorRef, setErrorRef] = useState(''); // the API's reference for the failed request
   const { rule, loaded: ruleLoaded } = useShippingRule();
 
   useEffect(() => {
@@ -30,11 +33,12 @@ function OrderReviewContent() {
 
   const handlePlaceOrder = async () => {
     setPlacing(true);
+    setError(''); setErrorRef('');
     try {
       const idempotencyKey = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
       const order = await placeOrder({ addressId: addressId!, paymentMode: 'cod', idempotencyKey });
       router.push(`/order-success?orderId=${order.id}`);
-    } catch (e: any) { alert(e.message || 'Failed to place order'); }
+    } catch (e: any) { setError(e.message || 'Failed to place order'); setErrorRef(referenceOf(e)); }
     finally { setPlacing(false); }
   };
 
@@ -130,6 +134,12 @@ function OrderReviewContent() {
       </div>
 
       {/* Place Order */}
+      {error && (
+        <div role="alert" className="mb-3">
+          <p className="font-sans text-body-sm text-error">{error}</p>
+          <ErrorReference id={errorRef} />
+        </div>
+      )}
       <button onClick={handlePlaceOrder} disabled={placing} className="btn-primary w-full disabled:opacity-50">
         {placing ? 'Securing Order...' : shippingPaise === null ? 'Place Order' : `Place Order (${formatPaise(totalPaise)})`}
       </button>

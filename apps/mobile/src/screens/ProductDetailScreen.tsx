@@ -13,11 +13,12 @@ import { useTheme, type ColorPalette, spacing, borderRadius, elevation } from '.
 import { FadeInUp } from '../components/AnimatedUI';
 import { addToLocalCart, type LocalCartItem } from '../services/localCart';
 import {
-  getProductBySlug, getProducts, formatPaise, getTotalStock, addToCart, isLoggedIn,
+  getProductBySlug, getProducts, formatPaise, getTotalStock, addToCart, isLoggedIn, referenceOf,
   type Product, type ProductVariant,
 } from '../services/api';
 import { useWishlist } from '../contexts/WishlistContext';
 import { showAlert } from '../utils/showAlert';
+import ErrorReference from '../components/ErrorReference';
 
 const { width } = Dimensions.get('window');
 
@@ -35,6 +36,7 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [errorRef, setErrorRef] = useState(''); // the API's reference for the failed request
   const [addingToCart, setAddingToCart] = useState(false);
   const [addedToCart, setAddedToCart] = useState(false);
   const { isWishlisted, toggleWishlist } = useWishlist();
@@ -63,7 +65,7 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
 
   const loadProduct = async () => {
     try {
-      setError('');
+      setError(''); setErrorRef('');
       const data = await getProductBySlug(slug);
       setProduct(data);
       if (data.variants.length > 0) setSelectedVariant(data.variants[0]);
@@ -73,6 +75,7 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
       } catch {}
     } catch (err: any) {
       setError(err.message || 'Product not found');
+      setErrorRef(referenceOf(err));
     } finally {
       setLoading(false);
     }
@@ -86,6 +89,7 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
     return (
       <View style={styles.center}>
         <Text style={styles.errorText}>{error || 'Product not found'}</Text>
+        <ErrorReference id={errorRef} />
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.ghostLink}>Go Back</Text>
         </TouchableOpacity>
@@ -121,7 +125,8 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
       setAddedToCart(true);
       showToast();
     } catch (err: any) {
-      showAlert('Error', err.message || 'Failed to add to cart');
+      const reference = referenceOf(err);
+      showAlert('Error', `${err.message || 'Failed to add to cart'}${reference ? `\n\nReference: ${reference}` : ''}`);
     } finally {
       setAddingToCart(false);
     }

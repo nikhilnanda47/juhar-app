@@ -1875,12 +1875,14 @@ paths:
           in: query
           schema:
             type: integer
-          description: Minimum price in paise
+          description: >-
+            Minimum price in paise. A product matches when one of its active variants is in the
+            range (the card shows the cheapest variant, so a card can show a price below the minimum).
         - name: maxPrice
           in: query
           schema:
             type: integer
-          description: Maximum price in paise
+          description: Maximum price in paise (same rule as `minPrice`)
         - name: sortBy
           in: query
           description: >-
@@ -1917,6 +1919,53 @@ paths:
                             nullable: true
                           hasMore:
                             type: boolean
+                          total:
+                            type: integer
+                            description: How many products match the filters, over every page (for "58 sarees")
+
+  /api/v1/products/filters:
+    get:
+      tags: [Products]
+      summary: Shop filter options
+      description: >-
+        What the shop's filters can be chosen from, read from the catalog: the fabrics, weave methods
+        and colours that customers can see (published products, active variants), each once, in
+        alphabetical order (capital letters ignored: "Maroon" and "maroon" are one colour), and the
+        cheapest and dearest active price. Public. Every value returned works as a filter on
+        `GET /products` (`fabric`, `weaveMethod`, `color`, `minPrice`, `maxPrice`).
+      operationId: getProductFilterOptions
+      security: []
+      responses:
+        "200":
+          description: The filter options
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          fabrics:
+                            type: array
+                            items:
+                              type: string
+                          weaveMethods:
+                            type: array
+                            items:
+                              type: string
+                          colors:
+                            type: array
+                            items:
+                              type: string
+                          minPricePaise:
+                            type: integer
+                            nullable: true
+                            description: Cheapest active variant price; null when nothing is for sale
+                          maxPricePaise:
+                            type: integer
+                            nullable: true
 
   /api/v1/products/{slug}:
     get:
@@ -2142,11 +2191,19 @@ paths:
     get:
       tags: [Orders]
       summary: List my orders
-      description: Customer's order history, newest first.
+      description: >-
+        Customer's order history, newest first. Orders created in the same instant keep one fixed
+        order, so paging with `cursor` never skips or repeats an order. `total` and `counts` cover
+        the whole account, so the apps can show "55 orders" and "22 delivered" without loading them all.
       operationId: listMyOrders
       security:
         - BearerAuth: []
       parameters:
+        - name: status
+          in: query
+          description: Only orders in this status
+          schema:
+            type: string
         - $ref: '#/components/parameters/CursorParam'
         - $ref: '#/components/parameters/LimitParam'
       responses:
@@ -2170,6 +2227,16 @@ paths:
                             nullable: true
                           hasMore:
                             type: boolean
+                          total:
+                            type: integer
+                            description: Orders that match the `status` filter (all of them when there is none), over every page
+                          counts:
+                            type: object
+                            additionalProperties:
+                              type: integer
+                            description: >-
+                              Orders the customer has in each status (the filter is ignored),
+                              for example 5 placed and 22 delivered
 
   # ────────────────────────────────────────────
   # ORDERS (Customer)
@@ -2499,6 +2566,26 @@ paths:
                             nullable: true
                           hasMore:
                             type: boolean
+                          counts:
+                            type: object
+                            description: Over the whole catalog, whatever page or filter was asked for
+                            properties:
+                              products:
+                                type: integer
+                              published:
+                                type: integer
+                              draft:
+                                type: integer
+                              archived:
+                                type: integer
+                              variants:
+                                type: integer
+                              lowStock:
+                                type: integer
+                                description: Active variants with 1 to `lowStockThreshold` pieces available (none left is out of stock, not low)
+                              lowStockThreshold:
+                                type: integer
+                                example: 3
     post:
       tags: ["Admin: Catalog"]
       summary: Create product with variants
@@ -2919,6 +3006,20 @@ paths:
                                       type: integer
                                       nullable: true
                                       description: Minutes since the order was placed; only while its status is `placed`, otherwise null
+                                    customer:
+                                      type: object
+                                      nullable: true
+                                      description: Who placed the order
+                                      properties:
+                                        id:
+                                          type: string
+                                          format: uuid
+                                          description: The customer's user id, the same `user=<id>` the API logs show
+                                        phone:
+                                          type: string
+                                        name:
+                                          type: string
+                                          nullable: true
                                     overdue:
                                       type: boolean
                                       description: A COD order still `placed` for more than 24 hours
