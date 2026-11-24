@@ -10,6 +10,7 @@ import {
   isLoggedIn, loadToken, requestOtp, verifyOtp, clearTokens,
   getProfile, updateProfile, getAddresses, getOrders, referenceOf, type UserProfile,
 } from '@/lib/api';
+import { useWishlist } from '@/lib/wishlist-context';
 import { readLocalCart, clearLocalCart } from '@/lib/cart-events';
 import { useTheme } from '@/lib/theme-context';
 import ErrorReference from '@/components/ErrorReference';
@@ -28,8 +29,9 @@ export default function AccountPage() {
   const [errorRef, setErrorRef] = useState(''); // the API's reference for the failed request
   const [orderCount, setOrderCount] = useState(0);
   const [addressCount, setAddressCount] = useState(0);
+  const { total: wishlistCount, refreshWishlist } = useWishlist();
 
-  useEffect(() => { checkAuth(); }, []);
+  useEffect(() => { checkAuth(); refreshWishlist(); }, [refreshWishlist]);
 
   const checkAuth = async () => {
     const hasToken = loadToken();
@@ -308,7 +310,7 @@ export default function AccountPage() {
           <div className="grid grid-cols-3 lg:grid-cols-3 gap-gutter mt-6 lg:mt-0">
             {[
               { href: '/orders', Icon: Package, label: 'Orders', sub: `${orderCount} placed`, desc: 'Track your handloom orders' },
-              { href: '#', Icon: Heart, label: 'Saved', sub: '0 items', desc: 'Your wishlist collection' },
+              { href: '/wishlist', Icon: Heart, label: 'Saved', sub: `${wishlistCount} items`, desc: 'Your wishlist collection' },
               { href: '/checkout/address', Icon: MapPin, label: 'Addresses', sub: `${addressCount} saved`, desc: 'Manage delivery addresses' },
             ].map(({ href, Icon, label, sub, desc }) => (
               <Link key={label} href={href} className="card flex flex-col items-center lg:flex-row lg:items-center lg:gap-4 text-center lg:text-left group hover:shadow-md transition-shadow">

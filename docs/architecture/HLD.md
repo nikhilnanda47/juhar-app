@@ -21,7 +21,7 @@
 - AI recommendations, AR try-on
 - Microservices, Kafka, Kubernetes
 - Nationwide fulfillment
-- Wishlist, reviews, personalization, loyalty, push campaigns
+- Reviews, personalization, loyalty, push campaigns (the wishlist is built: see the Wishlist rows below)
 
 > **Implementation status (2026-11-22):** The responsive customer website (`apps/web`, Next.js 14) was added after this scope was written (see 3.2). It is a storefront without dedicated SEO work. Everything else in the list above remains out of scope.
 
@@ -357,6 +357,11 @@ Key constraints: integer paise for money, UTC timestamps, UUID PKs, indexes on S
 | GET | /api/v1/products/:slug | Public | Product detail |
 | GET | /api/v1/cart | Customer | Get cart (server-priced) |
 | POST | /api/v1/cart/items | Customer | Add to cart |
+| GET | /api/v1/wishlist | Customer | Saved items with live price, stock and whether each is still sold |
+| POST | /api/v1/wishlist/items/:variantId/toggle | Customer | Save or remove one colour (what both apps use) |
+| POST | /api/v1/wishlist | Customer | Save one colour (409 if already saved) |
+| DELETE | /api/v1/wishlist/:variantId | Customer | Remove one colour (404 if not saved) |
+| GET | /api/v1/wishlist/:variantId/check | Customer | Is this colour saved? |
 | PATCH | /api/v1/cart/items/:id | Customer | Update cart item quantity |
 | DELETE | /api/v1/cart/items/:id | Customer | Remove from cart |
 | GET | /api/v1/config/shipping | Public | Shipping rule (flat charge, free-above amount) for the apps to display |

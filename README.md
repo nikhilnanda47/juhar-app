@@ -100,7 +100,7 @@ Juhar is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce pl
 | Reports (GMV, top products, stock) | Phase 5 |
 | Admin user management / roles | Phase 5 |
 | Refund initiation | Phase 4 |
-| Wishlist | Post-pilot |
+| Wishlist (saved items: heart on cards and product pages, Saved list, guest hearts kept until login) | ✅ |
 | Push notifications / SMS updates | Phase 5 |
 | WhatsApp support integration | Phase 5 |
 | No internet / force update screens | Phase 5 |
@@ -209,6 +209,7 @@ juhar-app/
 | Products | ✅ Active | Catalog with search/filter/sort + admin CRUD |
 | Inventory | ✅ Active | Stock tracking, atomic `SELECT FOR UPDATE` reservations, expiry cron |
 | Cart | ✅ Active | Server-side cart, live pricing, availability warnings |
+| Wishlist | ✅ Active | Saved items per colour; the shop hearts are per saree; unpublished items are flagged, not listed as buyable |
 | Checkout | ✅ Active | Quote calculation, atomic order placement transaction |
 | Orders | ✅ Active | 12-state machine, customer/admin views, cancellation |
 | Media | 🔲 Phase 5 | S3 signed uploads, thumbnail generation |

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { getProductBySlug, getProducts, formatPaise, isLoggedIn, addToCart, referenceOf, type Product, type ProductVariant } from '@/lib/api';
 import ErrorReference from '@/components/ErrorReference';
+import { useWishlist } from '@/lib/wishlist-context';
 import { readLocalCart, saveLocalCart } from '@/lib/cart-events';
 
 export default function ProductDetailPage() {
@@ -20,7 +21,8 @@ export default function ProductDetailPage() {
   const [cartError, setCartError] = useState('');
   const [cartErrorRef, setCartErrorRef] = useState(''); // the API's reference for the failed request
   const [addedToCart, setAddedToCart] = useState(false);
-  const [wishlisted, setWishlisted] = useState(false);
+  const { loaded: wishlistLoaded, isSaved, savedVariantOf, toggleVariant } = useWishlist();
+  const pickedVariant = useRef(false); // true once the customer chose a colour themselves
   const [pinCode, setPinCode] = useState('');
   const [pinChecked, setPinChecked] = useState(false);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
@@ -29,6 +31,7 @@ export default function ProductDetailPage() {
   useEffect(() => {
     if (slug) {
       getProductBySlug(slug).then((p) => {
+        pickedVariant.current = false;
         setProduct(p);
         setSelectedVariant(p.variants[0] || null);
         // Fetch related
@@ -38,6 +41,15 @@ export default function ProductDetailPage() {
       }).catch(() => {});
     }
   }, [slug]);
+
+  // Arriving from a saved item (or a heart on the shop): open on the colour that is saved, so the
+  // heart reads "saved" instead of showing another colour as not saved
+  useEffect(() => {
+    if (!product || !wishlistLoaded || pickedVariant.current) return;
+    const savedId = savedVariantOf(product.id);
+    const variant = savedId ? product.variants.find((v) => v.id === savedId) : null;
+    if (variant) setSelectedVariant(variant);
+  }, [product, wishlistLoaded, savedVariantOf]);
 
   // Reset addedToCart when slug changes (navigating to different product)
   useEffect(() => {
@@ -107,8 +119,8 @@ export default function ProductDetailPage() {
           <ChevronLeft size={20} className="text-text-primary" />
         </button>
         <div className="flex gap-2">
-          <button onClick={() => setWishlisted(!wishlisted)} className="w-9 h-9 rounded-full bg-surface-container-low flex items-center justify-center">
-            <Heart size={18} className={wishlisted ? 'text-primary fill-primary' : 'text-text-secondary'} strokeWidth={1.5} />
+          <button onClick={() => selectedVariant && product && toggleVariant(selectedVariant.id, product.id)} aria-label="Save this colour" aria-pressed={!!selectedVariant && isSaved(selectedVariant.id)} className="w-9 h-9 rounded-full bg-surface-container-low flex items-center justify-center">
+            <Heart size={18} className={selectedVariant && isSaved(selectedVariant.id) ? 'text-primary fill-primary' : 'text-text-secondary'} strokeWidth={1.5} />
           </button>
           <button className="w-9 h-9 rounded-full bg-surface-container-low flex items-center justify-center">
             <Share2 size={18} className="text-text-secondary" strokeWidth={1.5} />
@@ -137,9 +149,9 @@ export default function ProductDetailPage() {
               </div>
               {/* Desktop actions */}
               <div className="hidden lg:flex absolute top-4 right-4 gap-2">
-                <button onClick={() => setWishlisted(!wishlisted)}
+                <button onClick={() => selectedVariant && product && toggleVariant(selectedVariant.id, product.id)} aria-label="Save this colour" aria-pressed={!!selectedVariant && isSaved(selectedVariant.id)}
                   className="w-10 h-10 rounded-full bg-surface/80 backdrop-blur flex items-center justify-center hover:bg-surface transition-colors">
-                  <Heart size={20} className={wishlisted ? 'text-primary fill-primary' : 'text-text-secondary'} strokeWidth={1.5} />
+                  <Heart size={20} className={selectedVariant && isSaved(selectedVariant.id) ? 'text-primary fill-primary' : 'text-text-secondary'} strokeWidth={1.5} />
                 </button>
                 <button className="w-10 h-10 rounded-full bg-surface/80 backdrop-blur flex items-center justify-center hover:bg-surface transition-colors">
                   <Share2 size={20} className="text-text-secondary" strokeWidth={1.5} />
@@ -195,11 +207,13 @@ export default function ProductDetailPage() {
                   {product.variants.map((v) => (
                     <button
                       key={v.id}
-                      onClick={() => setSelectedVariant(v)}
+                      onClick={() => { pickedVariant.current = true; setSelectedVariant(v); }}
                       className={`w-12 h-12 rounded-full border-2 transition-all hover:scale-105 ${
                         selectedVariant?.id === v.id ? 'border-primary ring-2 ring-primary/20 scale-110' : 'border-border'
                       }`}
                       style={{ backgroundColor: v.color || '#D5CFC9' }}
+                      aria-label={v.color || v.name || 'Colour'}
+                      title={v.color || v.name || undefined}
                     >
                       {selectedVariant?.id === v.id && (
                         <Check size={16} className="text-white mx-auto" strokeWidth={3} />
@@ -268,9 +282,9 @@ export default function ProductDetailPage() {
                   {addingToCart ? 'Adding...' : stock > 0 ? 'Add to Bag' : 'Out of Stock'}
                 </button>
               )}
-              <button onClick={() => setWishlisted(!wishlisted)}
-                className={`w-14 h-14 rounded-xl border-2 flex items-center justify-center transition-all hover:scale-105 ${wishlisted ? 'border-primary bg-primary/5' : 'border-border'}`}>
-                <Heart size={22} className={wishlisted ? 'text-primary fill-primary' : 'text-text-secondary'} strokeWidth={1.5} />
+              <button onClick={() => selectedVariant && product && toggleVariant(selectedVariant.id, product.id)} aria-label="Save this colour" aria-pressed={!!selectedVariant && isSaved(selectedVariant.id)}
+                className={`w-14 h-14 rounded-xl border-2 flex items-center justify-center transition-all hover:scale-105 ${selectedVariant && isSaved(selectedVariant.id) ? 'border-primary bg-primary/5' : 'border-border'}`}>
+                <Heart size={22} className={selectedVariant && isSaved(selectedVariant.id) ? 'text-primary fill-primary' : 'text-text-secondary'} strokeWidth={1.5} />
               </button>
             </div>
 

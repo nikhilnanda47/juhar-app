@@ -4,6 +4,7 @@ import './globals.css';
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import { CartProvider } from '@/lib/cart-context';
+import { WishlistProvider } from '@/lib/wishlist-context';
 import { ThemeProvider } from '@/lib/theme-context';
 
 const notoSerif = localFont({
@@ -56,11 +57,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen flex flex-col">
         <ThemeProvider>
           <CartProvider>
-            <Header />
-            <main className="flex-1 pb-20 lg:pb-0">
-              {children}
-            </main>
-            <BottomNav />
+            <WishlistProvider>
+              <Header />
+              <main className="flex-1 pb-20 lg:pb-0">
+                {children}
+              </main>
+              <BottomNav />
+            </WishlistProvider>
           </CartProvider>
         </ThemeProvider>
       </body>

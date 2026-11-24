@@ -9,6 +9,7 @@ import TabNavigator from './src/navigation/TabNavigator';
 import SplashScreen from './src/screens/SplashScreen';
 import WelcomeScreen from './src/screens/WelcomeScreen';
 import { ThemeProvider, useTheme, colors } from './src/theme';
+import { WishlistProvider } from './src/contexts/WishlistContext';
 
 const ONBOARDING_KEY = 'juhar_onboarding_done';
 
@@ -75,7 +76,9 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <AppInner />
+        <WishlistProvider>
+          <AppInner />
+        </WishlistProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );

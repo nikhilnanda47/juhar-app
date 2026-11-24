@@ -16,6 +16,7 @@ import {
   getProductBySlug, getProducts, formatPaise, getTotalStock, addToCart, isLoggedIn, referenceOf,
   type Product, type ProductVariant,
 } from '../services/api';
+import { useWishlist } from '../contexts/WishlistContext';
 import { showAlert } from '../utils/showAlert';
 import ErrorReference from '../components/ErrorReference';
 
@@ -38,7 +39,8 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
   const [errorRef, setErrorRef] = useState(''); // the API's reference for the failed request
   const [addingToCart, setAddingToCart] = useState(false);
   const [addedToCart, setAddedToCart] = useState(false);
-  const [wishlisted, setWishlisted] = useState(false);
+  const { loaded: wishlistLoaded, isSaved, savedVariantOf, toggleVariant } = useWishlist();
+  const pickedVariant = useRef(false); // true once the customer chose a colour themselves
   const [pinCode, setPinCode] = useState('');
   const [pinChecked, setPinChecked] = useState(false);
   const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
@@ -62,11 +64,21 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
     }, [])
   );
 
+  // Arriving from a saved item (or a heart on the shop): open on the colour that is saved, so the
+  // heart reads "saved" instead of showing another colour as not saved
+  useEffect(() => {
+    if (!product || !wishlistLoaded || pickedVariant.current) return;
+    const savedId = savedVariantOf(product.id);
+    const variant = savedId ? product.variants.find((v) => v.id === savedId) : null;
+    if (variant) setSelectedVariant(variant);
+  }, [product, wishlistLoaded, savedVariantOf]);
+
   const loadProduct = async () => {
     try {
       setError(''); setErrorRef('');
       const data = await getProductBySlug(slug);
       setProduct(data);
+      pickedVariant.current = false;
       if (data.variants.length > 0) setSelectedVariant(data.variants[0]);
       try {
         const related = await getProducts({ limit: '6' });
@@ -149,11 +161,11 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
             <ChevronLeft size={20} color={colors.textPrimary} strokeWidth={2} />
           </TouchableOpacity>
           <View style={styles.topBarRight}>
-            <TouchableOpacity style={styles.circleBtn} onPress={() => setWishlisted(!wishlisted)}>
+            <TouchableOpacity style={styles.circleBtn} onPress={() => selectedVariant && product && toggleVariant(selectedVariant.id, product.id)} accessibilityLabel="Save this colour">
               <Heart
                 size={20}
-                color={wishlisted ? colors.primary : colors.textPrimary}
-                fill={wishlisted ? colors.primary : 'none'}
+                color={selectedVariant && isSaved(selectedVariant.id) ? colors.primary : colors.textPrimary}
+                fill={selectedVariant && isSaved(selectedVariant.id) ? colors.primary : 'none'}
                 strokeWidth={2}
               />
             </TouchableOpacity>
@@ -234,7 +246,7 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
                     <TouchableOpacity
                       key={v.id}
                       style={[styles.swatch, isSelected && styles.swatchActive]}
-                      onPress={() => setSelectedVariant(v)}
+                      onPress={() => { pickedVariant.current = true; setSelectedVariant(v); }}
                     >
                       <View style={[styles.swatchInner, { backgroundColor: getColorHex(v.color || '') }]} />
                       {isSelected && (

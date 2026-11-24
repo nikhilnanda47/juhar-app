@@ -768,6 +768,23 @@ class CartItemResponse {
 
 ---
 
+### 2.8b Wishlist Module (saved items)
+
+**Purpose:** the heart. One row per (customer, colour): `wishlist_items` (see database-design 3.9b). All routes need a customer login; a customer only ever touches their own rows (the user id comes from the token).
+
+| Route | What it does |
+|---|---|
+| `GET /wishlist` | `{ items, total }`, newest first. Each item has live `pricePaise`, `compareAtPaise`, `available` (on hand - reserved - unavailable), `isListed` (the product is published and the colour is active) and `isAvailable` (listed and in stock). The product's publish status itself is not sent. |
+| `POST /wishlist/items/:variantId/toggle` | What both apps call. Deletes the row when it exists (allowed even if the product is no longer sold), otherwise creates it. |
+| `POST /wishlist` | Creates the row; 409 `ALREADY_IN_WISHLIST` when it exists. |
+| `DELETE /wishlist/:variantId` | Deletes it; 404 `WISHLIST_ITEM_NOT_FOUND` when it was not saved. |
+| `GET /wishlist/:variantId/check` | `{ wishlisted }` |
+
+- **What can be saved:** an active variant of a published product. Anything else (unknown, retired, draft, archived) is a 404 `VARIANT_NOT_FOUND`, so an unpublished product is not revealed.
+- **Two taps at once:** the service no longer reads and then writes. Removing is one `deleteMany` (its count says whether a row was there) and saving is one `create` whose unique-key failure (`P2002`) is the answer "already saved": `toggle` still returns `wishlisted: true`, `add` returns 409. Before, the second request crashed with a 500 (5 of 8 simultaneous taps).
+- **A saved product that stops being sold** stays in the list with `isListed: false` (the apps show "No longer available", no Add to Bag, no link to a page that no longer exists) and can still be removed.
+- **Apps:** the heart on a shop card is for the whole saree (filled when any colour is saved; tapping a filled one removes the saved colours, tapping an empty one saves the card's `firstVariantId`); the heart on a product page is for the selected colour, and the page opens on the saved colour when there is one. A guest's hearts are kept in the browser or phone (`juhar_local_wishlist`) and moved into the account at login, like the guest bag; logging out clears the list from the screen (`AUTH_CHANGED_EVENT` on web, `onAuthChanged` on mobile). The mobile app reads the saved login before deciding between guest and account (it used to decide first and show an empty list). **Staying up to date without a reload:** a tap updates the screen at once and then reads the list again from the account, so the screen always matches it. Changes made elsewhere (the other app, another tab, another device) are picked up when the customer returns to the tab or the app (web: `focus` / `visibilitychange`; mobile: the app coming to the foreground and each screen coming into view), when another tab of the site changes something (web: a `BroadcastChannel` named `juhar-wishlist`, plus the `storage` event for the guest list), and every 30 seconds while the tab or app is open and visible (`apps/web/src/lib/wishlist-refresh.ts`, `apps/mobile/src/services/wishlistRefresh.ts`). A background refresh is skipped while a tap of the same tab is still waiting for the server.
+
 ### 2.9 Checkout Module
 
 **Purpose:** Quote generation + atomic order placement.

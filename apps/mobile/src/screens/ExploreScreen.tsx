@@ -9,6 +9,8 @@ import {
   getCategories, getProducts, getProductFilters, formatPaise,
   type Category, type Product, type ProductFilterOptions,
 } from '../services/api';
+import { useFocusEffect } from '@react-navigation/native';
+import { useWishlist } from '../contexts/WishlistContext';
 import { appendUnique } from '../services/paging';
 import {
   NO_FILTERS, SORT_OPTIONS, activeFilterCount, effectiveSearch, filterChips, priceRangeError,
@@ -30,6 +32,9 @@ export default function ExploreScreen({ navigation, route }: Props) {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const { refreshWishlist } = useWishlist();
+  // the hearts are read again whenever the Shop comes back into view (something may have changed elsewhere)
+  useFocusEffect(useCallback(() => { refreshWishlist(); }, [refreshWishlist]));
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [sort, setSort] = useState<ShopSort>('newest');
   const [sortOpen, setSortOpen] = useState(false);
@@ -396,7 +401,10 @@ function ProductCard({ product, onPress }: { product: any; onPress: () => void }
   const price = product.startingPricePaise ?? 0;
   const compare = product.compareAtPaise ?? null;
   const lowStock = product.totalStock !== undefined && product.totalStock > 0 && product.totalStock <= 3;
-  const [wishlisted, setWishlisted] = useState(false);
+  // The heart is for the whole saree: filled when any colour of it is saved. (The list sends
+  // firstVariantId, the colour the card's price belongs to, and no variants array.)
+  const { isProductSaved, toggleProduct } = useWishlist();
+  const wishlisted = isProductSaved(product.id);
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.9}>
@@ -407,7 +415,8 @@ function ProductCard({ product, onPress }: { product: any; onPress: () => void }
         {/* Wishlist Button */}
         <TouchableOpacity
           style={styles.wishlistBtn}
-          onPress={(e) => { e.stopPropagation?.(); setWishlisted(!wishlisted); }}
+          onPress={(e) => { e.stopPropagation?.(); toggleProduct(product.id, product.firstVariantId); }}
+          accessibilityLabel={wishlisted ? 'Remove from saved items' : 'Save this saree'}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
           <Heart
