@@ -3,7 +3,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ProductsService } from './products.service';
-import { ProductQueryDto, CreateProductDto, UpdateProductDto, UpdateVariantDto } from './dto';
+import { ProductQueryDto, AdminProductQueryDto, CreateProductDto, UpdateProductDto, UpdateVariantDto } from './dto';
 import { CreateVariantDto } from './dto/create-product.dto';
 import { JwtAuthGuard, AdminAuthGuard, RolesGuard } from '../auth/guards';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -37,7 +37,7 @@ export class ProductsAdminController {
 
   @Get()
   @ApiOperation({ summary: 'List all products (including drafts)' })
-  async findAll(@Query() query: ProductQueryDto & { publishStatus?: string }) {
+  async findAll(@Query() query: AdminProductQueryDto) {
     return this.productsService.findAllAdmin(query);
   }
 

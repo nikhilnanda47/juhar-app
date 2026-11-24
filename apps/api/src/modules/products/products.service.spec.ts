@@ -155,12 +155,12 @@ describe('ProductsService.findAll price sorting (fake database)', () => {
     expect(queryRaw).not.toHaveBeenCalled();
   });
 
-  it('leaves newest-first alone: ordered by creation date and never touches the price query', async () => {
+  it('newest-first: ordered by creation date (id breaks ties) and never touches the price query', async () => {
     const findMany = jest.fn(async () => [card('a', 1000), card('b', 2000)]);
     const queryRaw = jest.fn();
     const service = new ProductsService({ product: { findMany }, $queryRaw: queryRaw } as any);
     await service.findAll({ sortBy: ProductSortBy.NEWEST, limit: 10 } as any);
-    expect((findMany.mock.calls[0] as unknown as any[])[0]).toMatchObject({ orderBy: { createdAt: 'desc' }, take: 11 });
+    expect((findMany.mock.calls[0] as unknown as any[])[0]).toMatchObject({ orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 11 });
     expect(queryRaw).not.toHaveBeenCalled();
   });
 });

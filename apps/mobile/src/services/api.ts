@@ -371,10 +371,35 @@ export async function getProductBySlug(slug: string): Promise<Product> {
 // ── Order endpoints ──
 // Order payloads are still loosely typed (screens treat them as `any`).
 
-export async function getOrders(): Promise<any[]> {
+export interface OrdersPage {
+  items: any[];
+  /** pass this back as `cursor` to get the next page; null on the last page */
+  cursor: string | null;
+  hasMore: boolean;
+  /** how many orders match the status filter, over all pages */
+  total: number;
+  /** how many orders the customer has in each status (the filter is ignored) */
+  counts: Record<string, number>;
+}
+
+/** One page of the customer's orders, newest first. Pass `status` to filter and `cursor` for the next page. */
+export async function getOrders(
+  options: { status?: string; cursor?: string; limit?: number } = {},
+): Promise<OrdersPage> {
   await loadToken(); // order screens may open before any other call has loaded the token
-  const data = await request<{ items: any[] }>('/api/v1/orders');
-  return data.items ?? [];
+  const query = new URLSearchParams();
+  if (options.status) query.set('status', options.status);
+  if (options.cursor) query.set('cursor', options.cursor);
+  if (options.limit) query.set('limit', String(options.limit));
+  const qs = query.toString();
+  const data = await request<Partial<OrdersPage>>(`/api/v1/orders${qs ? '?' + qs : ''}`);
+  return {
+    items: data.items ?? [],
+    cursor: data.cursor ?? null,
+    hasMore: data.hasMore ?? false,
+    total: data.total ?? (data.items ?? []).length,
+    counts: data.counts ?? {},
+  };
 }
 
 export async function getOrder(id: string): Promise<any> {

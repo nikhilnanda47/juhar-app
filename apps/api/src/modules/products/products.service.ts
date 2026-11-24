@@ -6,9 +6,9 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
-import { ProductQueryDto, CreateProductDto, UpdateProductDto, UpdateVariantDto } from './dto';
+import { ProductQueryDto, AdminProductQueryDto, CreateProductDto, UpdateProductDto, UpdateVariantDto } from './dto';
 import { CreateVariantDto } from './dto/create-product.dto';
-import { generateSlug, ProductSortBy, PublishStatus, PAGINATION } from '@juhar/shared';
+import { generateSlug, ProductSortBy, PublishStatus, PAGINATION, INVENTORY } from '@juhar/shared';
 
 @Injectable()
 export class ProductsService {
@@ -93,7 +93,7 @@ export class ProductsService {
       // Newest first (also used when no sort is given)
       const findArgs: Prisma.ProductFindManyArgs = {
         where,
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], // id breaks ties, so paging never skips or repeats
         take: limit + 1,
         include,
       };
@@ -272,7 +272,7 @@ export class ProductsService {
   /**
    * Admin product list (includes drafts and archived).
    */
-  async findAllAdmin(query: ProductQueryDto & { publishStatus?: string }) {
+  async findAllAdmin(query: AdminProductQueryDto) {
     const limit = query.limit ?? PAGINATION.DEFAULT_LIMIT;
 
     const where: Prisma.ProductWhereInput = {};
@@ -287,7 +287,8 @@ export class ProductsService {
 
     const findArgs: Prisma.ProductFindManyArgs = {
       where,
-      orderBy: { createdAt: 'desc' },
+      // id breaks ties, so products created in the same instant keep one fixed order across pages
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: limit + 1,
       include: {
         category: true,
@@ -304,13 +305,51 @@ export class ProductsService {
       findArgs.skip = 1;
     }
 
-    const products = await this.prisma.product.findMany(findArgs as any);
+    // The counts cover the whole catalog (not just this page or filter), for the page headings,
+    // the filter buttons and the dashboard's Low Stock tile.
+    const [products, byStatus, variants, lowStock] = await Promise.all([
+      this.prisma.product.findMany(findArgs as any),
+      this.prisma.product.groupBy({ by: ['publishStatus'], _count: { _all: true } }),
+      this.prisma.productVariant.count(),
+      this.countLowStockVariants(),
+    ]);
 
     const hasMore = products.length > limit;
     const items = hasMore ? products.slice(0, limit) : products;
     const nextCursor = hasMore ? items[items.length - 1].id : null;
 
-    return { items, cursor: nextCursor, hasMore };
+    const statusCount = (status: string) =>
+      byStatus.find((row) => row.publishStatus === status)?._count._all ?? 0;
+
+    return {
+      items,
+      cursor: nextCursor,
+      hasMore,
+      counts: {
+        products: byStatus.reduce((sum, row) => sum + row._count._all, 0),
+        published: statusCount('published'),
+        draft: statusCount('draft'),
+        archived: statusCount('archived'),
+        variants,
+        lowStock,
+        lowStockThreshold: INVENTORY.LOW_STOCK_THRESHOLD, // what "low" means, for the pages to show
+      },
+    };
+  }
+
+  /**
+   * Active variants with 1 to LOW_STOCK_THRESHOLD pieces available (on hand - reserved - unavailable).
+   * A variant with none left is out of stock, not low stock. The comparison is between two columns,
+   * which Prisma cannot express, so it is plain SQL.
+   */
+  private async countLowStockVariants(): Promise<number> {
+    const rows = await this.prisma.$queryRaw<{ count: bigint }[]>`
+      SELECT count(*) AS count
+      FROM inventory i
+      JOIN product_variants v ON v.id = i.variant_id
+      WHERE v.active
+        AND i.on_hand - i.reserved - i.unavailable BETWEEN 1 AND ${INVENTORY.LOW_STOCK_THRESHOLD}`;
+    return Number(rows[0]?.count ?? 0);
   }
 
   /**

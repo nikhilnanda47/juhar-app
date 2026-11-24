@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AdminLayout from '../../components/AdminLayout';
 import { api } from '../../services/api';
+import { appendUnique, loadAtLeast } from '../../services/paging';
 import styles from './orders.module.css';
 
 const STATUS_OPTIONS = ['all', 'placed', 'confirmed', 'packed', 'shipped', 'delivered', 'cancelled'];
@@ -39,6 +40,12 @@ function formatPaise(paise: number): string {
 export default function OrdersPage() {
   const router = useRouter();
   const [orders, setOrders] = useState<any[]>([]);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  // Only the newest request may change the list (a slow answer for an old filter is dropped)
+  const requestId = useRef(0);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [filterReady, setFilterReady] = useState(false);
@@ -59,19 +66,69 @@ export default function OrdersPage() {
     setFilterReady(true);
   }, []);
 
+  // One page of the list for the current filter and search
+  const fetchOrders = (after?: string, limit = 20) => {
+    const params: Record<string, string> = { limit: String(limit) };
+    if (filter === 'overdue') params.overdue = 'true';
+    else if (filter !== 'all') params.status = filter;
+    if (search) params.search = search;
+    if (after) params.cursor = after;
+    return api.getOrders(params);
+  };
+
+  // Start the list again from the top (filter or search changed)
   const loadOrders = async () => {
+    const mine = ++requestId.current;
+    setLoadError('');
     try {
-      const params: Record<string, string> = {};
-      if (filter === 'overdue') params.overdue = 'true';
-      else if (filter !== 'all') params.status = filter;
-      if (search) params.search = search;
-      const data = await api.getOrders(params);
+      const data = await fetchOrders();
+      if (mine !== requestId.current) return;
       setOrders(data.items || []);
+      setCursor(data.cursor);
+      setHasMore(data.hasMore);
       if (data.counts) setCounts(data.counts);
     } catch {
       // AdminLayout handles auth
     } finally {
-      setLoading(false);
+      if (mine === requestId.current) setLoading(false);
+    }
+  };
+
+  // Refresh after an action, keeping as many rows on screen as there were
+  const refreshOrders = async () => {
+    const mine = ++requestId.current;
+    try {
+      const page = await loadAtLeast(
+        (after, limit) => fetchOrders(after, limit),
+        Math.max(orders.length, 20),
+      );
+      const fresh = (await api.getOrders({ limit: '1' })).counts;
+      if (mine !== requestId.current) return;
+      setOrders(page.items);
+      setCursor(page.cursor);
+      setHasMore(page.hasMore);
+      if (fresh) setCounts(fresh);
+    } catch {
+      // keep what is on screen
+    }
+  };
+
+  const loadMore = async () => {
+    if (!cursor || loadingMore) return;
+    const mine = requestId.current;
+    setLoadingMore(true);
+    setLoadError('');
+    try {
+      const data = await fetchOrders(cursor);
+      if (mine !== requestId.current) return; // the filter changed meanwhile
+      setOrders((shown) => appendUnique(shown, data.items || []));
+      setCursor(data.cursor);
+      setHasMore(data.hasMore);
+      if (data.counts) setCounts(data.counts);
+    } catch (err: any) {
+      setLoadError(err?.message || 'Could not load more orders');
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -90,7 +147,7 @@ export default function OrdersPage() {
     setUpdating(orderId);
     try {
       await api.updateOrderStatus(orderId, { status });
-      await loadOrders();
+      await refreshOrders();
     } catch (err: any) {
       alert(err.message);
     }
@@ -109,7 +166,7 @@ export default function OrdersPage() {
       setShipModal(null);
       setTrackingId('');
       setCourierName('');
-      await loadOrders();
+      await refreshOrders();
     } catch (err: any) {
       alert(err.message);
     }
@@ -129,7 +186,7 @@ export default function OrdersPage() {
     try {
       await api.updateOrderStatus(cancelModal.id, { status: 'cancelled', reason: cancelReason.trim() });
       closeCancelModal();
-      await loadOrders();
+      await refreshOrders();
     } catch (err: any) {
       setCancelError(err.message || 'Could not cancel the order');
     }
@@ -263,6 +320,20 @@ export default function OrdersPage() {
               )}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {!loading && orders.length > 0 && (
+        <div className={styles.loadMoreBar}>
+          <span className={styles.loadMoreInfo}>
+            {hasMore ? `Showing ${orders.length} orders` : `All ${orders.length} orders shown`}
+          </span>
+          {hasMore && (
+            <button className={styles.loadMoreBtn} onClick={loadMore} disabled={loadingMore}>
+              {loadingMore ? 'Loading...' : 'Load more'}
+            </button>
+          )}
+          {loadError && <span className={styles.loadMoreError}>{loadError}</span>}
         </div>
       )}
 

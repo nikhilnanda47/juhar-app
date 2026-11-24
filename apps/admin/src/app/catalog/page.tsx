@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AdminLayout from '../../components/AdminLayout';
-import { api } from '../../services/api';
+import { api, type ProductCounts } from '../../services/api';
+import { appendUnique, loadAtLeast } from '../../services/paging';
 import styles from './catalog.module.css';
 
 interface Variant {
@@ -33,33 +34,91 @@ function formatPaise(paise: number): string {
 export default function CatalogPage() {
   const router = useRouter();
   const [products, setProducts] = useState<Product[]>([]);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const [counts, setCounts] = useState<ProductCounts | null>(null);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'published' | 'draft'>('all');
+  // Only the newest request may change the list (a slow answer for an old filter is dropped)
+  const requestId = useRef(0);
 
-  useEffect(() => {
-    loadProducts();
-  }, []);
+  // One page of the list for the current filter. The filter is applied by the API, so it covers
+  // every product, not just the ones already loaded.
+  const fetchProducts = (after?: string, limit = 20) => {
+    const params: Record<string, string> = { limit: String(limit) };
+    if (filter !== 'all') params.publishStatus = filter;
+    if (after) params.cursor = after;
+    return api.getProducts(params);
+  };
 
   const loadProducts = async () => {
+    const mine = ++requestId.current;
+    setLoadError('');
     try {
-      const data = await api.getProducts();
+      const data = await fetchProducts();
+      if (mine !== requestId.current) return;
       setProducts(data.items || []);
+      setCursor(data.cursor);
+      setHasMore(data.hasMore);
+      if (data.counts) setCounts(data.counts);
     } catch {
       // AdminLayout handles auth
     } finally {
-      setLoading(false);
+      if (mine === requestId.current) setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    setLoading(true);
+    loadProducts();
+  }, [filter]);
+
+  // Refresh after publishing or unpublishing, keeping as many rows on screen as there were
+  const refreshProducts = async () => {
+    const mine = ++requestId.current;
+    try {
+      const first = await fetchProducts(undefined, 1);
+      const page = await loadAtLeast((after, limit) => fetchProducts(after, limit), Math.max(products.length, 20));
+      if (mine !== requestId.current) return;
+      setProducts(page.items);
+      setCursor(page.cursor);
+      setHasMore(page.hasMore);
+      if (first.counts) setCounts(first.counts);
+    } catch {
+      // keep what is on screen
+    }
+  };
+
+  const loadMore = async () => {
+    if (!cursor || loadingMore) return;
+    const mine = requestId.current;
+    setLoadingMore(true);
+    setLoadError('');
+    try {
+      const data = await fetchProducts(cursor);
+      if (mine !== requestId.current) return; // the filter changed meanwhile
+      setProducts((shown) => appendUnique(shown, data.items || []));
+      setCursor(data.cursor);
+      setHasMore(data.hasMore);
+      if (data.counts) setCounts(data.counts);
+    } catch (err: any) {
+      setLoadError(err?.message || 'Could not load more products');
+    } finally {
+      setLoadingMore(false);
     }
   };
 
   const togglePublish = async (product: Product) => {
     const newStatus = product.publishStatus === 'published' ? 'draft' : 'published';
     await api.updateProduct(product.id, { publishStatus: newStatus });
-    await loadProducts();
+    await refreshProducts();
   };
 
-  const filtered = filter === 'all'
-    ? products
-    : products.filter((p) => p.publishStatus === filter);
+  const filtered = products;
+  const countFor = (f: 'all' | 'published' | 'draft') =>
+    counts ? (f === 'all' ? counts.products : counts[f]) : null;
 
   const addButton = (
     <button className={styles.addBtn} onClick={() => router.push('/catalog/new')}>
@@ -70,7 +129,7 @@ export default function CatalogPage() {
   return (
     <AdminLayout
       title="Product Catalog"
-      subtitle={`${products.length} products`}
+      subtitle={counts ? `${counts.products} products` : ''}
       actions={addButton}
     >
       {/* Filter toolbar */}
@@ -83,6 +142,7 @@ export default function CatalogPage() {
               onClick={() => setFilter(f)}
             >
               {f.charAt(0).toUpperCase() + f.slice(1)}
+              {countFor(f) !== null && ` (${countFor(f)})`}
             </button>
           ))}
         </div>
@@ -166,6 +226,20 @@ export default function CatalogPage() {
               )}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {!loading && products.length > 0 && (
+        <div className={styles.loadMoreBar}>
+          <span className={styles.loadMoreInfo}>
+            {hasMore ? `Showing ${products.length} products` : `All ${products.length} products shown`}
+          </span>
+          {hasMore && (
+            <button className={styles.loadMoreBtn} onClick={loadMore} disabled={loadingMore}>
+              {loadingMore ? 'Loading...' : 'Load more'}
+            </button>
+          )}
+          {loadError && <span className={styles.loadMoreError}>{loadError}</span>}
         </div>
       )}
     </AdminLayout>

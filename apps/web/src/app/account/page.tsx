@@ -42,8 +42,9 @@ export default function AccountPage() {
 
   const fetchCounts = async () => {
     try {
-      const [orders, addrs] = await Promise.all([getOrders(), getAddresses()]);
-      setOrderCount(orders.length);
+      // limit 1: only the total is needed, and it counts every order, not just the first page
+      const [orders, addrs] = await Promise.all([getOrders({ limit: 1 }), getAddresses()]);
+      setOrderCount(orders.total);
       setAddressCount(addrs.length);
     } catch {}
   };

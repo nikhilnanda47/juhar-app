@@ -2142,11 +2142,19 @@ paths:
     get:
       tags: [Orders]
       summary: List my orders
-      description: Customer's order history, newest first.
+      description: >-
+        Customer's order history, newest first. Orders created in the same instant keep one fixed
+        order, so paging with `cursor` never skips or repeats an order. `total` and `counts` cover
+        the whole account, so the apps can show "55 orders" and "22 delivered" without loading them all.
       operationId: listMyOrders
       security:
         - BearerAuth: []
       parameters:
+        - name: status
+          in: query
+          description: Only orders in this status
+          schema:
+            type: string
         - $ref: '#/components/parameters/CursorParam'
         - $ref: '#/components/parameters/LimitParam'
       responses:
@@ -2170,6 +2178,16 @@ paths:
                             nullable: true
                           hasMore:
                             type: boolean
+                          total:
+                            type: integer
+                            description: Orders that match the `status` filter (all of them when there is none), over every page
+                          counts:
+                            type: object
+                            additionalProperties:
+                              type: integer
+                            description: >-
+                              Orders the customer has in each status (the filter is ignored),
+                              for example 5 placed and 22 delivered
 
   # ────────────────────────────────────────────
   # ORDERS (Customer)
@@ -2499,6 +2517,26 @@ paths:
                             nullable: true
                           hasMore:
                             type: boolean
+                          counts:
+                            type: object
+                            description: Over the whole catalog, whatever page or filter was asked for
+                            properties:
+                              products:
+                                type: integer
+                              published:
+                                type: integer
+                              draft:
+                                type: integer
+                              archived:
+                                type: integer
+                              variants:
+                                type: integer
+                              lowStock:
+                                type: integer
+                                description: Active variants with 1 to `lowStockThreshold` pieces available (none left is out of stock, not low)
+                              lowStockThreshold:
+                                type: integer
+                                example: 3
     post:
       tags: ["Admin: Catalog"]
       summary: Create product with variants

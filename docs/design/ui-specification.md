@@ -1241,7 +1241,7 @@ Reusable refresh icon (`RefreshCw`) with spin animation on press. Used on Home, 
 └─────────────────────────────┘
 ```
 
-- Paginated, pull-to-refresh
+- Paginated, pull-to-refresh. 20 orders load first; an outlined "Load more orders" button under the list adds the next 20, and the footer says "Showing 20 of 55 orders" (then "All 55 orders shown"). The header count is the customer's real total, not the number loaded. On the web the status chips are applied by the server and show the real number of orders in each status
 - Empty state: Lucide `package` + "No orders yet" + "Start Shopping" secondary button
 - Not logged in: Lucide `user` + "Log in to view orders" + "Log In" primary button
 - Shimmer: 3 card placeholders
