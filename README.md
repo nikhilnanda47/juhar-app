@@ -434,6 +434,17 @@ npx ts-node prisma/seed.ts    # Seeds 4 categories, 8 products, 11 variants, 1 a
 cd ../..
 ```
 
+**Optional: more demo data for testing.** The normal seed has only 8 products, which is too few to see "Load more", sorting, the Low Stock count or the Overdue flag. On a local or test database you can add more:
+
+```bash
+npm run db:seed:demo                           # 60 sarees (weaves, colours, 1 to 3 variants each)
+npm run db:seed:demo -- --products 120         # a different number
+npm run db:seed:demo -- --orders 55            # also a demo customer (+919000000099) with 55 orders
+npm run db:seed:demo -- --clean                # remove everything this script added
+```
+
+It is safe to run again (it skips what exists) and it refuses to run with `NODE_ENV=production`. The sarees mix every case on purpose: about 1 in 6 is a draft and 1 in 20 archived, stock cycles through none, 1 to 3 (low stock), ordinary and plenty, some variants are retired, and prices run from about ₹1,200 to ₹18,000 so some carts pass the free-shipping amount. The demo orders have 1 to 3 items in every status (some placed more than a day ago, so they show as overdue; a few are from today). To see those orders as the customer, log in with phone `9000000099` and OTP `123456`. The orders are plain records: stock is not deducted for them.
+
 > **If `prisma migrate deploy` fails with a message starting "Cannot add the CHECK constraints":** some rows already in your database break a rule (for example stock reserved beyond what is on hand). The message lists each problem and the `SELECT` that finds the rows; nothing was changed. Fix or delete those rows, then run `npx prisma migrate resolve --rolled-back 20261122150000_check_constraints` (Prisma refuses to continue after a failed migration until you do) and `npx prisma migrate deploy` again. If you do not need the data, `npx prisma migrate reset` rebuilds the local database from scratch (it deletes everything, so then run the seed again).
 
 > **If `prisma migrate dev` fails with `P3014` ("could not create the shadow database"):** your database user is not allowed to create databases, and `migrate dev` needs that to compare migrations against a temporary database. To apply existing migrations, use `npx prisma migrate deploy` instead (it needs no extra permission). To create new migrations yourself, grant the permission once: `psql postgres -c "ALTER USER juhar CREATEDB;"` (run as your Postgres superuser).
@@ -553,6 +564,7 @@ Check what changed (`git diff HEAD@{1} --stat`), then use this table. Dev server
 | `cd apps/api && npx prisma migrate dev --name <name>` | Root | Create a new migration (needs the database user to be allowed to create databases, see the `P3014` note in step 5) |
 | `cd apps/api && npx prisma generate` | Root | Regenerate Prisma client |
 | `cd apps/api && npx ts-node prisma/seed.ts` | Root | Re-seed database |
+| `npm run db:seed:demo -- --products 60 --orders 55` | Root | Add demo sarees and orders for testing long lists (`-- --clean` removes them) |
 | `psql -U juhar -d juhar_dev` | Anywhere | Connect to database CLI |
 | `cd apps/mobile && npx expo start --web --clear` | Root | Mobile with cleared cache |
 | `npm run build -w packages/shared` | Root | Rebuild the shared package after editing it |
