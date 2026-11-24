@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { requestIdOf } from '../logging/request-id.middleware';
+import { friendlyError } from '../errors/error-catalog';
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
@@ -23,6 +24,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
     let code = 'INTERNAL_ERROR';
     let message = 'An unexpected error occurred';
     let details: unknown = undefined;
+    // What the logs record as the message. It stays the exact text that was thrown (it may carry a
+    // SKU or numbers), while the customer gets a sentence.
+    let logMessage: string | undefined = undefined;
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
@@ -40,6 +44,14 @@ export class HttpExceptionFilter implements ExceptionFilter {
           code = 'VALIDATION_ERROR';
           message = 'Validation failed';
           details = body.message;
+        } else if (!body.code) {
+          // Errors thrown as a plain code ("INSUFFICIENT_STOCK"): send the code as the code and a sentence as the message
+          const friendly = friendlyError(body.message);
+          if (friendly) {
+            logMessage = String(body.message);
+            code = friendly.code;
+            message = friendly.message;
+          }
         }
       }
     }
@@ -47,7 +59,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     // The access log line (common/logging) already records every response with its status and code.
     // It reads these two values, so put them where it can find them.
     response.locals.errorCode = code;
-    response.locals.errorMessage = message;
+    response.locals.errorMessage = logMessage === code ? undefined : (logMessage ?? message);
 
     if (status >= 500) {
       // A real failure: log the details, including the stack. Never send them to the client.

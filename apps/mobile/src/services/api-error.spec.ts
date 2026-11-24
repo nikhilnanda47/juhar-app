@@ -70,10 +70,19 @@ describe('API errors carry the request reference', () => {
     expect(e.message).toBe('Cart is empty');
   });
 
-  it('has no reference for a network failure or for something that is not an API error', async () => {
+  it('says in plain words when the server cannot be reached, and has no reference to show', async () => {
     const api = load('network-down');
     const e = await catchError(() => api.getCart());
+    expect(e).toBeInstanceOf(api.ApiError);
+    expect(e.code).toBe('NETWORK_ERROR');
+    expect(e.message).toBe(api.NETWORK_ERROR_MESSAGE);
+    expect(e.message).not.toMatch(/fetch|network request failed/i);
+    expect(e.message).toMatch(/internet connection/);
     expect(api.referenceOf(e)).toBe('');
+  });
+
+  it('has no reference for something that is not an API error', async () => {
+    const api = load('network-down');
     expect(api.referenceOf(new Error('x'))).toBe('');
     expect(api.referenceOf(undefined)).toBe('');
     expect(api.referenceOf('text')).toBe('');

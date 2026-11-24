@@ -523,7 +523,7 @@ Every request gets one ID. It is in the `requestId` of the reply, in the `X-Requ
 ```
 LOG  [HTTP] req=bf1fd942-... POST /api/v1/orders 201 23ms user=6e7e4675-...
 LOG  [CheckoutService] req=bf1fd942-... order placed JUH-20261123-0096 total=₹1,599 items=1 payment=cod user=6e7e4675-...
-WARN [HTTP] req=84f9f661-... POST /api/v1/orders 409 12ms user=6e7e4675-... code=HTTP_409 "INSUFFICIENT_STOCK"
+WARN [HTTP] req=84f9f661-... POST /api/v1/orders 409 12ms user=6e7e4675-... code=INSUFFICIENT_STOCK
 ```
 
 **From a customer to the log.** When something fails in the web or mobile app (sign-in, saving an address, adding to the bag, placing an order), the error message has a small `Reference: <id>` line with a Copy button. Ask the customer for it and search the logs for `req=<id>`. To find out who a log line's `user=<id>` is, open the admin Orders page: each order shows the customer's user id (first 8 characters, with a Copy button that copies the whole id).

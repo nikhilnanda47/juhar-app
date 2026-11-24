@@ -100,6 +100,9 @@ export class ApiError extends Error {
   }
 }
 
+/** What a customer reads when the server could not be reached at all. */
+export const NETWORK_ERROR_MESSAGE = 'We could not reach the server. Please check your internet connection and try again.';
+
 /** The request reference of an error, or '' (a network failure has none). */
 export function referenceOf(error: unknown): string {
   return error instanceof ApiError ? error.requestId : '';
@@ -162,7 +165,13 @@ async function request<T>(path: string, options: RequestInit = {}, retried = fal
     headers['Authorization'] = `Bearer ${accessToken}`;
   }
 
-  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  } catch {
+    // the system's own text is "Network request failed": say what happened in plain words
+    throw new ApiError('NETWORK_ERROR', NETWORK_ERROR_MESSAGE, 0, '');
+  }
   const json: ApiResponse<T> = await res.json();
 
   // Access token expired: renew it once and repeat the call.
