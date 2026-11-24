@@ -1,5 +1,6 @@
 export {}; // keeps this file a module
 import { CART_CHANGED_EVENT } from './cart-events';
+import { AUTH_CHANGED_EVENT } from './auth-events';
 
 // Which calls announce a cart change to the badge, and which must not.
 const ok = (data: unknown) => ({ status: 200, json: async () => ({ success: true, data }) });
@@ -49,14 +50,19 @@ describe('API calls that change the cart tell the badge', () => {
     expect(events).toEqual([CART_CHANGED_EVENT]);
   });
 
-  it('signing in (the badge switches to the account cart)', async () => {
+  it('signing in (the badge switches to the account cart; saved items follow the login)', async () => {
     await api(ok({ accessToken: 'A', refreshToken: 'R', isNewUser: false })).verifyOtp('+919999999999', '123456');
-    expect(events).toEqual([CART_CHANGED_EVENT]);
+    expect(events).toEqual([CART_CHANGED_EVENT, AUTH_CHANGED_EVENT]);
   });
 
-  it('signing out (the badge switches to the guest cart)', () => {
+  it('signing out (the badge switches to the guest cart; saved items forget the customer)', () => {
     api(ok({})).clearTokens();
-    expect(events).toEqual([CART_CHANGED_EVENT]);
+    expect(events).toEqual([CART_CHANGED_EVENT, AUTH_CHANGED_EVENT]);
+  });
+
+  it('cart changes alone do not announce a login change', async () => {
+    await api(ok({ itemCount: 1 })).addToCart('v1', 1);
+    expect(events).not.toContain(AUTH_CHANGED_EVENT);
   });
 });
 

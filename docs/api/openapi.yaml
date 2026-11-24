@@ -59,6 +59,8 @@ tags:
     description: Product catalog (public)
   - name: Cart
     description: Shopping cart
+  - name: Wishlist
+    description: Saved items (the heart)
   - name: Checkout
     description: Quote and order placement
   - name: Orders
@@ -507,6 +509,11 @@ components:
         isAvailable:
           type: boolean
           description: True if any variant has stock > 0
+        firstVariantId:
+          type: string
+          format: uuid
+          nullable: true
+          description: The colour the card's price belongs to (the cheapest active variant); the card's heart saves this one
         fabric:
           type: string
           nullable: true
@@ -515,6 +522,63 @@ components:
           type: string
           nullable: true
           example: Handloom Ikat
+
+    WishlistItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        addedAt:
+          type: string
+          format: date-time
+        variant:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            sku:
+              type: string
+            name:
+              type: string
+              nullable: true
+            color:
+              type: string
+              nullable: true
+            pricePaise:
+              type: integer
+            compareAtPaise:
+              type: integer
+              nullable: true
+            available:
+              type: integer
+              description: Pieces that can still be bought (on hand - reserved - unavailable)
+            isListed:
+              type: boolean
+              description: Still sold (the product is published and this colour is active)
+            isAvailable:
+              type: boolean
+              description: Listed and in stock
+            product:
+              type: object
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                slug:
+                  type: string
+                title:
+                  type: string
+                origin:
+                  type: string
+                  nullable: true
+                fabric:
+                  type: string
+                  nullable: true
+                weaveMethod:
+                  type: string
+                  nullable: true
 
     ProductDetail:
       type: object
@@ -1992,6 +2056,141 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+
+  # ────────────────────────────────────────────
+  # WISHLIST
+  # ────────────────────────────────────────────
+  /api/v1/wishlist:
+    get:
+      tags: [Wishlist]
+      summary: List my saved items
+      description: >-
+        The customer's saved colours, newest first, with live price and stock. A saved item can stop
+        being sold (product unpublished, colour retired): it stays in the list with `isListed: false`
+        so the app can say "No longer available" instead of showing a button that would fail.
+      operationId: getWishlist
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: The list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          total:
+                            type: integer
+                          items:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/WishlistItem'
+    post:
+      tags: [Wishlist]
+      summary: Save one colour
+      description: >-
+        Only an active variant of a published product can be saved (anything else is a 404, so a draft
+        is not revealed). 409 `ALREADY_IN_WISHLIST` when it is already saved, including when two
+        requests arrive at the same moment.
+      operationId: addToWishlist
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [variantId]
+              properties:
+                variantId:
+                  type: string
+                  format: uuid
+      responses:
+        "201":
+          description: Saved
+        "404":
+          description: Unknown, retired or unpublished variant (`VARIANT_NOT_FOUND`)
+        "409":
+          description: Already saved (`ALREADY_IN_WISHLIST`)
+  /api/v1/wishlist/items/{variantId}/toggle:
+    post:
+      tags: [Wishlist]
+      summary: Save or remove one colour
+      description: >-
+        What the web and mobile apps call for the heart. Removes the colour when it is saved
+        (always allowed, even if the product is no longer sold), otherwise saves it (same rules as
+        `POST /wishlist`). Two taps at once never fail: if the other tap saved it first, the answer
+        is still `wishlisted: true`.
+      operationId: toggleWishlistItem
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: variantId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "201":
+          description: The new state
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          wishlisted:
+                            type: boolean
+                          variantId:
+                            type: string
+                            format: uuid
+        "404":
+          description: Unknown, retired or unpublished variant, when saving
+  /api/v1/wishlist/{variantId}:
+    delete:
+      tags: [Wishlist]
+      summary: Remove one colour
+      operationId: removeFromWishlist
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: variantId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Removed
+        "404":
+          description: Not saved (`WISHLIST_ITEM_NOT_FOUND`)
+  /api/v1/wishlist/{variantId}/check:
+    get:
+      tags: [Wishlist]
+      summary: Is this colour saved?
+      operationId: checkWishlistItem
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: variantId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: "`{ wishlisted, variantId }`"
 
   # ────────────────────────────────────────────
   # CART

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
   ActivityIndicator, ScrollView, Alert, Platform, RefreshControl, Switch,
@@ -12,7 +12,8 @@ import {
   isLoggedIn, loadToken, requestOtp, verifyOtp, clearTokens,
   getProfile, updateProfile, getAddresses, getOrders, referenceOf, type UserProfile,
 } from '../services/api';
-import { useNavigation } from '@react-navigation/native';
+import { useWishlist } from '../contexts/WishlistContext';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import ErrorReference from '../components/ErrorReference';
 import { FadeInUp, ScalePress } from '../components/AnimatedUI';
 import RefreshButton from '../components/RefreshButton';
@@ -36,7 +37,9 @@ export default function ProfileScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [orderCount, setOrderCount] = useState(0);
   const [addressCount, setAddressCount] = useState(0);
-  const [savedCount] = useState(0); // wishlist not implemented yet
+  const { total: savedCount, refreshWishlist } = useWishlist();
+  // the Saved count is read again whenever this screen comes into view
+  useFocusEffect(useCallback(() => { refreshWishlist(); }, [refreshWishlist]));
 
   useEffect(() => { checkAuth(); }, []);
 
@@ -344,7 +347,7 @@ export default function ProfileScreen() {
           <Text style={styles.tileLabel}>Orders</Text>
           <Text style={styles.tileSub}>{orderCount} placed</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.tile} activeOpacity={0.7}>
+        <TouchableOpacity style={styles.tile} activeOpacity={0.7} onPress={() => navigation.navigate('Wishlist')}>
           <View style={styles.tileIconWrap}>
             <Heart size={22} color={colors.textPrimary} strokeWidth={1.5} />
           </View>

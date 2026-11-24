@@ -5,6 +5,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { notifyCartChanged } from './cartEvents';
+import { notifyAuthChanged } from './authEvents';
 
 const API_BASE = __DEV__
   ? 'http://localhost:3000'  // Dev: local API
@@ -73,6 +74,8 @@ export interface Product {
     slug: string;
   } | null;
   variants: ProductVariant[];
+  /** shop list cards only: the colour the card's price and its heart belong to */
+  firstVariantId?: string | null;
   media: Array<{
     id: string;
     url: string;
@@ -205,6 +208,7 @@ export async function saveTokens(access: string, refresh: string) {
   await AsyncStorage.setItem(TOKEN_KEY, access);
   await AsyncStorage.setItem(REFRESH_KEY, refresh);
   notifyCartChanged(); // the badge now shows the account's cart
+  notifyAuthChanged(); // saved items: move the guest's hearts into the account and load its list
 }
 
 export async function clearTokens() {
@@ -212,6 +216,7 @@ export async function clearTokens() {
   await AsyncStorage.removeItem(TOKEN_KEY);
   await AsyncStorage.removeItem(REFRESH_KEY);
   notifyCartChanged(); // the badge now shows the guest cart
+  notifyAuthChanged(); // anything that shows the previous customer's data (saved items) clears it
 }
 
 export function isLoggedIn(): boolean {
@@ -459,6 +464,55 @@ export async function placeOrder(input: {
   const order = await request<any>('/api/v1/orders', { method: 'POST', body: JSON.stringify(input) });
   notifyCartChanged(); // placing an order empties the cart
   return order;
+}
+
+// ── Wishlist types ──
+
+export interface WishlistVariant {
+  id: string;
+  sku: string;
+  name: string | null;
+  color: string | null;
+  pricePaise: number;
+  compareAtPaise: number | null;
+  available: number;
+  /** still sold: the product is published and this colour is active */
+  isListed: boolean;
+  /** listed and in stock */
+  isAvailable: boolean;
+  product: {
+    id: string;
+    slug: string;
+    title: string;
+    origin: string | null;
+    fabric: string | null;
+    weaveMethod: string | null;
+  };
+}
+
+export interface WishlistItem {
+  id: string;
+  addedAt: string;
+  variant: WishlistVariant;
+}
+
+export interface WishlistResponse {
+  items: WishlistItem[];
+  total: number;
+}
+
+// ── Wishlist API calls ──
+
+export async function getWishlist(): Promise<WishlistResponse> {
+  return request<WishlistResponse>('/api/v1/wishlist');
+}
+
+export async function toggleWishlistItem(variantId: string): Promise<{ wishlisted: boolean; variantId: string }> {
+  return request(`/api/v1/wishlist/items/${variantId}/toggle`, { method: 'POST' });
+}
+
+export async function checkWishlistItem(variantId: string): Promise<{ wishlisted: boolean; variantId: string }> {
+  return request(`/api/v1/wishlist/${variantId}/check`);
 }
 
 // ── Helpers ──

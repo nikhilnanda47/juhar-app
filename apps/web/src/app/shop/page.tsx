@@ -9,6 +9,7 @@ import {
   NO_FILTERS, SORT_OPTIONS, activeFilterCount, effectiveSearch, filterChips, priceRangeError,
   removeFilter, shopQuery, type ShopFilters, type ShopSort,
 } from '@/lib/shop-list';
+import { useWishlist } from '@/lib/wishlist-context';
 
 export default function ShopPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -22,6 +23,7 @@ export default function ShopPage() {
   const [filterOptions, setFilterOptions] = useState<ProductFilterOptions | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const { isProductSaved, toggleProduct } = useWishlist();
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [total, setTotal] = useState(0); // every saree that matches, not just the ones loaded
@@ -262,12 +264,20 @@ export default function ShopPage() {
             >
               <div className="relative aspect-[3/4] rounded-xl bg-surface-container-low overflow-hidden mb-2 shadow-[0_1px_4px_rgba(0,0,0,0.03)] group-hover:shadow-md transition-shadow">
                 {/* Wishlist */}
-                <button
-                  className="absolute top-2 right-2 w-8 h-8 rounded-full bg-surface/80 backdrop-blur flex items-center justify-center z-10"
-                  onClick={(e) => e.preventDefault()}
-                >
-                  <Heart size={16} className="text-text-tertiary" strokeWidth={2} />
-                </button>
+                {/* the heart is for the whole saree: filled when any colour of it is saved */}
+                {(() => {
+                  const saved = isProductSaved(product.id);
+                  return (
+                    <button
+                      className="absolute top-2 right-2 w-8 h-8 rounded-full bg-surface/80 backdrop-blur flex items-center justify-center z-10"
+                      onClick={(e) => { e.preventDefault(); toggleProduct(product.id, product.firstVariantId); }}
+                      aria-label={saved ? 'Remove from saved items' : 'Save this saree'}
+                      aria-pressed={saved}
+                    >
+                      <Heart size={16} className={saved ? 'text-primary fill-primary' : 'text-text-tertiary'} strokeWidth={2} />
+                    </button>
+                  );
+                })()}
                 {/* Origin badge */}
                 <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-full bg-surface/90 backdrop-blur">
                   <span className="font-sans text-label-sm text-text-primary">{(product as any).fabric || 'Handloom'}</span>
