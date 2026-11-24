@@ -1,5 +1,5 @@
 CREATE TABLE "wishlist_items" (
-    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "id" UUID NOT NULL,
     "user_id" UUID NOT NULL,
     "variant_id" UUID NOT NULL,
     "added_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
