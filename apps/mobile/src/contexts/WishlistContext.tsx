@@ -1,6 +1,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 import { getWishlist, isLoggedIn, loadToken, toggleWishlistItem, type WishlistItem } from '../services/api';
 import { onAuthChanged } from '../services/authEvents';
+import { startWishlistRefresh } from '../services/wishlistRefresh';
 import { getLocalWishlist, saveLocalWishlist } from '../services/localWishlist';
 import {
   isProductSaved, isVariantSaved, mergeGuestWishlist, savedVariantsOf, withEntry, type SavedEntry,
@@ -92,6 +94,22 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
     refreshWishlist();
   }, [refreshWishlist]);
 
+  // Changes made somewhere else (the website, another device) show up without a restart: when the app
+  // comes back to the foreground and every 30 seconds while it is open. (The screens also refresh when
+  // they come into view.) A refresh never runs in the middle of a tap on this phone.
+  useEffect(() => {
+    return startWishlistRefresh({
+      refresh: () => { if (busy.current.size === 0) refreshWishlist(); },
+      onForeground: (listener) => {
+        const subscription = AppState.addEventListener('change', (state) => {
+          if (state === 'active') listener();
+        });
+        return () => subscription.remove();
+      },
+      isActive: () => AppState.currentState === 'active',
+    });
+  }, [refreshWishlist]);
+
   // A login or a logout: show the right person's saved items at once
   useEffect(
     () => onAuthChanged(() => { setLoaded(false); refreshWishlist(); }),
@@ -121,12 +139,11 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
       try {
         const answer = await toggleWishlistItem(variantId);
         apply((list) => withEntry(list, entry, answer.wishlisted)); // the server's answer decides (another device may have changed it)
-        if (answer.wishlisted) {
-          const data = await getWishlist().catch(() => null); // the list screen needs the details
-          if (data) { setItems(data.items); apply(() => entriesOf(data.items)); }
-        } else {
-          setItems((now) => now.filter((i) => i.variant.id !== variantId));
-        }
+        if (!answer.wishlisted) setItems((now) => now.filter((i) => i.variant.id !== variantId)); // gone from the list at once
+        // then read the list again: it needs the details of a new item, and it also picks up anything
+        // saved elsewhere in the meantime, so after a tap the screen always matches the account
+        const data = await getWishlist().catch(() => null);
+        if (data) { setItems(data.items); apply(() => entriesOf(data.items)); }
       } catch {
         apply((list) => withEntry(list, entry, wasSaved)); // the server said no: put the heart back
       }

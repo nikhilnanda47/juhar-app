@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { isLoggedIn, loadToken, getWishlist, toggleWishlistItem, type WishlistItem } from './api';
 import { AUTH_CHANGED_EVENT } from './auth-events';
+import { announceWishlistChanged, startWishlistRefresh } from './wishlist-refresh';
 import {
   isProductSaved, isVariantSaved, mergeGuestWishlist, readGuestWishlist,
   savedVariantsOf, withEntry, writeGuestWishlist, type SavedEntry,
@@ -87,6 +88,15 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
     refreshWishlist();
   }, [refreshWishlist]);
 
+  // Changes made somewhere else (another tab, the phone app) show up without a reload: when the
+  // customer returns to the tab, when another tab changes something, and every 30 seconds while visible.
+  // A refresh never runs in the middle of a tap of this tab (that tap refreshes by itself).
+  useEffect(() => {
+    return startWishlistRefresh(() => {
+      if (busy.current.size === 0) refreshWishlist();
+    });
+  }, [refreshWishlist]);
+
   // A login or a logout (in this tab): show the right person's saved items at once
   useEffect(() => {
     const onAuthChanged = () => { setLoaded(false); refreshWishlist(); };
@@ -110,6 +120,7 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
       if (!loadToken() || !isLoggedIn()) {
         apply((list) => withEntry(list, entry, !wasSaved));
         writeGuestWishlist(savedRef.current);
+        announceWishlistChanged();
         return;
       }
 
@@ -117,17 +128,17 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
       try {
         const answer = await toggleWishlistItem(variantId);
         apply((list) => withEntry(list, entry, answer.wishlisted)); // the server's answer decides (another tab may have changed it)
-        if (answer.wishlisted) {
-          const data = await getWishlist().catch(() => null); // the list page needs the details
-          if (data) { setItems(data.items); apply(() => entriesOf(data.items)); }
-        } else {
-          setItems((now) => now.filter((i) => i.variant.id !== variantId));
-        }
+        if (!answer.wishlisted) setItems((now) => now.filter((i) => i.variant.id !== variantId)); // gone from the list at once
+        // then read the list again: it needs the details of a new item, and it also picks up anything
+        // saved elsewhere in the meantime, so after a tap the screen always matches the account
+        const data = await getWishlist().catch(() => null);
+        if (data) { setItems(data.items); apply(() => entriesOf(data.items)); }
       } catch {
         apply((list) => withEntry(list, entry, wasSaved)); // the server said no: put the heart back
       }
     } finally {
       busy.current.delete(variantId);
+      announceWishlistChanged(); // other tabs of this site update too
     }
   }, [apply]);
 

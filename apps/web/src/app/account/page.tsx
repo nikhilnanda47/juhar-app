@@ -29,9 +29,9 @@ export default function AccountPage() {
   const [errorRef, setErrorRef] = useState(''); // the API's reference for the failed request
   const [orderCount, setOrderCount] = useState(0);
   const [addressCount, setAddressCount] = useState(0);
-  const { total: wishlistCount } = useWishlist();
+  const { total: wishlistCount, refreshWishlist } = useWishlist();
 
-  useEffect(() => { checkAuth(); }, []);
+  useEffect(() => { checkAuth(); refreshWishlist(); }, [refreshWishlist]);
 
   const checkAuth = async () => {
     const hasToken = loadToken();

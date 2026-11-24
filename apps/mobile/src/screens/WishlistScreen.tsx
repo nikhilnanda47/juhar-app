@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { Heart, Trash2, ShoppingBag, ChevronLeft } from 'lucide-react-native';
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
 import { addToCart, formatPaise, isLoggedIn, referenceOf } from '../services/api';
@@ -15,8 +16,11 @@ interface Props {
 export default function WishlistScreen({ navigation }: Props) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { loaded, items, toggleVariant, total } = useWishlist();
+  const { loaded, items, toggleVariant, total, refreshWishlist } = useWishlist();
   const [addingId, setAddingId] = useState<string | null>(null);
+
+  // Opening the screen always asks again, so it is never older than the last time the customer looked
+  useFocusEffect(useCallback(() => { refreshWishlist(); }, [refreshWishlist]));
 
   // Wait for the answer instead of saying "no saved items" to someone who has some
   if (!loaded) {

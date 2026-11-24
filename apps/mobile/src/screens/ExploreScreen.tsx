@@ -9,6 +9,7 @@ import {
   getCategories, getProducts, getProductFilters, formatPaise,
   type Category, type Product, type ProductFilterOptions,
 } from '../services/api';
+import { useFocusEffect } from '@react-navigation/native';
 import { useWishlist } from '../contexts/WishlistContext';
 import { appendUnique } from '../services/paging';
 import {
@@ -31,6 +32,9 @@ export default function ExploreScreen({ navigation, route }: Props) {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const { refreshWishlist } = useWishlist();
+  // the hearts are read again whenever the Shop comes back into view (something may have changed elsewhere)
+  useFocusEffect(useCallback(() => { refreshWishlist(); }, [refreshWishlist]));
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [sort, setSort] = useState<ShopSort>('newest');
   const [sortOpen, setSortOpen] = useState(false);

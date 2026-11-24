@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Heart, ShoppingBag, Trash2, ArrowLeft } from 'lucide-react';
 import { isLoggedIn, addToCart, formatPaise, referenceOf } from '@/lib/api';
@@ -8,11 +8,14 @@ import { useWishlist } from '@/lib/wishlist-context';
 import ErrorReference from '@/components/ErrorReference';
 
 export default function WishlistPage() {
-  const { loaded, items, toggleVariant, total } = useWishlist();
+  const { loaded, items, toggleVariant, total, refreshWishlist } = useWishlist();
   const [addingId, setAddingId] = useState<string | null>(null);
   const [addedId, setAddedId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [errorRef, setErrorRef] = useState(''); // the API's reference for the failed request
+
+  // Opening the page always asks again, so it is never older than the last time the customer looked
+  useEffect(() => { refreshWishlist(); }, [refreshWishlist]);
 
   // Wait for the answer instead of flashing "sign in" at someone who is already logged in
   if (!loaded) {

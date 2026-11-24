@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
   ActivityIndicator, ScrollView, Alert, Platform, RefreshControl, Switch,
@@ -13,7 +13,7 @@ import {
   getProfile, updateProfile, getAddresses, getOrders, referenceOf, type UserProfile,
 } from '../services/api';
 import { useWishlist } from '../contexts/WishlistContext';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import ErrorReference from '../components/ErrorReference';
 import { FadeInUp, ScalePress } from '../components/AnimatedUI';
 import RefreshButton from '../components/RefreshButton';
@@ -37,7 +37,9 @@ export default function ProfileScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [orderCount, setOrderCount] = useState(0);
   const [addressCount, setAddressCount] = useState(0);
-  const { total: savedCount } = useWishlist();
+  const { total: savedCount, refreshWishlist } = useWishlist();
+  // the Saved count is read again whenever this screen comes into view
+  useFocusEffect(useCallback(() => { refreshWishlist(); }, [refreshWishlist]));
 
   useEffect(() => { checkAuth(); }, []);
 
