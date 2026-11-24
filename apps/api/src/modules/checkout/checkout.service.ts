@@ -1,17 +1,15 @@
 import {
-  Injectable, BadRequestException, NotFoundException,
+  Injectable, BadRequestException, Logger, NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { InventoryService } from '../inventory/inventory.service';
 import { CheckoutQuoteDto, PlaceOrderDto } from './dto';
-import { generateOrderNumber, PaymentMode } from '@juhar/shared';
-
-// Pilot: flat shipping rate
-const SHIPPING_PAISE = 9900; // ₹99
-const FREE_SHIPPING_THRESHOLD = 500000; // ₹5,000+
+import { calculateShippingPaise, generateOrderNumber, PaymentMode } from '@juhar/shared';
 
 @Injectable()
 export class CheckoutService {
+  private readonly logger = new Logger(CheckoutService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly inventoryService: InventoryService,
@@ -69,7 +67,7 @@ export class CheckoutService {
     });
 
     const subtotalPaise = items.reduce((sum, i) => sum + i.lineTotalPaise, 0);
-    const shippingPaise = subtotalPaise >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_PAISE;
+    const shippingPaise = calculateShippingPaise(subtotalPaise);
     const taxPaise = 0; // GST included in product price for pilot
     const totalPaise = subtotalPaise + shippingPaise + taxPaise;
 
@@ -103,13 +101,17 @@ export class CheckoutService {
     });
     if (!address) throw new NotFoundException('ADDRESS_NOT_FOUND');
 
-    return this.prisma.$transaction(async (tx) => {
+    let replayed = false;
+    const order = await this.prisma.$transaction(async (tx) => {
       // 1. Idempotency check
       const existing = await tx.order.findUnique({
         where: { idempotencyKey: dto.idempotencyKey },
         include: { items: true },
       });
-      if (existing) return this.formatOrderResponse(existing);
+      if (existing) {
+        replayed = true;
+        return this.formatOrderResponse(existing);
+      }
 
       // 2. Fetch cart with current prices
       const cartItems = await tx.cartItem.findMany({
@@ -137,7 +139,7 @@ export class CheckoutService {
         if (dto.paymentMode === PaymentMode.UPI) {
           expiresAt.setMinutes(expiresAt.getMinutes() + 30); // 30 min for UPI
         } else {
-          expiresAt.setHours(expiresAt.getHours() + 24); // 24 hours for COD
+          expiresAt.setHours(expiresAt.getHours() + 24); // COD: 24h review window; the expiry job leaves COD holds alone
         }
 
         const reservation = await this.inventoryService.reserve(
@@ -150,13 +152,13 @@ export class CheckoutService {
       const subtotalPaise = cartItems.reduce(
         (sum, i) => sum + i.variant.pricePaise * i.quantity, 0,
       );
-      const shippingPaise = subtotalPaise >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_PAISE;
+      const shippingPaise = calculateShippingPaise(subtotalPaise);
       const taxPaise = 0;
       const totalPaise = subtotalPaise + shippingPaise + taxPaise;
 
-      // 5. Generate order number
-      const orderCount = await tx.order.count();
-      const publicNumber = generateOrderNumber(orderCount + 1);
+      // 5. Generate order number from the database sequence (safe for concurrent orders)
+      const [{ nextval }] = await tx.$queryRaw<{ nextval: bigint }[]>`SELECT nextval('order_number_seq') AS nextval`;
+      const publicNumber = generateOrderNumber(Number(nextval));
 
       // 6. Create order with address snapshot
       const order = await tx.order.create({
@@ -220,6 +222,14 @@ export class CheckoutService {
     }, {
       timeout: 10000, // 10s max transaction
     });
+
+    const total = `₹${(order.totalPaise / 100).toLocaleString('en-IN')}`;
+    this.logger.log(
+      replayed
+        ? `order ${order.publicNumber} returned again for the same idempotency key user=${userId}`
+        : `order placed ${order.publicNumber} total=${total} items=${order.items.length} payment=${order.paymentMode} user=${userId}`,
+    );
+    return order;
   }
 
   private formatOrderResponse(order: any) {

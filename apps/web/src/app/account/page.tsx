@@ -8,12 +8,11 @@ import {
 } from 'lucide-react';
 import {
   isLoggedIn, loadToken, requestOtp, verifyOtp, clearTokens,
-  getProfile, updateProfile, getAddresses, type UserProfile,
+  getProfile, updateProfile, getAddresses, getOrders, type UserProfile,
 } from '@/lib/api';
 import { useWishlist } from '@/lib/wishlist-context';
+import { readLocalCart, clearLocalCart } from '@/lib/cart-events';
 import { useTheme } from '@/lib/theme-context';
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 type Screen = 'loading' | 'login' | 'otp' | 'profile' | 'editName';
 
@@ -45,13 +44,8 @@ export default function AccountPage() {
 
   const fetchCounts = async () => {
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('juhar_token') : null;
-      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
-      const [ordersRes, addrs] = await Promise.all([
-        fetch(`${API_BASE}/api/v1/orders`, { headers }).then(r => r.json()),
-        getAddresses(),
-      ]);
-      setOrderCount(ordersRes.success ? (ordersRes.data.items?.length ?? 0) : 0);
+      const [orders, addrs] = await Promise.all([getOrders(), getAddresses()]);
+      setOrderCount(orders.length);
       setAddressCount(addrs.length);
     } catch {}
   };
@@ -68,13 +62,13 @@ export default function AccountPage() {
     try {
       const result = await verifyOtp('+91' + phone, otp);
       // Sync local cart
-      const localCart = JSON.parse(localStorage.getItem('juhar_local_cart') || '[]');
+      const localCart = readLocalCart();
       if (localCart.length > 0) {
         const { addToCart } = await import('@/lib/api');
         for (const item of localCart) {
           try { await addToCart(item.variantId, item.quantity); } catch {}
         }
-        localStorage.removeItem('juhar_local_cart');
+        clearLocalCart();
       }
       const p = await getProfile(); setProfile(p);
       fetchCounts();

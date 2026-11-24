@@ -1,26 +1,12 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Truck, Phone, ArrowRight, Package, BadgeCheck, Handshake } from 'lucide-react-native';
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
-import { getAddresses, getCart, formatPaise, type Address, type CartResponse } from '../services/api';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const API_BASE = __DEV__ ? 'http://localhost:3000' : 'https://api.juhar.in';
-
-async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = await AsyncStorage.getItem('juhar_token');
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
-  const json = await res.json();
-  if (!json.success) throw new Error(json.error?.message || 'Request failed');
-  return json.data;
-}
+import { getAddresses, getCart, placeOrder, formatPaise, type Address, type CartResponse } from '../services/api';
+import { shippingFor, useShippingRule } from '../services/shipping';
 
 interface Props {
   navigation: any;
@@ -35,7 +21,9 @@ export default function OrderReviewScreen({ navigation, route }: Props) {
   const [cart, setCart] = useState<CartResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [placing, setPlacing] = useState(false);
+  const [error, setError] = useState('');
   const [paymentMode] = useState<'cod'>('cod');
+  const { rule, loaded: ruleLoaded } = useShippingRule();
 
   useEffect(() => { loadData(); }, []);
 
@@ -48,26 +36,25 @@ export default function OrderReviewScreen({ navigation, route }: Props) {
     setLoading(false);
   };
 
-  const shippingPaise = (cart?.subtotalPaise ?? 0) >= 500000 ? 0 : 9900;
-  const totalPaise = (cart?.subtotalPaise ?? 0) + shippingPaise;
+  // null = the shipping rule could not be loaded; the order total is always worked out by the API when you place it
+  const shippingPaise = rule ? shippingFor(cart?.subtotalPaise ?? 0, rule) : null;
+  const totalPaise = (cart?.subtotalPaise ?? 0) + (shippingPaise ?? 0);
 
   const handlePlaceOrder = async () => {
     setPlacing(true);
+    setError('');
     try {
       const idempotencyKey = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      const order = await apiRequest<any>('/api/v1/orders', {
-        method: 'POST',
-        body: JSON.stringify({ addressId, paymentMode, idempotencyKey }),
-      });
+      const order = await placeOrder({ addressId, paymentMode, idempotencyKey });
       navigation.replace('OrderSuccess', { order });
     } catch (err: any) {
-      Alert.alert('Order Failed', err.message || 'Could not place order. Please try again.');
+      setError(err.message || 'Could not place order. Please try again.');
     } finally {
       setPlacing(false);
     }
   };
 
-  if (loading) {
+  if (loading || !ruleLoaded) {
     return <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>;
   }
 
@@ -175,12 +162,12 @@ export default function OrderReviewScreen({ navigation, route }: Props) {
           <View style={styles.priceRow}>
             <Text style={styles.priceLabel}>Shipping</Text>
             <Text style={shippingPaise === 0 ? styles.priceAccent : styles.priceValue}>
-              {shippingPaise === 0 ? 'FREE' : formatPaise(shippingPaise)}
+              {shippingPaise === null ? 'Added when you place the order' : shippingPaise === 0 ? 'FREE' : formatPaise(shippingPaise)}
             </Text>
           </View>
           <View style={styles.priceDivider} />
           <View style={styles.priceRow}>
-            <Text style={styles.totalLabel}>Total</Text>
+            <Text style={styles.totalLabel}>{shippingPaise === null ? 'Subtotal' : 'Total'}</Text>
             <Text style={styles.totalValue}>{formatPaise(totalPaise)}</Text>
           </View>
         </View>
@@ -202,10 +189,16 @@ export default function OrderReviewScreen({ navigation, route }: Props) {
         <View style={{ height: 100 }} />
       </ScrollView>
 
+      {error ? (
+        <View style={styles.errorBanner}>
+          <Text style={styles.errorBannerText}>{`Order failed: ${error}`}</Text>
+        </View>
+      ) : null}
+
       {/* Sticky Bottom */}
       <View style={styles.stickyBar}>
         <View>
-          <Text style={styles.stickyLabel}>To Pay</Text>
+          <Text style={styles.stickyLabel}>{shippingPaise === null ? 'Subtotal' : 'To Pay'}</Text>
           <Text style={styles.stickyPrice}>{formatPaise(totalPaise)}</Text>
         </View>
         <TouchableOpacity
@@ -217,7 +210,7 @@ export default function OrderReviewScreen({ navigation, route }: Props) {
           <Text style={styles.placeBtnText}>
             {placing ? 'Securing Order...' : 'Place Order'}
           </Text>
-          <Text style={styles.placeBtnPrice}>({formatPaise(totalPaise)})</Text>
+          {shippingPaise !== null && <Text style={styles.placeBtnPrice}>({formatPaise(totalPaise)})</Text>}
         </TouchableOpacity>
       </View>
     </View>
@@ -314,6 +307,11 @@ const createStyles = (colors: ColorPalette) => StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 12,
     shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.03, shadowRadius: 16, elevation: 5,
   },
+  errorBanner: {
+    position: 'absolute', bottom: 96, left: 0, right: 0,
+    backgroundColor: colors.statusCancelledBg, paddingHorizontal: spacing.margin, paddingVertical: 8,
+  },
+  errorBannerText: { fontFamily: 'DMSans-Medium', fontSize: 13, color: colors.statusCancelledText },
   stickyLabel: { fontFamily: 'DMSans-SemiBold', fontSize: 11, color: colors.textTertiary, letterSpacing: 1 },
   stickyPrice: { fontFamily: 'DMSans-Bold', fontSize: 20, color: colors.textPrimary, letterSpacing: -0.4 },
   placeBtn: {

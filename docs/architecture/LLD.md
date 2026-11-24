@@ -32,8 +32,13 @@ src/
 │   │   ├── current-user.decorator.ts
 │   │   ├── roles.decorator.ts
 │   │   └── idempotency-key.decorator.ts
+│   ├── logging/                     # Request ID, access log, logger (see 5.1)
+│   │   ├── request-id.middleware.ts
+│   │   ├── access-log.middleware.ts
+│   │   ├── app-logger.ts
+│   │   ├── request-context.ts
+│   │   └── redact.ts
 │   ├── interceptors/
-│   │   ├── logging.interceptor.ts   # Request/response logging
 │   │   └── transform.interceptor.ts # Response envelope
 │   ├── filters/
 │   │   └── http-exception.filter.ts # Standard error format
@@ -73,9 +78,9 @@ src/
 **Purpose:** OTP-based phone authentication for customers and admins.
 
 > **Implementation status (2026-11-22):**
-> - `AuthModule` binds the OTP provider to `MockOtpProvider` (fixed OTP `123456`, logged to the console). The `OTP_PROVIDER` variable in `.env.example` is not read anywhere, so a real SMS provider cannot be selected without a code change.
+> - `AuthModule` builds the OTP provider from the `OTP_PROVIDER` setting (`providers/otp-provider.factory.ts`; unset means `mock`). Only `mock` exists today (fixed OTP `123456`, logged to the console); an unknown value stops the API at startup. `validateEnv` also **refuses to start when `NODE_ENV=production` and the provider is `mock` or unset**, with a message explaining why. A real SMS provider is added by creating a class that implements `OtpProvider`, adding it to the factory and to `SUPPORTED_OTP_PROVIDERS` in `config/otp-provider.ts`.
 > - OTPs are hashed (SHA-256) and kept in an in-memory `Map` inside `AuthService`, not Redis, so they are lost on restart and not shared between instances. The 5-attempt limit and a 30-second resend cooldown are enforced there. The per-phone and per-IP limits are not (see 5.3).
-> - `verifyOtp` issues an access token (15 min) and a refresh token (7 days), and `POST /auth/refresh` works. The refresh token is returned in the JSON body, not an httpOnly cookie. The web (`localStorage` key `juhar_refresh_token`), mobile (`AsyncStorage` key `juhar_refresh`) and admin (`juhar_admin_refresh`) clients store it but never call `/auth/refresh`, so a session effectively ends when the 15-minute access token expires.
+> - `verifyOtp` issues an access token (15 min) and a refresh token (7 days), and `POST /auth/refresh` works. The refresh token is returned in the JSON body, not an httpOnly cookie. All three API clients use it the same way (admin: `apps/admin/src/services/api.ts`; web: `apps/web/src/lib/api.ts`; mobile: `apps/mobile/src/services/api.ts`). On a 401 the client calls `/auth/refresh` once (calls that fail together share one refresh), saves the new access token and repeats the failed request once (a repeated order keeps its idempotency key). Only a rejected refresh token (401, for example after 7 days) clears the login: the admin returns to `/login`, the web and mobile apps show the login form. A network error or a 5xx during refresh keeps the tokens. Sign-in calls (`/auth/otp/request`, `/auth/otp/verify`) never trigger a refresh, and neither does a client with no stored refresh token. The refresh token is stored in `localStorage` (admin `juhar_admin_refresh`, web `juhar_refresh_token`) or `AsyncStorage` (mobile `juhar_refresh`). Refresh tokens are stateless (no rotation, no revocation).
 > - `GET /auth/me` (JWT required) also exists. The token payload `type` is `admin` (plus `role`) when the phone exists in `admin_users`.
 > - There is no `throttle-otp.guard.ts`. Guards are `JwtAuthGuard`, `AdminAuthGuard` and `RolesGuard` in `modules/auth/guards/`.
 
@@ -448,7 +453,7 @@ class CreateVariantDto {
 
 | Method | Input | Output | Rules |
 |---|---|---|---|
-| `findAll(query)` | ProductQueryDto | `{ items, cursor, hasMore }` | Only `published` + `active` variants. Cursor pagination by `created_at` + `id`. Join inventory for availability. |
+| `findAll(query)` | ProductQueryDto | `{ items, cursor, hasMore }` | Only `published` + `active` variants. Cursor pagination by `created_at` + `id`. Join inventory for availability. **Sorting:** `newest` (default) orders by `created_at` descending. `price_asc` / `price_desc` order the whole filtered catalog in SQL by the cheapest active variant (`MIN(price_paise)`, the card price), ties by `id`; the page is cut from that order and the cursor is the last product's `id` on the page (an unknown cursor gives an empty page). The ids of all matching products are read on each price-sorted request, which is fine up to a few thousand products. `relevance` is not implemented and behaves like `newest`. |
 | `findBySlug(slug)` | slug | ProductDetail | Include variants (active only), media (sorted), inventory availability. 404 if not published. |
 | `create(dto, adminId)` | CreateProductDto, UUID | Product | Auto-generate slug from title. Create variants + inventory rows in transaction. Audit log. |
 | `update(id, dto, adminId)` | UUID, UpdateDto, UUID | Product | Validate category exists. Update slug if title changes (check uniqueness). Audit log with before/after. |
@@ -506,7 +511,7 @@ class VariantResponse {
 | SLUG_ALREADY_EXISTS | 409 | PROD_002 |
 | SKU_ALREADY_EXISTS | 409 | PROD_003 |
 | CATEGORY_NOT_FOUND | 400 | PROD_004 |
-| COMPARE_PRICE_INVALID | 400 | PROD_005 |
+| COMPARE_PRICE_INVALID | 400 | PROD_005 (on create, add variant and update variant; update checks the values the variant will have after the change, for example raising the price above the stored compare-at price is refused) |
 
 ---
 
@@ -567,11 +572,13 @@ Admin                    API                           S3
 
 **Purpose:** Stock tracking with atomic reservations.
 
-> **Implementation status (2026-11-22):** `getStock`, `getStockBulk`, `adjustStock` (audited), `reserve` (row lock via `SELECT … FOR UPDATE`), `releaseReservation` and the every-minute expiry cron exist in `inventory.service.ts` and `reservation-expiry.cron.ts`. There is no separate `reservation.service.ts`. Stock does **not** settle yet:
-> - **Design:** the reservation becomes `committed` when the order is confirmed and "stays reserved until fulfillment" (3.1, 3.2). The design does not spell out the final `on_hand` deduction, but the return restock (`on_hand += qty`) assumes one happens.
-> - **Code:** `commitReservation` is never called, and nothing decrements `on_hand` (only the admin `adjustStock` changes it). Reservations therefore stay `held` through confirm, pack and ship.
-> - **Consequence (oversell risk):** the cron releases every `held` reservation whose `expires_at` has passed (24 h for COD), including those of live `confirmed`, `packed` or `shipped` orders, which returns already-sold stock to the available pool.
-> - Cancelling an order does release its `held`/`committed` reservations correctly.
+> **Implementation status (2026-11-22):** `getStock`, `getStockBulk`, `adjustStock` (audited), `reserve` (row lock via `SELECT … FOR UPDATE`), `releaseReservation`, `commitOrderReservations`, `settleShipment` and the every-minute expiry cron exist in `inventory.service.ts` and `reservation-expiry.cron.ts`. There is no separate `reservation.service.ts`. Stock lifecycle as built:
+> - **Place order:** units are reserved (`reserved += qty`), reservation `held`.
+> - **Confirm** (`OrdersService.updateStatus`): `commitOrderReservations` turns the order's `held` reservations into `committed`. Numbers do not change.
+> - **Ship:** `settleShipment` runs inside the status transaction, before the shipment row is created. Per order line it locks the stock row, then `on_hand -= qty` and `reserved -= quantity still held` (0 if the hold had already expired or been released), and marks the holds `fulfilled`. If `on_hand` is lower than the line quantity it throws `409 STOCK_MISMATCH` and the whole status change rolls back (the order stays `packed`), so the admin must correct the stock count first. Since migration `20261122150000_check_constraints` the database also refuses any write that leaves `reserved + unavailable` above `on_hand`, so a wrong shelf count can no longer be saved in the first place and `STOCK_MISMATCH` is a second line of defence. `settleShipment` changes `on_hand` and `reserved` in a single `UPDATE`, which the constraint requires.
+> - **Cancel** (placed or confirmed only): `releaseReservation` gives back every `held`/`committed` hold (`reserved -= qty`), status `released`.
+> - **Expiry job:** expires `held` reservations past `expires_at` **except those of cash-on-delivery orders**, which stay until an admin confirms, ships or cancels the order (decision, 2026-11-22). Reservations with no order and non-COD holds (the future UPI flow) still expire. Expiring a UPI hold does not yet cancel its order; Phase 4 payments should do that.
+> - **Known limits:** an unconfirmed COD order holds its stock indefinitely (the admin panel flags those still `placed` after 24 hours as overdue, see the admin endpoints note below; nothing cancels them); `commitReservation(reservationId, orderId)` (single hold) exists but the order flow uses `commitOrderReservations`.
 > - Admin routes in code: `GET /admin/inventory/:variantId` and `POST /admin/inventory/adjust` (the adjust route is restricted to `owner` and `catalog_editor`).
 
 ```
@@ -677,7 +684,7 @@ async reserve(tx: PrismaTx, variantId: string, qty: number, expiresAt: Date) {
 
 **Client-side guest cart:**
 - Mobile: `apps/mobile/src/services/localCart.ts` — AsyncStorage-based, provides `addToLocalCart()`, `updateLocalCartItem()`, `removeLocalCartItem()`, `syncLocalCartToServer()`, `localCartToResponse()`
-- Web: `apps/web/src/lib/cart-context.tsx` — React context with `CartProvider`, localStorage-based, polls every 2s, exposes `useCartCount()` for badge display
+- Web: `apps/web/src/lib/cart-context.tsx` — React context with `CartProvider`, exposes `useCartCount()` for badge display. The badge does not poll: it refreshes when something calls `notifyCartChanged()` (`lib/cart-events.ts`: the cart API calls in `lib/api.ts`, `placeOrder`, login, logout and the guest-cart helpers `saveLocalCart` / `clearLocalCart`), on the `storage` event (other tabs), on window focus or when the tab becomes visible, and every 5 minutes while visible (`lib/cart-refresh.ts`). Bursts of changes are merged into one refresh (250 ms) and an older response never overwrites a newer one. Mobile does the same with `services/cartEvents.ts` and `services/cartRefresh.ts`, wired in `TabNavigator` (cart API calls, `placeOrder`, `saveTokens`/`clearTokens` and the `localCart.ts` writes announce changes; foreground = `AppState` active). **Anything new that changes the cart must call `notifyCartChanged()`**, otherwise the badge stays stale until the next focus or 5-minute refresh
 - Guest items stored as `LocalCartItem[]` with variant snapshot (title, price, color, sku)
 - On login, `syncLocalCartToServer()` iterates local items and calls `POST /api/v1/cart/items` for each, then clears local storage
 
@@ -715,7 +722,7 @@ class UpdateCartItemDto {
 class CartResponse {
   items: CartItemResponse[];
   subtotalPaise: number;
-  itemCount: number;
+  itemCount: number;              // total quantity (3 sarees = 3), same as a guest cart
 }
 
 class CartItemResponse {
@@ -766,9 +773,9 @@ class CartItemResponse {
 **Purpose:** Quote generation + atomic order placement.
 
 > **Implementation status (2026-11-22):** `POST /checkout/quote` and `POST /orders` are implemented, including the single-transaction placement, idempotency-key replay and 30 min (UPI) / 24 h (COD) reservation expiry. Differences from the design below:
-> - Shipping is a flat ₹99 (9900 paise), free when the subtotal is ≥ ₹5,000 (500000 paise). Tax is always 0 (GST is included in the price). There is no PIN-based shipping, serviceability check (`PIN_NOT_SERVICEABLE`) or COD-eligibility check; the quote always returns `codAvailable: true`.
-> - The web and mobile review screens do not call the quote endpoint. Each recomputes the same rate and threshold from the cart client-side (the rule is duplicated in several places).
-> - Order numbers come from `generateOrderNumber(order.count() + 1)` in `packages/shared`. The sequence counts all orders ever placed, so two concurrent orders can get the same number (the unique constraint then makes placement fail). `ORDER_NUMBER_PREFIX` is still `SAJ`, so new orders are `SAJ-YYYYMMDD-XXXX` while this document and `database-design.md` specify `JUH-`.
+> - Shipping is a flat ₹99 (9900 paise), free when the subtotal is ≥ ₹5,000 (500000 paise). The rule lives in one place, `SHIPPING` in `packages/shared/src/constants`, with `calculateShippingPaise()` beside it; the API charges with it, and publishes it at `GET /api/v1/config/shipping` (`{ flatPaise, freeAbovePaise }`, public, no login) so the web and mobile screens never type the numbers in. Each app has one helper file (`apps/web/src/lib/shipping.ts`, `apps/mobile/src/services/shipping.ts`) with `useShippingRule()`; if the rule cannot be fetched the screens show "added at checkout" instead of guessing, and the API still charges the right amount. A test in each app fails if a screen contains `9900`, `500000`, `5,000` or `₹99`. To change the rule: edit the constants, run `npm run build -w packages/shared`, restart the API; nothing else changes. Tax is always 0 (GST is included in the price). There is no PIN-based shipping, serviceability check (`PIN_NOT_SERVICEABLE`) or COD-eligibility check; the quote always returns `codAvailable: true`.
+> - The web and mobile review screens do not call the quote endpoint. Each works out the shipping line from the cart subtotal with the rule fetched from `GET /api/v1/config/shipping` (same function as the API, so the figure matches the order total).
+> - Order numbers come from a PostgreSQL sequence: placement runs `SELECT nextval('order_number_seq')` and passes the value to `generateOrderNumber` in `packages/shared`, giving `JUH-YYYYMMDD-XXXX` (the number part counts across all days and does not restart daily). `nextval` is safe for orders placed at the same moment; a number consumed by an order that then fails is not reused, so numbers can skip. The sequence is created by migration `20261122120000_order_number_sequence`, which starts it after the highest number already in `orders`. Orders placed before the rename may carry the old `SAJ-` prefix. (The earlier `count() + 1` approach failed 17 of 20 simultaneous orders for different products with a unique-constraint error.)
 > - Errors are thrown as plain-string exceptions (`CART_EMPTY`, `VARIANT_UNAVAILABLE: <sku>`, `ADDRESS_NOT_FOUND`, `INSUFFICIENT_STOCK` from the inventory reserve). The error envelope therefore carries `code: HTTP_<status>` with the identifier in `message`, not the `CHK_xxx` codes below.
 > - The API accepts `paymentMode: "upi"` (creating a `pending` order with a 30-minute reservation) but no payment flow exists; both clients send only `cod`.
 
@@ -950,10 +957,10 @@ async placeOrder(userId: string, dto: PlaceOrderDto) {
 
 > **Implementation status (2026-11-22):**
 > - The state machine is in `packages/shared` (`ORDER_TRANSITIONS`, `canTransitionOrder`), not `modules/orders/order-state-machine.ts`.
-> - **Customer endpoints:** `GET /orders`, `GET /orders/:id` (items and shipments; payments are not included) and `POST /orders/:id/cancel`. Cancel works for `placed`/`confirmed` only, releases `held`/`committed` reservations and stores `cancellation_reason`, but writes **no audit event**. `POST /orders/:id/return` is not implemented.
-> - **Admin endpoints:** `GET /admin/orders` (filter by `status`; `search` matches order number or phone; no date range) and `PATCH /admin/orders/:id/status` (roles `owner`, `fulfillment_operator`; transition validated; audit event written).
-> - **Side effects implemented:** `confirmed_at`/`packed_at`/`shipped_at`/`delivered_at`/`cancelled_at` timestamps; a shipment row on ship (only when a `trackingId` is sent); shipments marked delivered; reservations released on cancel. **Not implemented:** refunds, customer notifications, the 7-day return-window check, restock on return, refund creation.
-> - **Admin cancellation:** the API accepts `status: "cancelled"` for `placed`/`confirmed` orders, but `UpdateOrderStatusDto` has no `reason` field, so no `cancellation_reason` is stored for admin cancels. The admin panel has no Cancel button (its Orders page offers only Confirm → Pack → Ship → Deliver).
+> - **Customer endpoints:** `GET /orders`, `GET /orders/:id` (items and shipments; payments are not included) and `POST /orders/:id/cancel`. Cancel works for `placed`/`confirmed` only, releases `held`/`committed` reservations and stores `cancellation_reason`, but writes **no audit event**. Customer-side cancellation is out of scope for now (in discovery): no app calls this endpoint. `POST /orders/:id/return` is not implemented.
+> - **Admin endpoints:** `GET /admin/orders` (filter by `status`; `search` matches order number or phone; `overdue=true` keeps only COD orders still `placed` for more than 24 hours; no date range or payment-mode filter). Each order carries `waitingMinutes` (minutes since it was placed, only while it is `placed`, otherwise `null`) and `overdue`, and the response has `counts: { placed, overdue, today: { date, orders, gmvPaise } }` over **all** orders (not just the page or filter) for the dashboard and the filter button. `today` is the India day (UTC+5:30, midnight to midnight, worked out by `indiaDayBounds` in `apps/api/src/common/time/india-day.ts`, so it does not depend on the server's or the browser's time zone): `orders` is the number of orders placed today and `gmvPaise` the sum of their totals, with cancelled orders left out of both (an order cancelled later drops out). The dashboard's Today's Orders and GMV Today cards show these (they used to be worked out from the first page of 20 orders). The 24 hours is `INVENTORY.COD_RESERVATION_MINUTES`; an order is overdue when it is older than that (exactly 24 hours is not). The admin Orders page shows an Overdue badge, the waiting time and an Overdue (n) filter, and the dashboard shows "n overdue" under Pending, linking to `/orders?filter=overdue`. Flag only: nothing is cancelled or released automatically. The dashboard's Pending number is now `counts.placed` (it used to count only the first page of 20 orders) and `PATCH /admin/orders/:id/status` (roles `owner`, `fulfillment_operator`; transition validated; audit event written).
+> - **Side effects implemented:** `confirmed_at`/`packed_at`/`shipped_at`/`delivered_at`/`cancelled_at` timestamps; a shipment row on ship (only when a `trackingId` is sent); shipments marked delivered; reservations released on cancel; holds committed on confirm; stock taken off `on_hand` on ship (`409 STOCK_MISMATCH` if the shelf count is too low). **Not implemented:** refunds, customer notifications, the 7-day return-window check, restock on return, refund creation.
+> - **Admin cancellation:** `PATCH /admin/orders/:id/status` with `status: "cancelled"` is allowed for `placed`/`confirmed` orders and **requires a `reason`** (`UpdateOrderStatusDto`: trimmed, non-blank, max 255, enforced both by the request validation and in `OrdersService.updateStatus`). The reason is stored as `cancellation_reason` and in the audit entry's `after_state`. The admin Orders page shows a Cancel button for placed and confirmed orders; it opens a dialog that needs a reason, shows the API's refusal inside the dialog (for example if someone else already packed the order) and releases the stock on success. Packed orders cannot be cancelled (open decision 12 in the HLD).
 > - **Return/refund statuses** can be set through the admin endpoint (the state machine allows them) but the admin panel has no UI for them. The web order screens display them; the mobile order detail does not yet (it only special-cases `cancelled`).
 
 ```
@@ -1729,18 +1736,22 @@ class GlobalExceptionFilter implements ExceptionFilter {
 
 ### 5.1 Request Logging
 
-```typescript
-// Every request logs:
-{
-  requestId: "req_abc123",
-  method: "POST",
-  path: "/api/v1/orders",
-  userId: "user-uuid",       // From JWT
-  userType: "customer",
-  statusCode: 201,
-  durationMs: 145,
-  timestamp: "2026-11-13T10:30:00Z"
-}
+> **Implementation status (2026-11-23):** Logging is implemented as plain text lines (no JSON yet; JSON logs and error reporting are a separate task) in `apps/api/src/common/logging/`, set up in `main.ts`:
+>
+> - **Request ID:** `requestIdMiddleware` gives every request one ID (a valid `X-Request-Id` sent by the caller is reused: 8 to 64 letters, digits, `.`, `_`, `-`; anything else is replaced by a UUID). The same ID is in every log line of the request, in the reply's `requestId` (success and error) and in the `X-Request-Id` response header (exposed to browsers through CORS). It travels through the request with `AsyncLocalStorage` (`request-context.ts`), so lines written deep in a service carry it too.
+> - **Access log:** `createAccessLogMiddleware` writes one line per request when the response has been sent, so failures, rejected logins, rate-limited calls and unknown routes are logged too: `GET /api/v1/cart 200 12ms user=<id|anon>`, plus `code=<error code> "<message>"` for errors. 5xx is logged as an error, 4xx as a warning, everything else as normal output. `/health` and browser preflight (`OPTIONS`) requests are only logged at `debug`. Query strings, request bodies and headers are never logged. `user=` is `anon` for login requests because the caller is not authenticated until they succeed; the `login ok user=...` line has the ID.
+> - **Errors:** `HttpExceptionFilter` logs a 5xx with its message and stack (never sent to the client); a 4xx adds no extra line (the access line has the status, code and message), only a `debug` line with the field details.
+> - **Events (normal level):** `order placed <number> total=... items=... payment=... user=...` (or `returned again for the same idempotency key`), `order <number> <from> -> <to> by admin <id>` (cancellations say `(reason recorded)`, the text is not logged), `order ... cancelled by the customer`, `otp sent to +91******3210`, `login ok user=... type=... new=...`; warnings: `insufficient stock variant=... requested=... available=...`, `STOCK_MISMATCH sku=... on_hand=... needed=...`, `otp verify failed for +91******3210 (attempt n of 5)`, `Rate limit reached ...`.
+> - **Privacy:** `AppLogger` masks Indian mobile numbers (`+91******3210`) and login tokens (`[token]`) in anything that is logged, as a safety net; the code also avoids logging them. The dev-only mock OTP line still prints the code.
+> - **LOG_LEVEL:** `error`, `warn`, `log` (default), `debug` or `verbose`; each includes the quieter ones; an unknown value stops the API at startup. In production (or with `NO_COLOR` set) lines have no colour codes.
+> - **Finding a request:** take the `requestId` from a reply (or the `X-Request-Id` header) and search the logs for `req=<id>`. The apps do not show the ID to the customer yet.
+
+```
+Example (one order, lines shortened):
+LOG [HTTP] req=bf1fd942-... POST /api/v1/orders 201 23ms user=6e7e4675-...
+LOG [CheckoutService] req=bf1fd942-... order placed JUH-20261123-0096 total=₹1,599 items=1 payment=cod user=6e7e4675-...
+WARN [InventoryService] req=84f9f661-... insufficient stock variant=8b4c8006-... requested=5 available=2
+WARN [HTTP] req=84f9f661-... POST /api/v1/orders 409 12ms user=6e7e4675-... code=HTTP_409 "INSUFFICIENT_STOCK"
 ```
 
 ### 5.2 Response Envelope
@@ -1758,7 +1769,14 @@ class GlobalExceptionFilter implements ExceptionFilter {
 
 ### 5.3 Rate Limiting
 
-> **Implementation status (2026-11-22):** The limits in this table are **not enforced**. `ThrottlerModule.forRoot` defines a global `short` bucket (100 requests/min) and `POST /auth/otp/request` carries `@Throttle({ short: { ttl: 600000, limit: 3 } })`, but no `ThrottlerGuard` is registered (no `APP_GUARD`, no `@UseGuards(ThrottlerGuard)`), so neither takes effect. Even once registered, `@nestjs/throttler` tracks by client IP by default, so the per-phone limit would need a custom tracker. The `RATE_LIMITS` constants in `packages/shared` are unused. What is enforced today is the OTP verify limit (5 attempts per OTP) and a 30-second OTP resend cooldown, both held in memory in `AuthService`.
+> **Implementation status (2026-11-22):** Rate limiting is enforced by `ThrottlingModule` (`apps/api/src/common/throttling/`), which `AppModule` imports and which registers `AppThrottlerGuard` as a global guard. The limits live in `throttler.config.ts` (`THROTTLE_LIMITS`; the `RATE_LIMITS` constants in `packages/shared` are the original design values and are not used). Differences from the table below:
+> - **Counting:** every endpoint allows 100 requests a minute **per logged-in user** (the user ID from the verified access token, so customers who share an IP do not block each other). Callers with no valid token (logged out, expired, forged) are counted **per IP**. There is no separate 30 per minute public limit. `GET /health` is not limited.
+> - **OTP endpoints** (`@OtpThrottle()`) also have two window counters of 10 minutes each, one per phone number (taken from the request body) and one per IP: `POST /auth/otp/request` 3 per phone and 10 per IP; `POST /auth/otp/verify` 5 per phone and 20 per IP. The per-IP request limit is 10 minutes, not 1 hour. The limit applies before validation, so malformed requests count, and a correct code is refused while the phone is blocked.
+> - **Blocked calls** return 429 with code `RATE_LIMITED`, the message "Too many attempts. Please wait a few minutes and try again." and a `Retry-After` header. The web and mobile login screens show that message.
+> - **Client IP:** the limits read `req.ip`. Behind a proxy set `TRUST_PROXY` (number of proxies, for example `1`), otherwise every caller shares the proxy's address and the per-IP limits would block everyone together. In production the API logs a warning at startup if it is not set. `X-Forwarded-For` is ignored when it is not set, so it cannot be spoofed.
+> - **Storage:** counters are in memory, so they reset on restart and are per instance. Moving them to Redis belongs with the OTP store (step 26).
+> - Also enforced in `AuthService`: 5 attempts per OTP and a 30-second resend cooldown, held in memory.
+> - Known trade-off: someone who knows a phone number can use up its OTP allowance and delay that person's login for up to 10 minutes.
 
 | Endpoint | Limit | Window |
 |---|---|---|
@@ -1781,7 +1799,7 @@ class GlobalExceptionFilter implements ExceptionFilter {
 - `apps/api/src/config/env.validation.ts` exports `validateEnv`, wired in `app.module.ts` as `ConfigModule.forRoot({ isGlobal: true, envFilePath: ['.env.local', '.env'], validate: validateEnv })`. It is a plain function with no Joi or Zod dependency.
 - **Required variables:** `DATABASE_URL`, `JWT_SECRET`, `JWT_REFRESH_SECRET`. If any is missing or blank the API refuses to start and names each one: `Missing required environment variables: <names>. Copy apps/api/.env.example to apps/api/.env and set them.`
 - **CORS:** `main.ts` reads `CORS_ORIGINS` (comma separated). When set, it **replaces** the built-in defaults, which are `http://localhost:3001` (web), `http://localhost:3002` (admin) and `http://localhost:8081` (mobile web preview). `.env.example` lists all three.
-- Other variables in `.env.example` (`PORT`, `NODE_ENV`, `OTP_PROVIDER`, `PAYMENT_GATEWAY`, `S3_*`) are not validated. `OTP_PROVIDER` is not read by any code yet (see 2.1).
+- `OTP_PROVIDER` is validated (supported values only; `mock` is refused in production, see 2.1). Other variables in `.env.example` (`PORT`, `NODE_ENV`, `PAYMENT_GATEWAY`, `S3_*`) are not validated.
 - `.env` is read only at process start, so changing it requires restarting the API.
 
 ---
@@ -1927,6 +1945,8 @@ apps/web/
 
 ### 8.3 Core Shopping Flow
 
+> **API calls (2026-11-22):** Every screen reaches the API through the shared client (`apps/mobile/src/services/api.ts`; `apps/web/src/lib/api.ts` on the web). Orders use `getOrders()`, `getOrder(id)` and `placeOrder({ addressId, paymentMode, idempotencyKey })`, which load the saved token before calling. No screen has its own `fetch` or its own copy of `API_BASE` any more, so changes such as token refresh (step 24) only need to be made in one place per app. Order payloads are still typed loosely (`any`).
+>
 > **Implementation status (2026-11-22):** The Cart tab works for guests (local cart, key `juhar_local_cart`, synced to the server after login) as well as for logged-in users. Order Review does not call `POST /checkout/quote`: it computes totals client-side from the cart. Placing the order is `POST /orders` from Order Review (there is no `POST /checkout/place`), and Order Success shows the returned order. Only COD is offered.
 
 | Screen | Component | Route | Data Source |
@@ -2001,3 +2021,9 @@ TabNavigator (5 tabs)
 - **Toggle:** on `ProfileScreen`, a "Dark Mode / Light Mode" row with a `Switch` in the menu card when logged in, and a Sun/Moon icon button at the right of the "Account" header when logged out (phone-number screen only; the OTP and name-capture screens have none).
 - **Rule for new UI:** use semantic tokens (`background`, `surface`, `surfaceAlt`, `textPrimary`, `statusDeliveredBg`, …) rather than hex values. Fixed colors are acceptable only on brand-coloured backgrounds, such as a white check mark on a coloured circle.
 - **React Native 0.88:** `StyleSheet.absoluteFillObject` was removed; use `StyleSheet.absoluteFill`.
+
+### 8.9 Messages and copying text
+
+- **Do not call `Alert.alert` directly for errors.** It does nothing in the Expo web preview (`expo start --web`), so the message is silently lost. Use `showAlert(title, message)` from `src/utils/showAlert.ts`, which uses `window.alert` on web and `Alert.alert` on devices. Errors on the main flows are also shown on the screen itself (Add Address, Place Order), which works everywhere.
+- **Copy buttons use `useCopyToClipboard`** (`src/utils/useCopyToClipboard.ts`, built on `expo-clipboard`): it copies the text, returns which button was copied so the label can switch to "Copied" for about 1.5 seconds, and falls back to showing the text if the clipboard is unavailable.
+- The logout confirmation in `ProfileScreen` keeps its own web check (`window.confirm`) because it needs a yes/no answer.

@@ -64,7 +64,7 @@ Juhar is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce pl
 | 11 | Account — split-panel login, profile with sidebar (desktop) | ✅ |
 | 12 | Light / dark mode — toggle in the desktop header and the Account menu; choice is remembered, no flash on load | ✅ |
 
-### Admin Panel (Web) — 14 features working
+### Admin Panel (Web) — 15 features working
 
 | # | Feature | Status |
 |---|---------|--------|
@@ -82,13 +82,13 @@ Juhar is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce pl
 | 12 | Confirm → Pack → Ship → Deliver order status flow | ✅ |
 | 13 | Ship with tracking ID and courier name | ✅ |
 | 14 | Logout | ✅ |
+| 15 | Cancel a placed or confirmed order with a required reason (releases the reserved stock) | ✅ |
 
 ### Not Yet Built
 
 | Feature | Planned Phase |
 |---------|--------------|
 | Real OTP/SMS provider (login currently uses a mock that accepts `123456`) | Before launch |
-| Admin: cancel an order (UI + cancellation reason) | Phase 3.5 |
 | Dark mode for the admin panel; follow the device's light/dark setting | Post-pilot |
 | Real product images (using placeholders) | Phase 5 |
 | UPI/online payment | Phase 4 |
@@ -110,17 +110,13 @@ Juhar is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce pl
 Open items as of 2026-11-22, grouped by urgency. The team tracker holds owners and deadlines; this list is the code-level summary.
 
 ### Security and reliability — fix before real users
-- **Mock login.** OTP login uses a mock provider that always accepts `123456`, so anyone can sign in as any phone number, including the seeded admin. The `OTP_PROVIDER` environment variable is not read yet, and OTP codes are kept in server memory (lost on restart, not shared across instances).
-- **Rate limiting is not enforced.** The throttler is configured, and the OTP endpoint is annotated, but no throttler guard is registered.
-- **Sessions end after 15 minutes.** Web, mobile and admin store the refresh token but never call `/auth/refresh`.
-- **Stock does not settle.** Reservations are never committed and `on_hand` is not decremented when an order ships, while the expiry job releases held reservations (24 hours for COD) even for live orders. This risks overselling.
+- **Mock login.** OTP login uses a mock provider that always accepts `123456`, so anyone can sign in as any phone number, including the seeded admin. The `OTP_PROVIDER` setting is read (only `mock` is supported until a real SMS provider is built), and the API **refuses to start with `NODE_ENV=production`** while it is `mock` or unset, so the mock cannot reach customers by accident. OTP codes are kept in server memory (lost on restart, not shared across instances).
 
 ### Orders and catalog
-- **Order numbers.** Generated from `count() + 1`, which can collide under concurrent orders, and still use the prefix `SAJ-` (the design specifies `JUH-`).
-- **Price sorting** (`price_asc` / `price_desc`) only sorts within each page of results.
-- **Cancellations.** Customer cancellations write no audit event. Admins cannot cancel from the admin panel, and the API stores no cancellation reason for admin cancels.
+- **Cash-on-delivery stock holds do not expire.** A COD order reserves its units until an admin confirms, ships or cancels it, so an order nobody acts on keeps that stock locked. The admin panel flags these: a COD order still `placed` after 24 hours gets an **Overdue** badge and its waiting time on the Orders page, an **Overdue (n)** filter, and an "n overdue" link under the dashboard's Pending count. Nothing is cancelled automatically. Unpaid UPI holds still expire after 30 minutes, but that does not cancel the order (payments are Phase 4).
+- **Order numbers can skip.** They come from a database sequence (`order_number_seq`), so a number used by an order that then fails is not reused. Orders placed before the `JUH-` rename keep their old `SAJ-` numbers.
+- **Cancellations.** Customer-side order cancellation is out of scope for now (in discovery). An API endpoint for it exists but no app uses it, and it writes no audit entry (admin cancellations do).
 - **Support number.** The "Need help?" link on the web order page uses a placeholder WhatsApp number (WhatsApp integration is pending).
-- **Database `CHECK` constraints** described in `docs/architecture/database-design.md` (non-negative stock, positive quantities) are not in the migration; they are enforced in application code only.
 
 ### Dark mode follow-ups
 - Web: visitors who are logged out on a phone-width screen have no theme toggle (the header toggle is desktop-only and the Account menu only appears after login).
@@ -128,11 +124,8 @@ Open items as of 2026-11-22, grouped by urgency. The team tracker holds owners a
 - A few mobile screens (product detail, welcome) use fixed colours that need a visual check in dark mode.
 
 ### Engineering hygiene
-- No automated tests exist (the CI test step passes with none).
+- Test coverage is early: the order state machine, stock (reserve, release, commit, ship, adjust, expiry job), admin order status changes, checkout (quote, order placement, shipping and totals) and rate limiting have tests (`npm test -w apps/api`). The automatic token refresh in the admin, web and mobile API clients is also tested (`npm test -w apps/admin`, `npm test -w apps/web`, and `npm test` inside `apps/mobile`). Auth, cart, the orders service, products and the web and mobile screens are not covered yet. Most of these tests use a fake database, so they cannot prove real concurrent locking or real SQL. The one exception is the test of the database `CHECK` constraints (`apps/api/src/database/check-constraints.spec.ts`), which runs against a real migrated Postgres only when you set `DB_TESTS=1` (CI does): `cd apps/api && npx prisma migrate deploy && DB_TESTS=1 npm test -- check-constraints`.
 - No ESLint configuration, so the `lint` scripts do not run.
-- Some mobile and web screens call the API with raw `fetch` and their own copy of `API_BASE` instead of the shared API client.
-- The cart badge polls the server every 2–3 seconds.
-- The shipping rate and free-shipping threshold are duplicated between the API and the mobile cart screen.
 - `apps/mobile/src/navigation/TabNavigator.tsx` has `@ts-nocheck`.
 
 ## Tech Stack
@@ -245,7 +238,7 @@ Full spec: [`docs/api/openapi.yaml`](docs/api/openapi.yaml)
 - **State machine enforcement** — server validates every order status transition
 - **Audit trail** — every admin mutation logged with actor + before/after state
 - **RBAC guards** — owner bypasses all, role-specific access for others
-- **Reservation expiry** — cron releases held stock every minute
+- **Stock lifecycle** — placing an order reserves units; confirming commits the hold; shipping takes the units off `on_hand` and releases the hold; cancelling (while placed or confirmed) gives the units back. A cron job expires only non-COD holds, every minute
 
 ## Theming (Light / Dark Mode)
 
@@ -261,10 +254,10 @@ GitHub Actions (`.github/workflows/ci.yml`) runs four jobs in parallel on Node 2
 
 | Job | What it checks |
 |-----|----------------|
-| API | Install, Prisma generate, typecheck (shared + API), tests, build — with a Postgres service |
-| Web | Typecheck and `next build` |
-| Admin | Typecheck and `next build` |
-| Mobile | `npm ci` inside `apps/mobile` (it is not an npm workspace), then typecheck |
+| API | Install, Prisma generate, apply migrations and check the schema matches them (against a Postgres service), typecheck (shared + API), tests, build |
+| Web | Typecheck, tests and `next build` |
+| Admin | Typecheck, tests and `next build` |
+| Mobile | `npm ci` inside `apps/mobile` (it is not an npm workspace), then typecheck and tests |
 
 It runs on pushes to `main` and `develop-*`, on pull requests into `main`, and manually from the Actions tab. A newer push cancels the older run on the same branch. A fifth job named `build` is a gate that depends on the other four and fails unless they all pass.
 
@@ -273,10 +266,10 @@ It runs on pushes to `main` and `develop-*`, on pull requests into `main`, and m
 To run the same checks locally:
 
 ```bash
-npm run typecheck -w apps/web && npm run build -w apps/web
-npm run typecheck -w apps/admin && npm run build -w apps/admin
+npm run typecheck -w apps/web && npm test -w apps/web && npm run build -w apps/web
+npm run typecheck -w apps/admin && npm test -w apps/admin && npm run build -w apps/admin
 npm run typecheck -w apps/api
-(cd apps/mobile && npm run typecheck)
+(cd apps/mobile && npm run typecheck && npm test)
 ```
 
 ## Development Roadmap
@@ -361,6 +354,14 @@ psql postgres -c "CREATE DATABASE juhar_dev OWNER juhar;"
 psql postgres -c "GRANT ALL PRIVILEGES ON DATABASE juhar_dev TO juhar;"
 ```
 
+**Linux (apt):** `psql postgres` fails for your normal user ("role ... does not exist"). Run the same three commands as the `postgres` user instead, for example:
+
+```bash
+sudo -u postgres psql -c "CREATE USER juhar WITH PASSWORD 'juhar_dev_password' CREATEDB;"
+sudo -u postgres psql -c "CREATE DATABASE juhar_dev OWNER juhar;"
+sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE juhar_dev TO juhar;"
+```
+
 </details>
 
 <details>
@@ -392,6 +393,8 @@ Or use **pgAdmin GUI:**
 docker compose up -d
 ```
 
+This starts only PostgreSQL (same user, password and database name as Option A). The apps themselves still run with `npm`, as in step 7.
+
 ### 3. Install dependencies
 
 ```bash
@@ -414,7 +417,7 @@ cp apps/api/.env.example apps/api/.env
 # Defaults work for local dev
 ```
 
-The API checks its environment at startup and refuses to start, naming the variable, if `DATABASE_URL`, `JWT_SECRET` or `JWT_REFRESH_SECRET` is missing. If you set `CORS_ORIGINS`, it **replaces** the built-in list, so include every app that calls the API: web (`http://localhost:3001`), admin (`http://localhost:3002`) and the mobile web preview (`http://localhost:8081`).
+The API checks its environment at startup and refuses to start, naming the variable, if `DATABASE_URL`, `JWT_SECRET` or `JWT_REFRESH_SECRET` is missing. If the API runs behind a proxy (Railway, nginx), set `TRUST_PROXY` to the number of proxies in front of it (for example `1`); otherwise the rate limits see every customer as the proxy's address. Leave it unset for local development. If you set `CORS_ORIGINS`, it **replaces** the built-in list, so include every app that calls the API: web (`http://localhost:3001`), admin (`http://localhost:3002`) and the mobile web preview (`http://localhost:8081`).
 
 > **Windows (if `cp` not available):**
 > ```powershell
@@ -426,10 +429,14 @@ The API checks its environment at startup and refuses to start, naming the varia
 ```bash
 cd apps/api
 npx prisma generate
-npx prisma migrate dev
+npx prisma migrate deploy
 npx ts-node prisma/seed.ts    # Seeds 4 categories, 8 products, 11 variants, 1 admin
 cd ../..
 ```
+
+> **If `prisma migrate deploy` fails with a message starting "Cannot add the CHECK constraints":** some rows already in your database break a rule (for example stock reserved beyond what is on hand). The message lists each problem and the `SELECT` that finds the rows; nothing was changed. Fix or delete those rows, then run `npx prisma migrate resolve --rolled-back 20261122150000_check_constraints` (Prisma refuses to continue after a failed migration until you do) and `npx prisma migrate deploy` again. If you do not need the data, `npx prisma migrate reset` rebuilds the local database from scratch (it deletes everything, so then run the seed again).
+
+> **If `prisma migrate dev` fails with `P3014` ("could not create the shadow database"):** your database user is not allowed to create databases, and `migrate dev` needs that to compare migrations against a temporary database. To apply existing migrations, use `npx prisma migrate deploy` instead (it needs no extra permission). To create new migrations yourself, grant the permission once: `psql postgres -c "ALTER USER juhar CREATEDB;"` (run as your Postgres superuser).
 
 ### 6. The shared package
 
@@ -451,7 +458,6 @@ npm run dev
 
 # Terminal 2 — Customer Website (localhost:3001)
 cd apps/web
-npm install        # first time only
 npm run dev
 
 # Terminal 3 — Admin Panel (localhost:3002)
@@ -486,12 +492,30 @@ cd apps/mobile && npx expo start --web
 cd apps/api && npx prisma studio
 ```
 
+The API, website and admin panel are covered by the root `npm install` in step 3; the mobile app needs its own (`apps/mobile`).
+
+> **Mobile app:** it runs in the browser preview at `localhost:8081`. A phone or Expo Go cannot reach `localhost` on your computer, and the API address is fixed in `apps/mobile/src/services/api.ts`, so testing on a real device needs that address changed first.
+
 ### 8. Test login
 
 - **Website**: `localhost:3001/account` → `+919876543210` → OTP `123456`
 - **Mobile App**: Account tab → `+919876543210` → OTP `123456`
 - **Admin Panel**: `localhost:3002` → same phone/OTP
 - Dev mode always accepts OTP `123456`
+- The seeded admin is `+919876543210`. Any other Indian mobile number (`+91` then 10 digits starting 6 to 9) signs in as a new customer.
+- OTP login is rate limited: 3 OTP requests and 5 verify attempts per phone number per 10 minutes. If you see "Too many attempts. Please wait a few minutes and try again", wait, or restart the API (the counters are in its memory).
+
+### Reading the API logs
+
+Every request gets one ID. It is in the `requestId` of the reply, in the `X-Request-Id` response header, and at the start of every log line for that request as `req=<id>`. To follow one request, search the API's terminal (or the Railway logs) for that ID:
+
+```
+LOG  [HTTP] req=bf1fd942-... POST /api/v1/orders 201 23ms user=6e7e4675-...
+LOG  [CheckoutService] req=bf1fd942-... order placed JUH-20261123-0096 total=₹1,599 items=1 payment=cod user=6e7e4675-...
+WARN [HTTP] req=84f9f661-... POST /api/v1/orders 409 12ms user=6e7e4675-... code=HTTP_409 "INSUFFICIENT_STOCK"
+```
+
+Successful requests are normal lines, client mistakes (wrong OTP, bad input, unknown page) are warnings without a stack trace, and real failures (500) are errors with the stack. Phone numbers are masked (`+91******3210`) and tokens, request bodies, addresses and query strings are never logged. Set `LOG_LEVEL` in `apps/api/.env` to `error`, `warn`, `log` (default), `debug` or `verbose` to change how much is written; in production the lines have no colour codes. The apps do not show the request ID to customers yet.
 
 ### After you `git pull`
 
@@ -501,11 +525,20 @@ Check what changed (`git diff HEAD@{1} --stat`), then use this table. Dev server
 |----------------------|---------|---------|
 | Dependencies (`package.json`, `package-lock.json`) | Stop the dev servers, run `npm install` at the root (and in `apps/mobile` if its `package.json` changed) | Everything you stopped |
 | `packages/shared/src` | `npm run build -w packages/shared` | API |
-| `apps/api/prisma/schema.prisma` or a new migration | `cd apps/api && npx prisma migrate dev && npx prisma generate` | API and Prisma Studio |
+| `apps/api/prisma/schema.prisma` or a new migration | `cd apps/api && npx prisma migrate deploy && npx prisma generate` (applies the new migrations; safe to run when nothing is pending) | API and Prisma Studio |
 | `apps/api/.env.example` (new variables) | Copy the new variables into your own `apps/api/.env` | API |
 | `tsconfig.json`, `next.config.js`, `tailwind.config.ts` or `layout.tsx` in `apps/web` / `apps/admin` | — | That app's dev server |
 | Source files only in `apps/web`, `apps/admin`, `apps/mobile` | — | Nothing (hot reload) |
 | Docs or CI files only | — | Nothing |
+
+### Working on a change
+
+`main` is protected: nobody pushes to it directly. Work on your own branch and open a pull request.
+
+1. Create a branch named `develop-<yourname>` (CI runs on every push to `main` and `develop-*`): `git checkout -b develop-<yourname>`
+2. Push it with `git push -u origin develop-<yourname>` and open a pull request into `main`.
+3. The pull request needs **1 approving review** and a passing `build` check (the CI gate job). History on `main` must stay linear, so merge with **Squash and merge** or **Rebase and merge**, not a plain merge commit.
+4. After a squash merge, bring `main` back into your branch so your next pull request only shows new work: `git checkout develop-<yourname> && git pull origin main`, then `git push`.
 
 ### Useful commands
 
@@ -516,13 +549,20 @@ Check what changed (`git diff HEAD@{1} --stat`), then use this table. Dev server
 | `npm run dev:admin` | Root | Start admin panel |
 | `cd apps/mobile && npx expo start --web` | Root | Start mobile app (web preview) |
 | `cd apps/api && npx prisma studio` | Root | Visual database browser |
-| `cd apps/api && npx prisma migrate dev --name <name>` | Root | Create new migration |
+| `cd apps/api && npx prisma migrate deploy` | Root | Apply migrations that already exist (use this after `git pull`; no extra database permission needed) |
+| `cd apps/api && npx prisma migrate dev --name <name>` | Root | Create a new migration (needs the database user to be allowed to create databases, see the `P3014` note in step 5) |
 | `cd apps/api && npx prisma generate` | Root | Regenerate Prisma client |
 | `cd apps/api && npx ts-node prisma/seed.ts` | Root | Re-seed database |
 | `psql -U juhar -d juhar_dev` | Anywhere | Connect to database CLI |
 | `cd apps/mobile && npx expo start --web --clear` | Root | Mobile with cleared cache |
 | `npm run build -w packages/shared` | Root | Rebuild the shared package after editing it |
 | `npm run typecheck -w apps/web` (or `apps/admin`, `apps/api`) | Root | Typecheck one app |
+| `npm test -w apps/api` | Root | Run the API unit tests (Jest, no database needed) |
+| `npm test -w apps/admin` | Root | Run the admin unit tests (Jest) |
+| `npm test -w apps/web` | Root | Run the website unit tests (Jest) |
+| `cd apps/mobile && npm test` | Root | Run the mobile unit tests (Jest) |
+| `npm test` | Root | Run the API, admin and website tests together (mobile has its own, above) |
+| `cd apps/api && DB_TESTS=1 npm test -- check-constraints` | Root | Also run the database tests against your migrated local database (they roll back and leave no data) |
 | `npm run build:web` | Root | Production build of the website (catches errors dev mode hides) |
 
 ### Service ports

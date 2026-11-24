@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
-import { ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlingModule } from './common/throttling/throttling.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { CategoriesModule } from './modules/categories/categories.module';
@@ -25,14 +25,8 @@ import { validateEnv } from './config/env.validation';
       validate: validateEnv,
     }),
 
-    // Rate limiting
-    ThrottlerModule.forRoot([
-      {
-        name: 'short',
-        ttl: 60000, // 1 minute
-        limit: 100, // 100 requests per minute per user
-      },
-    ]),
+    // Rate limiting (registers the guard for every route)
+    ThrottlingModule,
 
     // Cron jobs (reservation expiry worker)
     ScheduleModule.forRoot(),

@@ -72,7 +72,8 @@ export class CartService {
     return {
       items: cartItems,
       subtotalPaise,
-      itemCount: cartItems.length,
+      // total pieces in the bag (3 sarees = 3), the same number a guest cart shows
+      itemCount: cartItems.reduce((sum, i) => sum + i.quantity, 0),
     };
   }
 

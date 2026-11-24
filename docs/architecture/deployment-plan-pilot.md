@@ -327,13 +327,15 @@ DATABASE_URL=postgresql://postgres.[project-ref]:[password]@aws-0-ap-south-1.poo
 # ── Auth ──
 JWT_SECRET=<random-64-char-string>                    # REQUIRED
 JWT_REFRESH_SECRET=<different-random-64-char-string>  # REQUIRED
-OTP_PROVIDER=msg91                                    # not read by the code yet (mock provider is hard-wired)
+OTP_PROVIDER=msg91                                    # read at startup, but only "mock" is supported yet; the API refuses to start in production with "mock" or unset, so production cannot go live until a real provider is built
 MSG91_AUTH_KEY=<msg91-auth-key>                       # not read by the code yet
 MSG91_TEMPLATE_ID=<msg91-template-id>                 # not read by the code yet
 
 # ── Server ──
 PORT=3000
 NODE_ENV=production
+LOG_LEVEL=log                                         # error, warn, log, debug or verbose (optional; log is the default)
+TRUST_PROXY=1                                         # proxies in front of the API; needed so rate limits see each caller's real IP (see the security checklist)
 CORS_ORIGINS=https://juhar.co.in,https://www.juhar.co.in,https://admin.juhar.co.in   # replaces the built-in local origins
 
 # ── Storage ──   (planned: no code reads these yet)
@@ -352,7 +354,7 @@ PAYMENT_GATEWAY=mock
 > **Implementation status (2026-11-22):** The API reads only `DATABASE_URL`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, `CORS_ORIGINS` and `PORT`.
 > - **Required at startup:** `DATABASE_URL`, `JWT_SECRET` and `JWT_REFRESH_SECRET` are checked when the API boots (`apps/api/src/config/env.validation.ts`). If any is missing or blank, the process exits and the error names the missing variables. A missing refresh secret used to be silently replaced by `JWT_SECRET`; that is no longer possible.
 > - **CORS:** when `CORS_ORIGINS` is set, it **replaces** the built-in list of local origins (`localhost:3001`, `3002` and `8081`), it does not add to it. Production must therefore list every browser origin that calls the API (customer website, `www`, admin panel, and any others).
-> - **OTP:** `OTP_PROVIDER` and the `MSG91_*` values have no effect yet. `AuthModule` always uses the mock provider with the fixed code `123456`. Production must not go live until a real provider is wired (see HLD section 9).
+> - **OTP:** `OTP_PROVIDER` is read at startup but only `mock` (fixed code `123456`) is supported yet; the `MSG91_*` values have no effect. With `NODE_ENV=production` the API refuses to start while the provider is `mock` or unset, so production cannot go live until a real provider is built (see HLD section 9).
 > - **Storage and payments:** the `R2_*`, `PAYMENT_GATEWAY` and `RAZORPAY_*` values belong to modules that are not built yet.
 > - **Web and admin:** `NEXT_PUBLIC_API_URL` (set in the Vercel projects, see 2.2 and 2.3) is the only variable these apps read.
 
@@ -391,7 +393,7 @@ PAYMENT_GATEWAY=mock
 
 ### Monitoring (Free)
 
-- [ ] Railway built-in logs and metrics
+- [ ] Railway built-in logs and metrics. The API logs one line per request with `req=<request id>` (the same ID is in every reply as `requestId` and in the `X-Request-Id` header), so a customer's reported ID finds the whole story by searching the logs. Set `LOG_LEVEL` (default `log`; `warn` is quieter). Production lines have no colour codes
 - [ ] Supabase dashboard (DB stats, connections, storage)
 - [ ] Vercel analytics (customer website + admin panel)
 - [ ] Cloudflare analytics (image requests, bandwidth)
@@ -406,15 +408,14 @@ PAYMENT_GATEWAY=mock
 - [ ] JWT secrets are strong random strings (64+ characters)
 - [ ] R2 bucket is private (images served via public URL prefix, not direct bucket access)
 - [ ] CORS restricted to production domains only
-- [ ] Rate limiting enabled on OTP endpoints
+- [x] Rate limiting enabled on OTP endpoints (done in code 2026-11-22). After the first deploy, check it counts each customer separately: set `TRUST_PROXY=1`, ask for OTPs for 11 different numbers from one network (the 11th must be blocked), then try from a different network such as mobile data (must NOT be blocked). If the second network is blocked too, the API is seeing the proxy's address and `TRUST_PROXY` has the wrong value
 - [ ] No secrets in code — all in environment variables
 - [ ] Admin panel behind OTP auth (no password-based login)
 - [ ] Webhook signatures verified (when payments added)
 
-> **Implementation status (2026-11-22):** Three items above are **not yet true in the code** and block a real launch:
-> - **Rate limiting on OTP endpoints:** configured but not enforced, because no throttler guard is registered.
-> - **OTP login:** the mock provider accepts the fixed code `123456` for any phone number, including admin numbers.
-> - **Sessions:** web, mobile and admin do not use the refresh token, so logins end after the 15-minute access token.
+> **Implementation status (2026-11-22):** Two items above are **not yet true in the code** and block a real launch (rate limiting is now enforced):
+> - **OTP login:** the mock provider accepts the fixed code `123456` for any phone number, including admin numbers. The API now refuses to start in production with it, so the mock cannot be deployed by accident, but no real provider exists yet.
+> - **Sessions:** the admin, web and mobile apps all renew their login automatically with the refresh token, so sessions last up to 7 days. After that, or if the refresh token is rejected, the user signs in again.
 >
 > Required secrets are now enforced at startup: the API will not boot without `DATABASE_URL`, `JWT_SECRET` and `JWT_REFRESH_SECRET` (the 64+ character guidance above is still advice only; length is not checked).
 

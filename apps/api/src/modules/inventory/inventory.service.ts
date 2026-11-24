@@ -1,5 +1,5 @@
 import {
-  Injectable, NotFoundException, ConflictException, BadRequestException,
+  Injectable, NotFoundException, ConflictException, BadRequestException, Logger,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -7,6 +7,8 @@ import { AdjustStockDto } from './dto';
 
 @Injectable()
 export class InventoryService {
+  private readonly logger = new Logger(InventoryService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   /**
@@ -88,6 +90,7 @@ export class InventoryService {
 
     // 2. Check availability
     if (available < qty) {
+      this.logger.warn(`insufficient stock variant=${variantId} requested=${qty} available=${available}`);
       throw new ConflictException('INSUFFICIENT_STOCK');
     }
 
@@ -127,6 +130,62 @@ export class InventoryService {
       where: { id: reservationId },
       data: { status: 'committed', orderId },
     });
+  }
+
+  /**
+   * Order confirmed: every hold of this order becomes permanent ("committed")
+   * and is no longer touched by the expiry job.
+   */
+  async commitOrderReservations(tx: Prisma.TransactionClient, orderId: string) {
+    await tx.inventoryReservation.updateMany({
+      where: { orderId, status: 'held' },
+      data: { status: 'committed' },
+    });
+  }
+
+  /**
+   * Order shipped: the units leave the shelf. For each order line, on_hand goes
+   * down by the quantity shipped and reserved goes down by whatever is still held
+   * for it; the holds are marked fulfilled. Refuses (changing nothing) if the
+   * shelf count is lower than what the order needs.
+   */
+  async settleShipment(tx: Prisma.TransactionClient, orderId: string) {
+    const items = await tx.orderItem.findMany({ where: { orderId } });
+    const holds = await tx.inventoryReservation.findMany({
+      where: { orderId, status: { in: ['held', 'committed'] } },
+    });
+
+    for (const item of items) {
+      const rows = await tx.$queryRaw<any[]>`
+        SELECT * FROM inventory WHERE variant_id = ${item.variantId}::uuid FOR UPDATE
+      `;
+      const onHand = rows[0]?.on_hand ?? 0;
+      if (onHand < item.qty) {
+        this.logger.warn(`STOCK_MISMATCH sku=${item.sku} on_hand=${onHand} needed=${item.qty}`);
+        throw new ConflictException(
+          `STOCK_MISMATCH: ${item.sku} has ${onHand} on hand but the order needs ${item.qty}. Correct the stock count first.`,
+        );
+      }
+
+      const itemHolds = holds.filter((h) => h.variantId === item.variantId);
+      const heldQty = itemHolds.reduce((sum, h) => sum + h.qty, 0);
+
+      await tx.inventory.update({
+        where: { variantId: item.variantId },
+        data: {
+          onHand: { decrement: item.qty },
+          reserved: { decrement: heldQty },
+          version: { increment: 1 },
+        },
+      });
+
+      if (itemHolds.length > 0) {
+        await tx.inventoryReservation.updateMany({
+          where: { id: { in: itemHolds.map((h) => h.id) } },
+          data: { status: 'fulfilled' },
+        });
+      }
+    }
   }
 
   /**

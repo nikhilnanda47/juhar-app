@@ -1,3 +1,5 @@
+import { notifyCartChanged } from './cart-events';
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 // ── Token management ──
@@ -33,17 +35,70 @@ export function clearTokens() {
     localStorage.removeItem('juhar_token');
     localStorage.removeItem('juhar_refresh_token');
   }
+  notifyCartChanged(); // the badge now shows the guest cart
 }
 
 // ── Generic request ──
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+// Sign-in and token-refresh calls must never trigger a refresh themselves.
+const NO_REFRESH_PATHS = [
+  '/api/v1/auth/otp/request',
+  '/api/v1/auth/otp/verify',
+  '/api/v1/auth/refresh',
+];
+
+// One refresh at a time: calls that fail together share the same attempt.
+let refreshing: Promise<boolean> | null = null;
+
+function refreshAccessToken(): Promise<boolean> {
+  if (!refreshing) {
+    refreshing = doRefresh().finally(() => { refreshing = null; });
+  }
+  return refreshing;
+}
+
+async function doRefresh(): Promise<boolean> {
+  if (typeof window === 'undefined') return false;
+  const refreshToken = localStorage.getItem('juhar_refresh_token');
+  if (!refreshToken) return false;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    });
+    const json = await res.json();
+    if (json.success && json.data?.accessToken) {
+      setToken(json.data.accessToken);
+      return true;
+    }
+    // The server rejected the refresh token: the session is over.
+    if (res.status === 401) clearTokens();
+    return false;
+  } catch {
+    // Network trouble: keep the tokens so a later attempt can still work.
+    return false;
+  }
+}
+
+async function request<T>(path: string, options: RequestInit = {}, retried = false): Promise<T> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
   };
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
   const json = await res.json();
-  if (!json.success) throw new Error(json.error?.message || 'Request failed');
+
+  // Access token expired: renew it once and repeat the call.
+  if (res.status === 401 && !retried && !NO_REFRESH_PATHS.includes(path)) {
+    if (await refreshAccessToken()) return request<T>(path, options, true);
+  }
+
+  if (!json.success) {
+    const message = json.error?.message || 'Request failed';
+    const details = Array.isArray(json.error?.details) ? json.error.details.join('; ') : '';
+    throw new Error(details ? `${message}: ${details}` : message);
+  }
   return json.data;
 }
 
@@ -129,19 +184,25 @@ export async function getCart(): Promise<CartResponse> {
 }
 
 export async function addToCart(variantId: string, quantity: number): Promise<CartResponse> {
-  return request<CartResponse>('/api/v1/cart/items', {
+  const cart = await request<CartResponse>('/api/v1/cart/items', {
     method: 'POST', body: JSON.stringify({ variantId, quantity }),
   });
+  notifyCartChanged();
+  return cart;
 }
 
 export async function updateCartItem(itemId: string, quantity: number): Promise<CartResponse> {
-  return request<CartResponse>(`/api/v1/cart/items/${itemId}`, {
+  const cart = await request<CartResponse>(`/api/v1/cart/items/${itemId}`, {
     method: 'PATCH', body: JSON.stringify({ quantity }),
   });
+  notifyCartChanged();
+  return cart;
 }
 
 export async function removeCartItem(itemId: string): Promise<CartResponse> {
-  return request<CartResponse>(`/api/v1/cart/items/${itemId}`, { method: 'DELETE' });
+  const cart = await request<CartResponse>(`/api/v1/cart/items/${itemId}`, { method: 'DELETE' });
+  notifyCartChanged();
+  return cart;
 }
 
 export async function requestOtp(phone: string) {
@@ -159,6 +220,7 @@ export async function verifyOtp(phone: string, otp: string) {
   if (typeof window !== 'undefined') {
     localStorage.setItem('juhar_refresh_token', data.refreshToken);
   }
+  notifyCartChanged(); // the badge now shows the account's cart
   return data;
 }
 
@@ -180,6 +242,39 @@ export async function createAddress(data: Omit<Address, 'id'>): Promise<Address>
   return request<Address>('/api/v1/me/addresses', {
     method: 'POST', body: JSON.stringify(data),
   });
+}
+
+// ── Orders ──
+// Order payloads are still loosely typed (screens treat them as `any`).
+
+export async function getOrders(): Promise<any[]> {
+  loadToken(); // order pages may open before any other call has loaded the token
+  const data = await request<{ items: any[] }>('/api/v1/orders');
+  return data.items ?? [];
+}
+
+export async function getOrder(id: string): Promise<any> {
+  loadToken();
+  return request<any>(`/api/v1/orders/${id}`);
+}
+
+export async function placeOrder(input: {
+  addressId: string; paymentMode: string; idempotencyKey: string; notes?: string;
+}): Promise<any> {
+  loadToken();
+  const order = await request<any>('/api/v1/orders', { method: 'POST', body: JSON.stringify(input) });
+  notifyCartChanged(); // placing an order empties the cart
+  return order;
+}
+
+// ── Shipping rule (public) ──
+export interface ShippingRule {
+  flatPaise: number;
+  freeAbovePaise: number;
+}
+
+export async function getShippingRule(): Promise<ShippingRule> {
+  return request<ShippingRule>('/api/v1/config/shipping');
 }
 
 // ── Wishlist types ──

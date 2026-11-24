@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addToCart as serverAddToCart, getCart, isLoggedIn, type CartResponse } from './api';
+import { notifyCartChanged } from './cartEvents';
 
 const LOCAL_CART_KEY = 'juhar_local_cart';
 
@@ -26,6 +27,7 @@ export async function getLocalCart(): Promise<LocalCartItem[]> {
 // ── Save local cart ──
 async function saveLocalCart(items: LocalCartItem[]): Promise<void> {
   await AsyncStorage.setItem(LOCAL_CART_KEY, JSON.stringify(items));
+  notifyCartChanged();
 }
 
 // ── Add item to local cart ──
@@ -64,6 +66,7 @@ export async function removeLocalCartItem(variantId: string): Promise<LocalCartI
 // ── Clear local cart ──
 export async function clearLocalCart(): Promise<void> {
   await AsyncStorage.removeItem(LOCAL_CART_KEY);
+  notifyCartChanged();
 }
 
 // ── Convert local cart to CartResponse format for UI ──

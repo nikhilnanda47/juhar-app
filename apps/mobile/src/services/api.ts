@@ -4,6 +4,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { notifyCartChanged } from './cartEvents';
 
 const API_BASE = __DEV__
   ? 'http://localhost:3000'  // Dev: local API
@@ -91,7 +92,54 @@ class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+// Sign-in and token-refresh calls must never trigger a refresh themselves.
+const NO_REFRESH_PATHS = [
+  '/api/v1/auth/otp/request',
+  '/api/v1/auth/otp/verify',
+  '/api/v1/auth/refresh',
+];
+
+// One refresh at a time: calls that fail together share the same attempt.
+let refreshing: Promise<boolean> | null = null;
+
+function refreshAccessToken(): Promise<boolean> {
+  if (!refreshing) {
+    refreshing = doRefresh().finally(() => { refreshing = null; });
+  }
+  return refreshing;
+}
+
+async function doRefresh(): Promise<boolean> {
+  let refreshToken: string | null = null;
+  try {
+    refreshToken = await AsyncStorage.getItem(REFRESH_KEY);
+  } catch {
+    return false;
+  }
+  if (!refreshToken) return false;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    });
+    const json = await res.json();
+    if (json.success && json.data?.accessToken) {
+      accessToken = json.data.accessToken;
+      try { await AsyncStorage.setItem(TOKEN_KEY, json.data.accessToken); } catch { /* still usable in memory */ }
+      return true;
+    }
+    // The server rejected the refresh token: the session is over.
+    if (res.status === 401) await clearTokens();
+    return false;
+  } catch {
+    // Network trouble: keep the tokens so a later attempt can still work.
+    return false;
+  }
+}
+
+async function request<T>(path: string, options: RequestInit = {}, retried = false): Promise<T> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...((options.headers as Record<string, string>) || {}),
@@ -104,9 +152,15 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
   const json: ApiResponse<T> = await res.json();
 
+  // Access token expired: renew it once and repeat the call.
+  if (res.status === 401 && !retried && !NO_REFRESH_PATHS.includes(path)) {
+    if (await refreshAccessToken()) return request<T>(path, options, true);
+  }
+
   if (!json.success) {
     const err = (json as any).error || { code: 'UNKNOWN', message: 'Request failed' };
-    throw new ApiError(err.code, err.message, res.status);
+    const details = Array.isArray(err.details) ? err.details.join('; ') : '';
+    throw new ApiError(err.code, details ? `${err.message}: ${details}` : err.message, res.status);
   }
 
   return json.data;
@@ -127,12 +181,14 @@ export async function saveTokens(access: string, refresh: string) {
   accessToken = access;
   await AsyncStorage.setItem(TOKEN_KEY, access);
   await AsyncStorage.setItem(REFRESH_KEY, refresh);
+  notifyCartChanged(); // the badge now shows the account's cart
 }
 
 export async function clearTokens() {
   accessToken = null;
   await AsyncStorage.removeItem(TOKEN_KEY);
   await AsyncStorage.removeItem(REFRESH_KEY);
+  notifyCartChanged(); // the badge now shows the guest cart
 }
 
 export function isLoggedIn(): boolean {
@@ -258,23 +314,43 @@ export async function getCart(): Promise<CartResponse> {
 }
 
 export async function addToCart(variantId: string, quantity: number): Promise<CartResponse> {
-  return request<CartResponse>('/api/v1/cart/items', {
+  const cart = await request<CartResponse>('/api/v1/cart/items', {
     method: 'POST',
     body: JSON.stringify({ variantId, quantity }),
   });
+  notifyCartChanged();
+  return cart;
 }
 
 export async function updateCartItem(itemId: string, quantity: number): Promise<CartResponse> {
-  return request<CartResponse>(`/api/v1/cart/items/${itemId}`, {
+  const cart = await request<CartResponse>(`/api/v1/cart/items/${itemId}`, {
     method: 'PATCH',
     body: JSON.stringify({ quantity }),
   });
+  notifyCartChanged();
+  return cart;
 }
 
 export async function removeCartItem(itemId: string): Promise<CartResponse> {
-  return request<CartResponse>(`/api/v1/cart/items/${itemId}`, {
+  const cart = await request<CartResponse>(`/api/v1/cart/items/${itemId}`, {
     method: 'DELETE',
   });
+  notifyCartChanged();
+  return cart;
+}
+
+// ── Shipping rule (public) ──
+// The rule lives in the API (one place); the screens only display what it says.
+
+export interface ShippingRule {
+  /** the charge, in paise, when the subtotal is below freeAbovePaise */
+  flatPaise: number;
+  /** delivery is free when the subtotal is this much (paise) or more */
+  freeAbovePaise: number;
+}
+
+export async function getShippingRule(): Promise<ShippingRule> {
+  return request<ShippingRule>('/api/v1/config/shipping');
 }
 
 // ── Public endpoints (no auth needed) ──
@@ -290,6 +366,29 @@ export async function getProducts(params?: Record<string, string>): Promise<Pagi
 
 export async function getProductBySlug(slug: string): Promise<Product> {
   return request<Product>(`/api/v1/products/${slug}`);
+}
+
+// ── Order endpoints ──
+// Order payloads are still loosely typed (screens treat them as `any`).
+
+export async function getOrders(): Promise<any[]> {
+  await loadToken(); // order screens may open before any other call has loaded the token
+  const data = await request<{ items: any[] }>('/api/v1/orders');
+  return data.items ?? [];
+}
+
+export async function getOrder(id: string): Promise<any> {
+  await loadToken();
+  return request<any>(`/api/v1/orders/${id}`);
+}
+
+export async function placeOrder(input: {
+  addressId: string; paymentMode: string; idempotencyKey: string; notes?: string;
+}): Promise<any> {
+  await loadToken();
+  const order = await request<any>('/api/v1/orders', { method: 'POST', body: JSON.stringify(input) });
+  notifyCartChanged(); // placing an order empties the cart
+  return order;
 }
 
 // ── Wishlist types ──

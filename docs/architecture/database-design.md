@@ -210,7 +210,7 @@ One row per variant. Source of truth for stock levels.
 **Computed (app-level):** `available = on_hand - reserved - unavailable`  
 **Constraints:** `on_hand >= 0`, `reserved >= 0`, `unavailable >= 0`, `reserved + unavailable <= on_hand`
 
-> **Implementation status (2026-11-22):** The `CHECK` constraints above are not in the `init` migration (Prisma's schema cannot declare them; they need raw SQL in a migration). The invariants are enforced only in application code — `InventoryService.reserve` locks the row with `SELECT FOR UPDATE` and checks availability, and `adjustStock` rejects adjustments that would go below `reserved + unavailable`. Stock also does not yet settle after dispatch: `on_hand` is never decremented when an order ships. See *Known Issues* in the README.
+> **Implementation status (2026-11-22):** The `CHECK` constraints above are in the database since migration `20261122150000_check_constraints` (Prisma's schema cannot declare them, so it is hand-written SQL). The app code still checks first and gives a clear error: `InventoryService.reserve` locks the row with `SELECT FOR UPDATE` and checks availability, and `adjustStock` rejects adjustments that would go below `reserved + unavailable`. Stock settles when an order ships: `InventoryService.settleShipment` decrements `on_hand` and the held part of `reserved` in **one** `UPDATE` under the row lock (the database checks the rules at the end of a statement, so both numbers must change together). Its `STOCK_MISMATCH` refusal (`on_hand` too low) is now a second line of defence: with the constraint in place the shelf count can no longer drop below what is held, so a bad count cannot be written in the first place.
 
 ---
 
@@ -224,15 +224,15 @@ Temporary stock holds created at checkout, released on expiry or cancellation.
 | variant_id | UUID | FK → product_variants.id, NOT NULL | |
 | order_id | UUID | FK → orders.id, NULL | Set when order is created |
 | qty | INT | NOT NULL | Quantity reserved |
-| status | VARCHAR(20) | NOT NULL, DEFAULT 'held' | held, committed, released, expired |
-| expires_at | TIMESTAMPTZ | NOT NULL | 30 min for UPI; 24 hours for COD |
+| status | VARCHAR(20) | NOT NULL, DEFAULT 'held' | held, committed, released, expired, fulfilled |
+| expires_at | TIMESTAMPTZ | NOT NULL | 30 min for UPI; 24 hours for COD (for COD this is only a review window: the expiry job does not release COD holds) |
 | created_at | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | |
 | updated_at | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | |
 
 **Indexes:** `variant_id`, `order_id`, `status + expires_at` (for expiry worker)  
 **Constraint:** `qty > 0`
 
-> **Implementation status (2026-11-22):** Reservations are created as `held` and move to `released` (cancellation) or `expired` (expiry worker). Nothing sets `committed` yet, and the expiry worker expires every `held` reservation past `expires_at` regardless of the order's state, so a still-active COD order loses its stock hold after 24 hours.
+> **Implementation status (2026-11-22):** A reservation is created `held`. Confirming the order makes it `committed`; shipping makes it `fulfilled` (the units have left `on_hand`); cancelling makes it `released`; the expiry worker makes a non-COD `held` reservation past `expires_at` `expired`. Cash-on-delivery holds are never expired by the worker: they stay until an admin confirms, ships or cancels the order.
 
 ---
 
@@ -288,8 +288,8 @@ Server-side cart. Prices are NOT stored — recalculated from variant on every r
 **Order statuses:** `placed`, `confirmed`, `packed`, `shipped`, `delivered`, `cancelled`, `return_requested`, `return_approved`, `return_rejected`, `returned`, `refund_pending`, `refunded`
 
 > **Implementation status (2026-11-22):**
-> - `public_number` is currently built from `count(orders) + 1`, which can collide under concurrent orders, and the code still emits the prefix `SAJ-` instead of `JUH-`. The target design is a database sequence with the `JUH-` prefix.
-> - `cancellation_reason` is stored for customer cancellations only. Admin cancellations (via the status endpoint) set `cancelled_at` but no reason.
+> - `public_number` is `JUH-YYYYMMDD-NNNN`, where `NNNN` comes from the PostgreSQL sequence `order_number_seq` (`nextval`). It counts across all days (it does not restart daily), is safe for orders placed at the same moment, and can skip a number when an order fails after taking one. Orders placed before the rename may carry the old `SAJ-` prefix and are left unchanged.
+> - `cancellation_reason` is stored for both customer cancellations and admin cancellations (the admin status endpoint requires a reason when cancelling).
 > - Statuses after `delivered` (returns and refunds) exist in the schema and state machine, and the admin status endpoint would accept those transitions, but there is no customer return flow, no admin UI, and no restock or refund side effects yet.
 
 ---
@@ -528,7 +528,7 @@ admin_users ──1:N──> audit_events (actor_id)
 
 ## 6. Data Integrity Rules
 
-> **Implementation status (2026-11-22):** Rules marked `CHECK` below are the target design. The `init` migration contains no `CHECK` constraints, so today they are enforced in application code only. Unique constraints, foreign keys and the `SELECT FOR UPDATE` reservation lock are in place.
+> **Implementation status (2026-11-22):** Every rule marked `CHECK` here and in section 3 is enforced by the database (migration `20261122150000_check_constraints`, 15 named constraints `chk_<table>_<rule>`): non-negative stock and `reserved + unavailable <= on_hand`; `qty`/`quantity` above 0 on reservations, cart items, order items and returns; `price_paise > 0` and `compare_at_paise` above the price; order amounts `>= 0` and `total = subtotal - discount + shipping + tax`; `unit_price_paise > 0` on order items; `amount_paise > 0` on payments and refunds. A write that breaks one fails with Postgres error `23514` (check violation); the app surfaces that as a 500 and logs the constraint name, because the app's own checks should have stopped it first (that means a bug). Unique constraints, foreign keys and the `SELECT FOR UPDATE` reservation lock are in place too. Tested against a real Postgres: `apps/api/src/database/check-constraints.spec.ts` (`DB_TESTS=1`, run in CI). Not implemented: the per-item total formula `qty × (unit_price + tax)` from section 3.11.
 
 | Rule | Enforcement |
 |---|---|
@@ -552,4 +552,4 @@ admin_users ──1:N──> audit_events (actor_id)
 - Destructive changes (column drops) deferred to separate migration after verification
 - Seed script for development with sample categories, products, variants, and inventory
 
-> **Implementation status (2026-11-22):** One migration exists (`20261113122754_init`, all 18 tables). Run `npx prisma generate` after pulling schema changes and `npx prisma migrate dev` to apply new migrations locally. Planned migrations: a sequence for order numbers and the `CHECK` constraints in section 6.
+> **Implementation status (2026-11-22):** Three migrations exist: `20261113122754_init` (all 18 tables), `20261122120000_order_number_sequence` (the `order_number_seq` sequence, created by hand-written SQL because Prisma's schema cannot declare sequences; it starts after the highest existing order number). After pulling, run `npx prisma migrate deploy` to apply new migrations locally (it needs no extra database permission) and `npx prisma generate` if the schema changed; use `npx prisma migrate dev --name <name>` only to create a new migration, which needs a database user allowed to create databases (the shadow database). Prisma does not report the sequence as schema drift. A third migration, `20261122150000_check_constraints`, adds the `CHECK` constraints (section 6). It first checks the existing rows and, if any break a rule, stops with a message that lists them and the query that finds them, without changing any data. After you fix the rows run `npx prisma migrate resolve --rolled-back 20261122150000_check_constraints` (Prisma refuses to continue after a failed migration until you do) and then `npx prisma migrate deploy` again. Never point `--shadow-database-url` at a database you want to keep: Prisma wipes it.

@@ -137,6 +137,52 @@
   font-size: 0.8rem;
 }
 
+.waiting {
+  margin-top: 0.15rem;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.waitingOverdue {
+  margin-top: 0.15rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--error);
+}
+
+.overdueBadge {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 20px;
+  border: 1px solid var(--error);
+  background: var(--error-bg);
+  color: var(--error);
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+/* The Overdue filter button turns red while there is something overdue */
+.filterOverdue {
+  padding: 0.4rem 0.9rem;
+  border: 1px solid var(--error);
+  border-radius: 20px;
+  background: var(--error-bg);
+  color: var(--error);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.filterOverdue:hover {
+  background: var(--error);
+  color: #fff;
+}
+
 .price {
   font-family: 'SF Mono', 'Fira Code', monospace;
   font-weight: 500;
@@ -216,6 +262,34 @@
 
 .actionBtn:not(:disabled):hover {
   background: var(--maroon-light);
+}
+
+/* Row actions + cancel */
+.actions {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.cancelOrderBtn {
+  padding: 0.35rem 0.75rem;
+  background: none;
+  color: var(--error);
+  border: 1px solid var(--error);
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.cancelOrderBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cancelOrderBtn:not(:disabled):hover {
+  background: var(--error-bg);
 }
 
 /* Empty state */
@@ -338,6 +412,30 @@
 .confirmBtn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* Cancel modal */
+.dangerBtn {
+  padding: 0.55rem 1.5rem;
+  background: var(--error);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.dangerBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.modalError {
+  margin: 0.75rem 0 0;
+  font-size: 0.8rem;
+  color: var(--error);
 }
 
 /* ─── Responsive ─── */

@@ -37,6 +37,14 @@ export const AUTH = {
   OTP_LENGTH: 6,
 } as const;
 
+// ── Shipping (pilot: one flat rate) ──
+// The ONE place the rule is written. The API charges with it and publishes it at
+// GET /api/v1/config/shipping, which the web and mobile apps read for what they display.
+export const SHIPPING = {
+  FLAT_PAISE: 9900, // ₹99
+  FREE_ABOVE_PAISE: 500000, // free when the subtotal is ₹5,000 or more
+} as const;
+
 // ── Inventory ──
 export const INVENTORY = {
   UPI_RESERVATION_MINUTES: 30,
@@ -71,7 +79,7 @@ export const RETURNS = {
 } as const;
 
 // ── Order Number ──
-export const ORDER_NUMBER_PREFIX = 'SAJ';
+export const ORDER_NUMBER_PREFIX = 'JUH';
 
 // ── Currency ──
 export const CURRENCY = {

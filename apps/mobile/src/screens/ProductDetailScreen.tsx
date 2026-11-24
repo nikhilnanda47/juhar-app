@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useFocusEffect } from '@react-navigation/native';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, Dimensions, Alert, TextInput, RefreshControl,
+  ActivityIndicator, Dimensions, TextInput, RefreshControl,
   Animated as RNAnimated, Platform,
 } from 'react-native';
 import {
@@ -17,6 +17,7 @@ import {
   type Product, type ProductVariant,
 } from '../services/api';
 import { useWishlist } from '../contexts/WishlistContext';
+import { showAlert } from '../utils/showAlert';
 
 const { width } = Dimensions.get('window');
 
@@ -120,7 +121,7 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
       setAddedToCart(true);
       showToast();
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to add to cart');
+      showAlert('Error', err.message || 'Failed to add to cart');
     } finally {
       setAddingToCart(false);
     }

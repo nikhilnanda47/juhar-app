@@ -60,48 +60,54 @@ export class ProductsService {
       where.variants = { some: variantFilter };
     }
 
-    // Sorting (price sorting done in-memory for Prisma compatibility)
-    const orderBy: Prisma.ProductOrderByWithRelationInput = { createdAt: 'desc' };
-
-    const findArgs: Prisma.ProductFindManyArgs = {
-      where,
-      orderBy,
-      take: limit + 1,
-      include: {
-        category: { select: { slug: true, name: true } },
-        variants: {
-          where: { active: true },
-          orderBy: { pricePaise: 'asc' },
-          include: {
-            inventory: { select: { onHand: true, reserved: true, unavailable: true } },
-          },
-        },
-        media: {
-          where: { type: 'image' },
-          orderBy: { sortOrder: 'asc' },
-          take: 1,
+    // What a product card needs; the same for every sort order.
+    const include = {
+      category: { select: { slug: true, name: true } },
+      variants: {
+        where: { active: true },
+        orderBy: { pricePaise: 'asc' },
+        include: {
+          inventory: { select: { onHand: true, reserved: true, unavailable: true } },
         },
       },
-    };
+      media: {
+        where: { type: 'image' },
+        orderBy: { sortOrder: 'asc' },
+        take: 1,
+      },
+    } as const;
 
-    if (query.cursor) {
-      findArgs.cursor = { id: query.cursor };
-      findArgs.skip = 1;
+    let items: any[];
+    let hasMore: boolean;
+    let nextCursor: string | null;
+
+    if (query.sortBy === ProductSortBy.PRICE_ASC || query.sortBy === ProductSortBy.PRICE_DESC) {
+      ({ items, hasMore, nextCursor } = await this.findPageByPrice(
+        where,
+        include,
+        limit,
+        query.cursor,
+        query.sortBy === ProductSortBy.PRICE_DESC,
+      ));
+    } else {
+      // Newest first (also used when no sort is given)
+      const findArgs: Prisma.ProductFindManyArgs = {
+        where,
+        orderBy: { createdAt: 'desc' },
+        take: limit + 1,
+        include,
+      };
+
+      if (query.cursor) {
+        findArgs.cursor = { id: query.cursor };
+        findArgs.skip = 1;
+      }
+
+      const products = await this.prisma.product.findMany(findArgs as any);
+      hasMore = products.length > limit;
+      items = hasMore ? products.slice(0, limit) : products;
+      nextCursor = hasMore ? items[items.length - 1].id : null;
     }
-
-    const products = await this.prisma.product.findMany(findArgs as any);
-
-    const hasMore = products.length > limit;
-    let items = hasMore ? products.slice(0, limit) : products;
-
-    // In-memory price sorting
-    if (query.sortBy === ProductSortBy.PRICE_ASC) {
-      items = items.sort((a: any, b: any) => (a.variants[0]?.pricePaise ?? 0) - (b.variants[0]?.pricePaise ?? 0));
-    } else if (query.sortBy === ProductSortBy.PRICE_DESC) {
-      items = items.sort((a: any, b: any) => (b.variants[0]?.pricePaise ?? 0) - (a.variants[0]?.pricePaise ?? 0));
-    }
-
-    const nextCursor = hasMore ? items[items.length - 1].id : null;
 
     // Transform to ProductCard shape
     const cards = items.map((product: any) => {
@@ -130,6 +136,60 @@ export class ProductsService {
     });
 
     return { items: cards, cursor: nextCursor, hasMore };
+  }
+
+  /**
+   * One page of the catalog sorted by price, for the same filters as the newest-first list.
+   *
+   * The price of a product is its cheapest active variant, which is the price its card shows.
+   * The ordering is done by the database over the products that match the filters (ties
+   * are broken by id so the order is stable), and the cursor is the id of the last product
+   * on the page, so "load more" continues from exactly that place in the price order.
+   * The ids of all matching products are read on each request, which is fine for a catalog
+   * of up to a few thousand products.
+   */
+  private async findPageByPrice(
+    where: Prisma.ProductWhereInput,
+    include: Prisma.ProductInclude,
+    limit: number,
+    cursor: string | undefined,
+    descending: boolean,
+  ): Promise<{ items: any[]; hasMore: boolean; nextCursor: string | null }> {
+    const matching = await this.prisma.product.findMany({ where, select: { id: true } });
+    const ids = matching.map((p) => p.id);
+    if (ids.length === 0) return { items: [], hasMore: false, nextCursor: null };
+
+    const direction = descending ? Prisma.sql`DESC` : Prisma.sql`ASC`;
+    const ordered = await this.prisma.$queryRaw<{ id: string }[]>`
+      SELECT v.product_id AS id
+      FROM product_variants v
+      WHERE v.active = true AND v.product_id = ANY(${ids}::uuid[])
+      GROUP BY v.product_id
+      ORDER BY MIN(v.price_paise) ${direction}, v.product_id ASC
+    `;
+    const orderedIds = ordered.map((row) => row.id);
+
+    let start = 0;
+    if (cursor) {
+      const position = orderedIds.indexOf(cursor);
+      // A cursor that is not in the list (product removed or unpublished): nothing more to show
+      if (position === -1) return { items: [], hasMore: false, nextCursor: null };
+      start = position + 1;
+    }
+
+    const pageIds = orderedIds.slice(start, start + limit + 1);
+    const hasMore = pageIds.length > limit;
+    const idsOnPage = hasMore ? pageIds.slice(0, limit) : pageIds;
+    if (idsOnPage.length === 0) return { items: [], hasMore: false, nextCursor: null };
+
+    const products = await this.prisma.product.findMany({
+      where: { id: { in: idsOnPage } },
+      include,
+    } as any);
+    const byId = new Map<string, any>(products.map((product: any) => [product.id, product]));
+    const items = idsOnPage.map((id) => byId.get(id)).filter(Boolean);
+
+    return { items, hasMore, nextCursor: hasMore ? idsOnPage[idsOnPage.length - 1] : null };
   }
 
   /**
@@ -462,6 +522,17 @@ export class ProductsService {
     });
     if (!variant) {
       throw new NotFoundException({ code: 'PROD_001', message: 'Variant not found' });
+    }
+
+    // The database refuses a compare-at price that is not above the price, so check the
+    // values the variant will have after this update (the other one may be the stored value).
+    const newPrice = dto.pricePaise ?? variant.pricePaise;
+    const newCompareAt = dto.compareAtPaise !== undefined ? dto.compareAtPaise : variant.compareAtPaise;
+    if (newCompareAt != null && newCompareAt <= newPrice) {
+      throw new BadRequestException({
+        code: 'PROD_005',
+        message: 'Compare-at price must be greater than price. Raise the compare-at price or remove it.',
+      });
     }
 
     return this.prisma.productVariant.update({

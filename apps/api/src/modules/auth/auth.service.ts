@@ -9,6 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OtpProvider, OTP_PROVIDER } from './providers/otp-provider.interface';
+import { maskPhone } from '../../common/logging/redact';
 import { RequestOtpDto, VerifyOtpDto } from './dto';
 import { AUTH } from '@juhar/shared';
 import * as crypto from 'crypto';
@@ -55,6 +56,7 @@ export class AuthService {
 
     // Send OTP via provider
     const { otp, expiresAt } = await this.otpProvider.sendOtp(phone);
+    this.logger.log(`otp sent to ${maskPhone(phone)}`);
 
     // Store hashed OTP
     const hashedOtp = this.hashOtp(otp);
@@ -104,6 +106,7 @@ export class AuthService {
     const hashedInput = this.hashOtp(otp);
     if (hashedInput !== record.hashedOtp) {
       record.attempts++;
+      this.logger.warn(`otp verify failed for ${maskPhone(phone)} (attempt ${record.attempts} of 5)`);
       throw new UnauthorizedException({
         code: 'AUTH_003',
         message: 'Invalid OTP. Please try again.',
@@ -132,6 +135,7 @@ export class AuthService {
 
     // Check if user is also an admin
     const adminUser = await this.prisma.adminUser.findUnique({ where: { phone } });
+    this.logger.log(`login ok user=${user.id} type=${adminUser ? 'admin' : 'customer'} new=${isNewUser}`);
 
     // Issue tokens
     const tokenPayload = {

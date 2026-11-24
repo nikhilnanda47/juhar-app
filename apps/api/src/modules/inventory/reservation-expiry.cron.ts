@@ -20,6 +20,8 @@ export class ReservationExpiryCron {
       where: {
         status: 'held',
         expiresAt: { lt: new Date() },
+        // Cash-on-delivery holds stay until an admin confirms or cancels the order.
+        OR: [{ orderId: null }, { order: { paymentMode: { not: 'cod' } } }],
       },
     });
 

@@ -1,7 +1,15 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
-class ApiClient {
+// Sign-in and token-refresh calls must never trigger a refresh themselves.
+const NO_REFRESH_PATHS = [
+  '/api/v1/auth/otp/request',
+  '/api/v1/auth/otp/verify',
+  '/api/v1/auth/refresh',
+];
+
+export class ApiClient {
   private accessToken: string | null = null;
+  private refreshing: Promise<boolean> | null = null;
 
   setToken(token: string) {
     this.accessToken = token;
@@ -18,6 +26,11 @@ class ApiClient {
     return this.accessToken;
   }
 
+  getRefreshToken(): string | null {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem('juhar_admin_refresh');
+  }
+
   clearToken() {
     this.accessToken = null;
     if (typeof window !== 'undefined') {
@@ -26,7 +39,41 @@ class ApiClient {
     }
   }
 
-  private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  // One refresh at a time: calls that fail together share the same attempt.
+  private refreshAccessToken(): Promise<boolean> {
+    if (!this.refreshing) {
+      this.refreshing = this.doRefresh().finally(() => {
+        this.refreshing = null;
+      });
+    }
+    return this.refreshing;
+  }
+
+  private async doRefresh(): Promise<boolean> {
+    const refreshToken = this.getRefreshToken();
+    if (!refreshToken) return false;
+
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      });
+      const json = await res.json();
+      if (json.success && json.data?.accessToken) {
+        this.setToken(json.data.accessToken);
+        return true;
+      }
+      // The server rejected the refresh token: the session is over.
+      if (res.status === 401) this.clearToken();
+      return false;
+    } catch {
+      // Network trouble: keep the tokens so a later attempt can still work.
+      return false;
+    }
+  }
+
+  private async request<T>(path: string, options: RequestInit = {}, retried = false): Promise<T> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       ...((options.headers as Record<string, string>) || {}),
@@ -43,6 +90,12 @@ class ApiClient {
     });
 
     const json = await res.json();
+
+    if (res.status === 401 && !retried && !NO_REFRESH_PATHS.includes(path)) {
+      if (await this.refreshAccessToken()) {
+        return this.request<T>(path, options, true);
+      }
+    }
 
     if (!json.success) {
       const error = json.error || { code: 'UNKNOWN', message: 'Request failed' };
@@ -122,12 +175,25 @@ class ApiClient {
   // ── Orders ──
   async getOrders(params?: Record<string, string>) {
     const query = params ? '?' + new URLSearchParams(params).toString() : '';
-    return this.request<{ items: any[]; cursor: string | null; hasMore: boolean }>(
+    return this.request<{
+      items: any[];
+      cursor: string | null;
+      hasMore: boolean;
+      /**
+       * Counts over all orders (not just this page): placed, placed COD orders waiting more than
+       * 24 hours, and today's totals for India (cancelled orders left out).
+       */
+      counts?: {
+        placed: number;
+        overdue: number;
+        today: { date: string; orders: number; gmvPaise: number };
+      };
+    }>(
       `/api/v1/admin/orders${query}`,
     );
   }
 
-  async updateOrderStatus(id: string, data: { status: string; trackingId?: string; courierName?: string }) {
+  async updateOrderStatus(id: string, data: { status: string; trackingId?: string; courierName?: string; reason?: string }) {
     return this.request(`/api/v1/admin/orders/${id}/status`, {
       method: 'PATCH',
       body: JSON.stringify(data),

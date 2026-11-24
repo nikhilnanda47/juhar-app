@@ -193,7 +193,7 @@ model InventoryReservation {
   variantId String   @map("variant_id") @db.Uuid
   orderId   String?  @map("order_id") @db.Uuid
   qty       Int
-  status    String   @default("held") @db.VarChar(20) // held, committed, released, expired
+  status    String   @default("held") @db.VarChar(20) // held, committed, released, expired, fulfilled
   expiresAt DateTime @map("expires_at") @db.Timestamptz()
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz()
