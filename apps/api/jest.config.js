@@ -9,6 +9,6 @@ module.exports = {
   coverageDirectory: '../coverage',
   testEnvironment: 'node',
   moduleNameMapper: {
-    '^@juhar/shared$': '<rootDir>/../../node_modules/@juhar/shared/dist',
+    '^@juhar/shared$': '<rootDir>/../../../node_modules/@juhar/shared/dist',
   },
 };
