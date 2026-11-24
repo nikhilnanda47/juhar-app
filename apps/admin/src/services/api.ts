@@ -153,9 +153,13 @@ export class ApiClient {
   // ── Products ──
   async getProducts(params?: Record<string, string>) {
     const query = params ? '?' + new URLSearchParams(params).toString() : '';
-    return this.request<{ items: any[]; cursor: string | null; hasMore: boolean }>(
-      `/api/v1/admin/products${query}`,
-    );
+    return this.request<{
+      items: any[];
+      cursor: string | null;
+      hasMore: boolean;
+      /** Counts over the whole catalog (not just this page or filter) */
+      counts?: ProductCounts;
+    }>(`/api/v1/admin/products${query}`);
   }
 
   async createProduct(data: Record<string, unknown>) {
@@ -199,6 +203,18 @@ export class ApiClient {
       body: JSON.stringify(data),
     });
   }
+}
+
+export interface ProductCounts {
+  products: number;
+  published: number;
+  draft: number;
+  archived: number;
+  variants: number;
+  /** Active variants with 1 to lowStockThreshold pieces available */
+  lowStock: number;
+  /** What counts as low stock: this many pieces available or fewer */
+  lowStockThreshold: number;
 }
 
 export class ApiError extends Error {

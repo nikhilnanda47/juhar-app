@@ -25,6 +25,8 @@ interface PaginatedData<T> {
   items: T[];
   cursor: string | null;
   hasMore: boolean;
+  /** how many items match the filters, over all pages (sent by the product list) */
+  total?: number;
 }
 
 export interface Category {
@@ -81,15 +83,29 @@ export interface Product {
   createdAt: string;
 }
 
-class ApiError extends Error {
+/**
+ * A failed API call. `message` is what the customer reads; `requestId` is the reference the API
+ * gave this request (it is in every log line as req=<id>), so a customer can read it out and
+ * support can find exactly what happened.
+ */
+export class ApiError extends Error {
   constructor(
     public code: string,
     message: string,
     public status: number,
+    public requestId: string = '',
   ) {
     super(message);
     this.name = 'ApiError';
   }
+}
+
+/** What a customer reads when the server could not be reached at all. */
+export const NETWORK_ERROR_MESSAGE = 'We could not reach the server. Please check your internet connection and try again.';
+
+/** The request reference of an error, or '' (a network failure has none). */
+export function referenceOf(error: unknown): string {
+  return error instanceof ApiError ? error.requestId : '';
 }
 
 // Sign-in and token-refresh calls must never trigger a refresh themselves.
@@ -149,7 +165,13 @@ async function request<T>(path: string, options: RequestInit = {}, retried = fal
     headers['Authorization'] = `Bearer ${accessToken}`;
   }
 
-  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  } catch {
+    // the system's own text is "Network request failed": say what happened in plain words
+    throw new ApiError('NETWORK_ERROR', NETWORK_ERROR_MESSAGE, 0, '');
+  }
   const json: ApiResponse<T> = await res.json();
 
   // Access token expired: renew it once and repeat the call.
@@ -160,7 +182,8 @@ async function request<T>(path: string, options: RequestInit = {}, retried = fal
   if (!json.success) {
     const err = (json as any).error || { code: 'UNKNOWN', message: 'Request failed' };
     const details = Array.isArray(err.details) ? err.details.join('; ') : '';
-    throw new ApiError(err.code, details ? `${err.message}: ${details}` : err.message, res.status);
+    const requestId = String((json as any).requestId || res.headers?.get?.('x-request-id') || '');
+    throw new ApiError(err.code, details ? `${err.message}: ${details}` : err.message, res.status, requestId);
   }
 
   return json.data;
@@ -359,9 +382,31 @@ export async function getCategories(): Promise<Category[]> {
   return request<Category[]>('/api/v1/categories');
 }
 
-export async function getProducts(params?: Record<string, string>): Promise<PaginatedData<Product>> {
+export async function getProducts(params?: Record<string, string>): Promise<PaginatedData<Product> & { total: number }> {
   const query = params ? '?' + new URLSearchParams(params).toString() : '';
-  return request<PaginatedData<Product>>(`/api/v1/products${query}`);
+  const data = await request<PaginatedData<Product>>(`/api/v1/products${query}`);
+  const items = data.items ?? [];
+  return { items, cursor: data.cursor ?? null, hasMore: data.hasMore ?? false, total: data.total ?? items.length };
+}
+
+/** What the shop filters can be chosen from, read from the catalog by the API. */
+export interface ProductFilterOptions {
+  fabrics: string[];
+  weaveMethods: string[];
+  colors: string[];
+  minPricePaise: number | null;
+  maxPricePaise: number | null;
+}
+
+export async function getProductFilters(): Promise<ProductFilterOptions> {
+  const data = await request<Partial<ProductFilterOptions>>('/api/v1/products/filters');
+  return {
+    fabrics: data.fabrics ?? [],
+    weaveMethods: data.weaveMethods ?? [],
+    colors: data.colors ?? [],
+    minPricePaise: data.minPricePaise ?? null,
+    maxPricePaise: data.maxPricePaise ?? null,
+  };
 }
 
 export async function getProductBySlug(slug: string): Promise<Product> {
@@ -371,10 +416,35 @@ export async function getProductBySlug(slug: string): Promise<Product> {
 // ── Order endpoints ──
 // Order payloads are still loosely typed (screens treat them as `any`).
 
-export async function getOrders(): Promise<any[]> {
+export interface OrdersPage {
+  items: any[];
+  /** pass this back as `cursor` to get the next page; null on the last page */
+  cursor: string | null;
+  hasMore: boolean;
+  /** how many orders match the status filter, over all pages */
+  total: number;
+  /** how many orders the customer has in each status (the filter is ignored) */
+  counts: Record<string, number>;
+}
+
+/** One page of the customer's orders, newest first. Pass `status` to filter and `cursor` for the next page. */
+export async function getOrders(
+  options: { status?: string; cursor?: string; limit?: number } = {},
+): Promise<OrdersPage> {
   await loadToken(); // order screens may open before any other call has loaded the token
-  const data = await request<{ items: any[] }>('/api/v1/orders');
-  return data.items ?? [];
+  const query = new URLSearchParams();
+  if (options.status) query.set('status', options.status);
+  if (options.cursor) query.set('cursor', options.cursor);
+  if (options.limit) query.set('limit', String(options.limit));
+  const qs = query.toString();
+  const data = await request<Partial<OrdersPage>>(`/api/v1/orders${qs ? '?' + qs : ''}`);
+  return {
+    items: data.items ?? [],
+    cursor: data.cursor ?? null,
+    hasMore: data.hasMore ?? false,
+    total: data.total ?? (data.items ?? []).length,
+    counts: data.counts ?? {},
+  };
 }
 
 export async function getOrder(id: string): Promise<any> {

@@ -8,10 +8,11 @@ import {
 } from 'lucide-react';
 import {
   isLoggedIn, loadToken, requestOtp, verifyOtp, clearTokens,
-  getProfile, updateProfile, getAddresses, getOrders, type UserProfile,
+  getProfile, updateProfile, getAddresses, getOrders, referenceOf, type UserProfile,
 } from '@/lib/api';
 import { readLocalCart, clearLocalCart } from '@/lib/cart-events';
 import { useTheme } from '@/lib/theme-context';
+import ErrorReference from '@/components/ErrorReference';
 
 type Screen = 'loading' | 'login' | 'otp' | 'profile' | 'editName';
 
@@ -24,6 +25,7 @@ export default function AccountPage() {
   const [editName, setEditName] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [errorRef, setErrorRef] = useState(''); // the API's reference for the failed request
   const [orderCount, setOrderCount] = useState(0);
   const [addressCount, setAddressCount] = useState(0);
 
@@ -42,21 +44,22 @@ export default function AccountPage() {
 
   const fetchCounts = async () => {
     try {
-      const [orders, addrs] = await Promise.all([getOrders(), getAddresses()]);
-      setOrderCount(orders.length);
+      // limit 1: only the total is needed, and it counts every order, not just the first page
+      const [orders, addrs] = await Promise.all([getOrders({ limit: 1 }), getAddresses()]);
+      setOrderCount(orders.total);
       setAddressCount(addrs.length);
     } catch {}
   };
 
   const handleRequestOtp = async () => {
-    setBusy(true); setError('');
+    setBusy(true); setError(''); setErrorRef('');
     try { await requestOtp('+91' + phone); setScreen('otp'); }
-    catch (e: any) { setError(e.message || 'Failed to send OTP'); }
+    catch (e: any) { setError(e.message || 'Failed to send OTP'); setErrorRef(referenceOf(e)); }
     finally { setBusy(false); }
   };
 
   const handleVerifyOtp = async () => {
-    setBusy(true); setError('');
+    setBusy(true); setError(''); setErrorRef('');
     try {
       const result = await verifyOtp('+91' + phone, otp);
       // Sync local cart
@@ -72,15 +75,15 @@ export default function AccountPage() {
       fetchCounts();
       if (result.isNewUser || !p.name) { setEditName(''); setScreen('editName'); }
       else setScreen('profile');
-    } catch (e: any) { setError(e.message || 'Invalid OTP'); }
+    } catch (e: any) { setError(e.message || 'Invalid OTP'); setErrorRef(referenceOf(e)); }
     finally { setBusy(false); }
   };
 
   const handleSaveName = async () => {
     if (!editName.trim() || editName.trim().length < 2) return;
-    setBusy(true); setError('');
+    setBusy(true); setError(''); setErrorRef('');
     try { const p = await updateProfile({ name: editName.trim() }); setProfile(p); setScreen('profile'); }
-    catch (e: any) { setError(e.message || 'Failed to save name'); }
+    catch (e: any) { setError(e.message || 'Failed to save name'); setErrorRef(referenceOf(e)); }
     finally { setBusy(false); }
   };
 
@@ -167,7 +170,8 @@ export default function AccountPage() {
               </div>
             </div>
 
-            {error && <p className="font-sans text-body-sm text-error mb-3">{error}</p>}
+            {error && <p className="font-sans text-body-sm text-error mb-1">{error}</p>}
+            <ErrorReference id={errorRef} className="mb-3" />
 
             <button className="btn-primary w-full !h-12 md:!h-14 !rounded-xl !text-title-sm" onClick={handleRequestOtp} disabled={busy || phone.length < 10}>
               {busy ? 'Sending...' : 'Send OTP'}
@@ -206,14 +210,15 @@ export default function AccountPage() {
               />
             </div>
 
-            {error && <p className="font-sans text-body-sm text-error mb-3">{error}</p>}
+            {error && <p className="font-sans text-body-sm text-error mb-1">{error}</p>}
+            <ErrorReference id={errorRef} className="mb-3" />
 
             <button className="btn-primary w-full !h-12 md:!h-14 !rounded-xl !text-title-sm" onClick={handleVerifyOtp} disabled={busy || otp.length < 6}>
               {busy ? 'Verifying...' : 'Verify & Continue'}
             </button>
 
             <div className="flex items-center justify-between mt-5">
-              <button className="font-sans text-body-md text-primary hover:underline" onClick={() => { setOtp(''); setError(''); setScreen('login'); }}>
+              <button className="font-sans text-body-md text-primary hover:underline" onClick={() => { setOtp(''); setError(''); setErrorRef(''); setScreen('login'); }}>
                 ← Change number
               </button>
               <button className="font-sans text-body-sm text-text-tertiary hover:text-primary">
@@ -251,7 +256,8 @@ export default function AccountPage() {
             />
           </div>
 
-          {error && <p className="font-sans text-body-sm text-error mb-3">{error}</p>}
+          {error && <p className="font-sans text-body-sm text-error mb-1">{error}</p>}
+            <ErrorReference id={errorRef} className="mb-3" />
 
           <button className="btn-primary w-full !h-12 md:!h-14 !rounded-xl !text-title-sm" onClick={handleSaveName} disabled={busy || editName.trim().length < 2}>
             {busy ? 'Saving...' : 'Continue'}

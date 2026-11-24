@@ -8,6 +8,7 @@ import { Package, User, ArrowRight } from 'lucide-react-native';
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
 import RefreshButton from '../components/RefreshButton';
 import { loadToken, getOrders, formatPaise } from '../services/api';
+import { appendUnique } from '../services/paging';
 
 const getStatusStyles = (colors: ColorPalette): Record<string, { bg: string; text: string }> => ({
   placed: { bg: colors.surfaceMuted, text: colors.primary },
@@ -25,18 +26,54 @@ export default function OrdersScreen({ navigation }: Props) {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const statusStyles = useMemo(() => getStatusStyles(colors), [colors]);
   const [orders, setOrders] = useState<any[]>([]);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [total, setTotal] = useState(0); // every order of this customer, not just the ones loaded
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadError, setLoadError] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
 
   useFocusEffect(useCallback(() => { checkAndLoad(); }, []));
 
+  // Reads the first page again (screen focused, or pull to refresh)
   const checkAndLoad = async () => {
     const hasToken = await loadToken();
     setLoggedIn(hasToken);
-    if (hasToken) setOrders(await getOrders().catch(() => []));
+    if (hasToken) {
+      try {
+        const page = await getOrders();
+        setOrders(page.items);
+        setCursor(page.cursor);
+        setHasMore(page.hasMore);
+        setTotal(page.total);
+        setLoadError('');
+      } catch {
+        setOrders([]);
+        setHasMore(false);
+        setTotal(0);
+      }
+    }
     setLoading(false);
     setRefreshing(false);
+  };
+
+  const loadMore = async () => {
+    if (!cursor || loadingMore) return;
+    setLoadingMore(true);
+    setLoadError('');
+    try {
+      const page = await getOrders({ cursor });
+      setOrders((shown) => appendUnique(shown, page.items));
+      setCursor(page.cursor);
+      setHasMore(page.hasMore);
+      setTotal(page.total);
+    } catch {
+      setLoadError('Could not load more orders. Tap to try again.');
+    } finally {
+      setLoadingMore(false);
+    }
   };
 
   if (loading) {
@@ -82,7 +119,7 @@ export default function OrdersScreen({ navigation }: Props) {
       <View style={styles.summaryBanner}>
         <View style={styles.summaryLeft}>
           <Package size={18} color={colors.accent} strokeWidth={2} />
-          <Text style={styles.summaryText}>{orders.length} Handcrafted Orders</Text>
+          <Text style={styles.summaryText}>{total || orders.length} Handcrafted Orders</Text>
         </View>
         <Text style={styles.summaryLabel}>ARTISAN CERTIFIED</Text>
       </View>
@@ -142,10 +179,19 @@ export default function OrdersScreen({ navigation }: Props) {
         );
       })}
 
+      {hasMore && (
+        <TouchableOpacity style={styles.outlineBtn} onPress={loadMore} disabled={loadingMore} activeOpacity={0.8}>
+          {loadingMore
+            ? <ActivityIndicator size="small" color={colors.primary} />
+            : <Text style={styles.outlineBtnText}>Load more orders</Text>}
+        </TouchableOpacity>
+      )}
+      {!!loadError && <Text style={styles.loadError}>{loadError}</Text>}
+
       <View style={styles.supportNote}>
         <View style={styles.supportBar} />
         <Text style={styles.supportText}>
-          Showing all {orders.length} orders · Need help with an order?
+          {hasMore ? `Showing ${orders.length} of ${total} orders` : `All ${orders.length} orders shown`} · Need help with an order?
         </Text>
         <TouchableOpacity>
           <Text style={styles.supportLink}>Contact support</Text>
@@ -171,9 +217,10 @@ const createStyles = (colors: ColorPalette) => StyleSheet.create({
   primaryBtnText: { fontFamily: 'DMSans-SemiBold', fontSize: 14, color: colors.white },
   outlineBtn: {
     marginTop: spacing.md, borderWidth: 1, borderColor: colors.primary,
-    borderRadius: 6, paddingVertical: 12, paddingHorizontal: 32,
+    borderRadius: 6, paddingVertical: 12, paddingHorizontal: 32, alignItems: 'center',
   },
   outlineBtnText: { fontFamily: 'DMSans-SemiBold', fontSize: 14, color: colors.primary },
+  loadError: { fontFamily: 'DMSans-Regular', fontSize: 13, color: colors.error, textAlign: 'center', marginTop: 8 },
 
   header: { paddingTop: 56, marginBottom: spacing.md, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   pageTitle: { fontFamily: 'NotoSerif-Regular', fontSize: 22, color: colors.textPrimary, letterSpacing: -0.2 },

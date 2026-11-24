@@ -32,7 +32,8 @@ export class OrdersService {
 
     const findArgs: Prisma.OrderFindManyArgs = {
       where,
-      orderBy: { createdAt: 'desc' },
+      // id breaks ties, so orders created in the same instant keep one fixed order across pages
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: limit + 1,
       include: {
         items: {
@@ -49,7 +50,14 @@ export class OrdersService {
       findArgs.skip = 1;
     }
 
-    const orders = await this.prisma.order.findMany(findArgs);
+    // `total` is every order of this customer that matches the status filter (if any), whatever the
+    // page; `counts` is how many orders they have in each status (filter ignored), so the apps can
+    // say "12 orders" and "3 delivered" without loading them all.
+    const [orders, total, byStatus] = await Promise.all([
+      this.prisma.order.findMany(findArgs),
+      this.prisma.order.count({ where }),
+      this.prisma.order.groupBy({ by: ['status'], where: { userId }, _count: { _all: true } }),
+    ]);
     const hasMore = orders.length > limit;
     const items = hasMore ? orders.slice(0, limit) : orders;
 
@@ -57,6 +65,8 @@ export class OrdersService {
       items: items.map((o) => this.toOrderSummary(o)),
       cursor: hasMore ? items[items.length - 1].id : null,
       hasMore,
+      total,
+      counts: Object.fromEntries(byStatus.map((row) => [row.status, row._count._all])) as Record<string, number>,
     };
   }
 
@@ -139,13 +149,13 @@ export class OrdersService {
 
     const findArgs: Prisma.OrderFindManyArgs = {
       where,
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: limit + 1,
       include: {
         items: {
           select: { productTitle: true, qty: true, totalPaise: true },
         },
-        user: { select: { phone: true, name: true } },
+        user: { select: { id: true, phone: true, name: true } },
       },
     };
 
@@ -177,7 +187,8 @@ export class OrdersService {
     return {
       items: items.map((o: any) => ({
         ...this.toOrderSummary(o),
-        customer: o.user ? { phone: o.user.phone, name: o.user.name } : null,
+        // id is the same "user=<id>" that the logs show, so a log line can be matched to a customer
+        customer: o.user ? { id: o.user.id, phone: o.user.phone, name: o.user.name } : null,
         ...this.waitingInfo(o, now),
       })),
       cursor: hasMore ? items[items.length - 1].id : null,

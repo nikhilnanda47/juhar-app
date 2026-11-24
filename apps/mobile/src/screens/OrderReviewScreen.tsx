@@ -5,7 +5,8 @@ import {
 } from 'react-native';
 import { Truck, Phone, ArrowRight, Package, BadgeCheck, Handshake } from 'lucide-react-native';
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
-import { getAddresses, getCart, placeOrder, formatPaise, type Address, type CartResponse } from '../services/api';
+import { getAddresses, getCart, placeOrder, formatPaise, referenceOf, type Address, type CartResponse } from '../services/api';
+import ErrorReference from '../components/ErrorReference';
 import { shippingFor, useShippingRule } from '../services/shipping';
 
 interface Props {
@@ -22,6 +23,7 @@ export default function OrderReviewScreen({ navigation, route }: Props) {
   const [loading, setLoading] = useState(true);
   const [placing, setPlacing] = useState(false);
   const [error, setError] = useState('');
+  const [errorRef, setErrorRef] = useState(''); // the API's reference for the failed request
   const [paymentMode] = useState<'cod'>('cod');
   const { rule, loaded: ruleLoaded } = useShippingRule();
 
@@ -42,13 +44,14 @@ export default function OrderReviewScreen({ navigation, route }: Props) {
 
   const handlePlaceOrder = async () => {
     setPlacing(true);
-    setError('');
+    setError(''); setErrorRef('');
     try {
       const idempotencyKey = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
       const order = await placeOrder({ addressId, paymentMode, idempotencyKey });
       navigation.replace('OrderSuccess', { order });
     } catch (err: any) {
       setError(err.message || 'Could not place order. Please try again.');
+      setErrorRef(referenceOf(err));
     } finally {
       setPlacing(false);
     }
@@ -192,6 +195,7 @@ export default function OrderReviewScreen({ navigation, route }: Props) {
       {error ? (
         <View style={styles.errorBanner}>
           <Text style={styles.errorBannerText}>{`Order failed: ${error}`}</Text>
+          <ErrorReference id={errorRef} />
         </View>
       ) : null}
 

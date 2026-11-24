@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Truck, Check, MapPin, ShieldCheck, Home, Briefcase, MoreHorizontal } from 'lucide-react';
-import { createAddress } from '@/lib/api';
+import { createAddress, referenceOf } from '@/lib/api';
+import ErrorReference from '@/components/ErrorReference';
 
 const LABEL_OPTIONS = [
   { value: 'Home', icon: Home, desc: 'House / Apartment' },
@@ -19,6 +20,7 @@ export default function AddAddressPage() {
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [errorRef, setErrorRef] = useState(''); // the API's reference for the failed request
 
   const update = (key: string, value: string | boolean) => setForm(f => ({ ...f, [key]: value }));
 
@@ -40,11 +42,11 @@ export default function AddAddressPage() {
 
   const handleSave = async () => {
     if (!isValid) return;
-    setSaving(true); setError('');
+    setSaving(true); setError(''); setErrorRef('');
     try {
       await createAddress({ ...form, recipientPhone: '+91' + form.recipientPhone } as any);
       router.back();
-    } catch (e: any) { setError(e.message || 'Failed to save'); }
+    } catch (e: any) { setError(e.message || 'Failed to save'); setErrorRef(referenceOf(e)); }
     finally { setSaving(false); }
   };
 
@@ -157,7 +159,8 @@ export default function AddAddressPage() {
           {/* Mobile CTA */}
           <div className="lg:hidden">
             {hint}
-            {error && <p className="font-sans text-body-sm text-error mb-3">{error}</p>}
+            {error && <p className="font-sans text-body-sm text-error mb-1">{error}</p>}
+            <ErrorReference id={errorRef} className="mb-3" />
             <button onClick={handleSave} disabled={!isValid || saving}
               className="btn-primary w-full !h-14 !rounded-xl !text-title-sm disabled:opacity-40">
               {saving ? 'Saving...' : 'Save Address'} <Check size={18} />
@@ -213,6 +216,7 @@ export default function AddAddressPage() {
           {/* CTA */}
           {hint}
           {error && <p className="font-sans text-body-sm text-error">{error}</p>}
+          <ErrorReference id={errorRef} />
           <button onClick={handleSave} disabled={!isValid || saving}
             className="btn-primary w-full !h-14 !rounded-xl !text-title-sm disabled:opacity-40">
             {saving ? 'Saving...' : 'Save Address'} <Check size={18} />

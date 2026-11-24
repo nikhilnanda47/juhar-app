@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Package, User, ArrowRight, ShieldCheck, Truck, Filter } from 'lucide-react';
 import { loadToken, getOrders, formatPaise } from '@/lib/api';
+import { appendUnique } from '@/lib/paging';
 
 const STATUS_STYLES: Record<string, { bgClass: string; textClass: string; label: string }> = {
   placed: { bgClass: 'bg-surface-container-high', textClass: 'text-primary', label: 'Placed' },
@@ -26,24 +27,72 @@ const FILTERS = ['All', 'Placed', 'Confirmed', 'Shipped', 'Delivered', 'Cancelle
 export default function OrdersPage() {
   const router = useRouter();
   const [orders, setOrders] = useState<any[]>([]);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  // orders the customer has in each status, and in all (the chips and the header read these)
+  const [counts, setCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
+  const [listLoading, setListLoading] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
   const [activeFilter, setActiveFilter] = useState('All');
+  // Only the newest request may change the list (a slow answer for an old filter is dropped)
+  const requestId = useRef(0);
+
+  const allOrders = Object.values(counts).reduce((sum, n) => sum + n, 0);
+  const statusOf = (filter: string) => (filter === 'All' ? undefined : filter.toLowerCase());
+
+  const loadFirstPage = async (filter: string) => {
+    const mine = ++requestId.current;
+    setListLoading(true);
+    setLoadError('');
+    try {
+      const page = await getOrders({ status: statusOf(filter) });
+      if (mine !== requestId.current) return;
+      setOrders(page.items);
+      setCursor(page.cursor);
+      setHasMore(page.hasMore);
+      setCounts(page.counts);
+    } catch {
+      if (mine === requestId.current) setLoadError('Could not load your orders. Please try again.');
+    } finally {
+      if (mine === requestId.current) { setListLoading(false); setLoading(false); }
+    }
+  };
+
+  const loadMore = async () => {
+    if (!cursor || loadingMore) return;
+    const mine = requestId.current;
+    setLoadingMore(true);
+    setLoadError('');
+    try {
+      const page = await getOrders({ status: statusOf(activeFilter), cursor });
+      if (mine !== requestId.current) return; // the filter changed meanwhile
+      setOrders((shown) => appendUnique(shown, page.items));
+      setCursor(page.cursor);
+      setHasMore(page.hasMore);
+      setCounts(page.counts);
+    } catch {
+      setLoadError('Could not load more orders. Please try again.');
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   useEffect(() => {
     const hasToken = loadToken();
     setLoggedIn(hasToken);
-    if (hasToken) {
-      getOrders()
-        .then(setOrders)
-        .catch(() => {})
-        .finally(() => setLoading(false));
-    } else setLoading(false);
+    if (hasToken) loadFirstPage('All');
+    else setLoading(false);
   }, []);
 
-  const filteredOrders = activeFilter === 'All'
-    ? orders
-    : orders.filter((o: any) => o.status === activeFilter.toLowerCase());
+  const changeFilter = (filter: string) => {
+    setActiveFilter(filter);
+    loadFirstPage(filter);
+  };
+
+  const filteredOrders = orders; // the API already applied the filter
 
   if (loading) return <div className="flex items-center justify-center min-h-[60vh]"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
 
@@ -55,7 +104,7 @@ export default function OrdersPage() {
     </div>
   );
 
-  if (orders.length === 0) return (
+  if (orders.length === 0 && activeFilter === 'All' && !listLoading && !loadError) return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] px-4 text-center">
       <Package size={48} className="text-text-tertiary mb-4" strokeWidth={1.5} />
       <h2 className="section-title mb-2">No orders yet</h2>
@@ -76,7 +125,7 @@ export default function OrdersPage() {
         <div className="hidden lg:flex items-center gap-6 mt-4 lg:mt-0">
           <div className="flex items-center gap-2 text-text-secondary">
             <Package size={18} className="text-accent" strokeWidth={1.5} />
-            <span className="font-sans text-body-md"><strong className="text-text-primary">{orders.length}</strong> orders</span>
+            <span className="font-sans text-body-md"><strong className="text-text-primary">{allOrders || orders.length}</strong> orders</span>
           </div>
           <div className="flex items-center gap-2 text-text-secondary">
             <ShieldCheck size={18} className="text-accent" strokeWidth={1.5} />
@@ -89,7 +138,7 @@ export default function OrdersPage() {
       <div className="lg:hidden card flex items-center justify-between mb-4 !bg-surface-container-low">
         <div className="flex items-center gap-2">
           <Package size={18} className="text-accent" strokeWidth={2} />
-          <span className="font-sans text-body-sm text-text-secondary font-medium">{orders.length} Handcrafted Orders</span>
+          <span className="font-sans text-body-sm text-text-secondary font-medium">{allOrders || orders.length} Handcrafted Orders</span>
         </div>
         <span className="label-upper text-accent">ARTISAN CERTIFIED</span>
       </div>
@@ -99,7 +148,7 @@ export default function OrdersPage() {
         {FILTERS.map((f) => (
           <button
             key={f}
-            onClick={() => setActiveFilter(f)}
+            onClick={() => changeFilter(f)}
             className={`px-4 py-2 rounded-full font-sans text-label-md transition-all ${
               activeFilter === f
                 ? 'bg-primary text-white shadow-sm'
@@ -109,7 +158,7 @@ export default function OrdersPage() {
             {f}
             {f !== 'All' && (
               <span className="ml-1.5 opacity-70">
-                {orders.filter((o: any) => o.status === f.toLowerCase()).length}
+                {counts[f.toLowerCase()] ?? 0}
               </span>
             )}
           </button>
@@ -177,7 +226,7 @@ export default function OrdersPage() {
           })}
         </div>
 
-        {filteredOrders.length === 0 && (
+        {filteredOrders.length === 0 && !listLoading && (
           <div className="flex flex-col items-center py-16 text-center">
             <Package size={40} className="text-text-tertiary mb-3" strokeWidth={1.5} />
             <p className="font-sans text-body-md text-text-secondary">No {activeFilter.toLowerCase()} orders</p>
@@ -227,10 +276,20 @@ export default function OrdersPage() {
       </div>
 
       {/* Footer */}
-      <div className="flex flex-col items-center mt-8 gap-2 text-center">
+      <div className="flex flex-col items-center mt-8 gap-3 text-center">
         <div className="w-8 h-1 rounded-full bg-surface-container-high" />
+        {loadError && <p role="alert" className="font-sans text-body-sm text-error">{loadError}</p>}
+        {hasMore && (
+          <button
+            onClick={loadMore}
+            disabled={loadingMore}
+            className="btn-outline px-8 disabled:opacity-60"
+          >
+            {loadingMore ? 'Loading...' : 'Load more orders'}
+          </button>
+        )}
         <p className="font-sans text-body-sm text-text-tertiary">
-          Showing all {filteredOrders.length} orders · Need help? <a href="#" className="text-primary hover:underline">Contact support</a>
+          {hasMore ? `Showing ${orders.length} orders` : `All ${orders.length} ${activeFilter === 'All' ? '' : activeFilter.toLowerCase() + ' '}orders shown`} · Need help? <a href="#" className="text-primary hover:underline">Contact support</a>
         </p>
       </div>
     </div>

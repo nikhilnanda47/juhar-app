@@ -434,6 +434,17 @@ npx ts-node prisma/seed.ts    # Seeds 4 categories, 8 products, 11 variants, 1 a
 cd ../..
 ```
 
+**Optional: more demo data for testing.** The normal seed has only 8 products, which is too few to see "Load more", sorting, the Low Stock count or the Overdue flag. On a local or test database you can add more:
+
+```bash
+npm run db:seed:demo                           # 60 sarees (weaves, colours, 1 to 3 variants each)
+npm run db:seed:demo -- --products 120         # a different number
+npm run db:seed:demo -- --orders 55            # also a demo customer (+919000000099) with 55 orders
+npm run db:seed:demo -- --clean                # remove everything this script added
+```
+
+It is safe to run again (it skips what exists) and it refuses to run with `NODE_ENV=production`. The sarees mix every case on purpose: about 1 in 6 is a draft and 1 in 20 archived, stock cycles through none, 1 to 3 (low stock), ordinary and plenty, some variants are retired, and prices run from about ₹1,200 to ₹18,000 so some carts pass the free-shipping amount. The demo orders have 1 to 3 items in every status (some placed more than a day ago, so they show as overdue; a few are from today). To see those orders as the customer, log in with phone `9000000099` and OTP `123456`. The orders are plain records: stock is not deducted for them.
+
 > **If `prisma migrate deploy` fails with a message starting "Cannot add the CHECK constraints":** some rows already in your database break a rule (for example stock reserved beyond what is on hand). The message lists each problem and the `SELECT` that finds the rows; nothing was changed. Fix or delete those rows, then run `npx prisma migrate resolve --rolled-back 20261122150000_check_constraints` (Prisma refuses to continue after a failed migration until you do) and `npx prisma migrate deploy` again. If you do not need the data, `npx prisma migrate reset` rebuilds the local database from scratch (it deletes everything, so then run the seed again).
 
 > **If `prisma migrate dev` fails with `P3014` ("could not create the shadow database"):** your database user is not allowed to create databases, and `migrate dev` needs that to compare migrations against a temporary database. To apply existing migrations, use `npx prisma migrate deploy` instead (it needs no extra permission). To create new migrations yourself, grant the permission once: `psql postgres -c "ALTER USER juhar CREATEDB;"` (run as your Postgres superuser).
@@ -512,8 +523,10 @@ Every request gets one ID. It is in the `requestId` of the reply, in the `X-Requ
 ```
 LOG  [HTTP] req=bf1fd942-... POST /api/v1/orders 201 23ms user=6e7e4675-...
 LOG  [CheckoutService] req=bf1fd942-... order placed JUH-20261123-0096 total=₹1,599 items=1 payment=cod user=6e7e4675-...
-WARN [HTTP] req=84f9f661-... POST /api/v1/orders 409 12ms user=6e7e4675-... code=HTTP_409 "INSUFFICIENT_STOCK"
+WARN [HTTP] req=84f9f661-... POST /api/v1/orders 409 12ms user=6e7e4675-... code=INSUFFICIENT_STOCK
 ```
+
+**From a customer to the log.** When something fails in the web or mobile app (sign-in, saving an address, adding to the bag, placing an order), the error message has a small `Reference: <id>` line with a Copy button. Ask the customer for it and search the logs for `req=<id>`. To find out who a log line's `user=<id>` is, open the admin Orders page: each order shows the customer's user id (first 8 characters, with a Copy button that copies the whole id).
 
 Successful requests are normal lines, client mistakes (wrong OTP, bad input, unknown page) are warnings without a stack trace, and real failures (500) are errors with the stack. Phone numbers are masked (`+91******3210`) and tokens, request bodies, addresses and query strings are never logged. Set `LOG_LEVEL` in `apps/api/.env` to `error`, `warn`, `log` (default), `debug` or `verbose` to change how much is written; in production the lines have no colour codes. The apps do not show the request ID to customers yet.
 
@@ -553,6 +566,7 @@ Check what changed (`git diff HEAD@{1} --stat`), then use this table. Dev server
 | `cd apps/api && npx prisma migrate dev --name <name>` | Root | Create a new migration (needs the database user to be allowed to create databases, see the `P3014` note in step 5) |
 | `cd apps/api && npx prisma generate` | Root | Regenerate Prisma client |
 | `cd apps/api && npx ts-node prisma/seed.ts` | Root | Re-seed database |
+| `npm run db:seed:demo -- --products 60 --orders 55` | Root | Add demo sarees and orders for testing long lists (`-- --clean` removes them) |
 | `psql -U juhar -d juhar_dev` | Anywhere | Connect to database CLI |
 | `cd apps/mobile && npx expo start --web --clear` | Root | Mobile with cleared cache |
 | `npm run build -w packages/shared` | Root | Rebuild the shared package after editing it |
@@ -562,7 +576,7 @@ Check what changed (`git diff HEAD@{1} --stat`), then use this table. Dev server
 | `npm test -w apps/web` | Root | Run the website unit tests (Jest) |
 | `cd apps/mobile && npm test` | Root | Run the mobile unit tests (Jest) |
 | `npm test` | Root | Run the API, admin and website tests together (mobile has its own, above) |
-| `cd apps/api && DB_TESTS=1 npm test -- check-constraints` | Root | Also run the database tests against your migrated local database (they roll back and leave no data) |
+| `cd apps/api && DB_TESTS=1 npm test -- check-constraints` | Root | Also run the database tests against your migrated local database (they roll back and leave no data). With `DB_TESTS=1` the test files run one at a time, because several count rows over the whole table and would disturb each other in parallel |
 | `npm run build:web` | Root | Production build of the website (catches errors dev mode hides) |
 
 ### Service ports

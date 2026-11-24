@@ -127,6 +127,19 @@ describeDb('catalog sorting and paging (real Postgres)', () => {
       expect(shown).toEqual(expected(seeded, direction).map((id) => seeded.find((s) => s.id === id)!.price));
     });
 
+    it('says how many products match in total, on every page (not just the page)', async () => {
+      const first = await service.findAll({ sortBy, categoryId, limit: 10 } as any);
+      expect(first.total).toBe(25);
+      const second = await service.findAll({ sortBy, categoryId, limit: 10, cursor: first.cursor } as any);
+      expect(second.total).toBe(25);
+    });
+
+    it('the total follows the price filter', async () => {
+      const inRange = seeded.filter((s) => s.price >= 3000 && s.price <= 7000).length;
+      const page = await service.findAll({ sortBy, categoryId, minPrice: 3000, maxPrice: 7000, limit: 3 } as any);
+      expect(page.total).toBe(inRange);
+    });
+
     it('reports hasMore and a cursor on every page but the last', async () => {
       const pages = await walk({ sortBy }, 10);
       expect(pages.map((p) => p.ids.length)).toEqual([10, 10, 5]);
@@ -192,6 +205,11 @@ describeDb('catalog sorting and paging (real Postgres)', () => {
       const newest = [...seeded].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()).map((s) => s.id);
       const pages = await walk({ sortBy: ProductSortBy.NEWEST }, 7);
       expect(flat(pages)).toEqual(newest);
+    });
+
+    it('says how many products there are in total', async () => {
+      expect((await service.findAll({ sortBy: ProductSortBy.NEWEST, categoryId, limit: 5 } as any)).total).toBe(25);
+      expect((await service.findAll({ categoryId: emptyCategoryId } as any)).total).toBe(0);
     });
 
     it('is also the order when no sort is given', async () => {

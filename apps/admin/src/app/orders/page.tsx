@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AdminLayout from '../../components/AdminLayout';
 import { api } from '../../services/api';
+import { appendUnique, loadAtLeast } from '../../services/paging';
 import styles from './orders.module.css';
 
 const STATUS_OPTIONS = ['all', 'placed', 'confirmed', 'packed', 'shipped', 'delivered', 'cancelled'];
@@ -39,6 +40,12 @@ function formatPaise(paise: number): string {
 export default function OrdersPage() {
   const router = useRouter();
   const [orders, setOrders] = useState<any[]>([]);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  // Only the newest request may change the list (a slow answer for an old filter is dropped)
+  const requestId = useRef(0);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [filterReady, setFilterReady] = useState(false);
@@ -52,6 +59,7 @@ export default function OrdersPage() {
   const [cancelReason, setCancelReason] = useState('');
   const [cancelError, setCancelError] = useState('');
   const [cancelling, setCancelling] = useState(false);
+  const [copiedUser, setCopiedUser] = useState<string | null>(null); // the user id just copied (shows "Copied")
 
   // The dashboard links here with ?filter=overdue; read it once before the first load
   useEffect(() => {
@@ -59,19 +67,69 @@ export default function OrdersPage() {
     setFilterReady(true);
   }, []);
 
+  // One page of the list for the current filter and search
+  const fetchOrders = (after?: string, limit = 20) => {
+    const params: Record<string, string> = { limit: String(limit) };
+    if (filter === 'overdue') params.overdue = 'true';
+    else if (filter !== 'all') params.status = filter;
+    if (search) params.search = search;
+    if (after) params.cursor = after;
+    return api.getOrders(params);
+  };
+
+  // Start the list again from the top (filter or search changed)
   const loadOrders = async () => {
+    const mine = ++requestId.current;
+    setLoadError('');
     try {
-      const params: Record<string, string> = {};
-      if (filter === 'overdue') params.overdue = 'true';
-      else if (filter !== 'all') params.status = filter;
-      if (search) params.search = search;
-      const data = await api.getOrders(params);
+      const data = await fetchOrders();
+      if (mine !== requestId.current) return;
       setOrders(data.items || []);
+      setCursor(data.cursor);
+      setHasMore(data.hasMore);
       if (data.counts) setCounts(data.counts);
     } catch {
       // AdminLayout handles auth
     } finally {
-      setLoading(false);
+      if (mine === requestId.current) setLoading(false);
+    }
+  };
+
+  // Refresh after an action, keeping as many rows on screen as there were
+  const refreshOrders = async () => {
+    const mine = ++requestId.current;
+    try {
+      const page = await loadAtLeast(
+        (after, limit) => fetchOrders(after, limit),
+        Math.max(orders.length, 20),
+      );
+      const fresh = (await api.getOrders({ limit: '1' })).counts;
+      if (mine !== requestId.current) return;
+      setOrders(page.items);
+      setCursor(page.cursor);
+      setHasMore(page.hasMore);
+      if (fresh) setCounts(fresh);
+    } catch {
+      // keep what is on screen
+    }
+  };
+
+  const loadMore = async () => {
+    if (!cursor || loadingMore) return;
+    const mine = requestId.current;
+    setLoadingMore(true);
+    setLoadError('');
+    try {
+      const data = await fetchOrders(cursor);
+      if (mine !== requestId.current) return; // the filter changed meanwhile
+      setOrders((shown) => appendUnique(shown, data.items || []));
+      setCursor(data.cursor);
+      setHasMore(data.hasMore);
+      if (data.counts) setCounts(data.counts);
+    } catch (err: any) {
+      setLoadError(err?.message || 'Could not load more orders');
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -90,7 +148,7 @@ export default function OrdersPage() {
     setUpdating(orderId);
     try {
       await api.updateOrderStatus(orderId, { status });
-      await loadOrders();
+      await refreshOrders();
     } catch (err: any) {
       alert(err.message);
     }
@@ -109,11 +167,28 @@ export default function OrdersPage() {
       setShipModal(null);
       setTrackingId('');
       setCourierName('');
-      await loadOrders();
+      await refreshOrders();
     } catch (err: any) {
       alert(err.message);
     }
     setUpdating(null);
+  };
+
+  // Copy a customer's user id, the same "user=<id>" that the API logs show
+  const copyUserId = async (id: string) => {
+    try {
+      await navigator.clipboard.writeText(id);
+    } catch {
+      // clipboard blocked (plain http, old browser): select the text the old way
+      const box = document.createElement('textarea');
+      box.value = id;
+      document.body.appendChild(box);
+      box.select();
+      document.execCommand('copy');
+      document.body.removeChild(box);
+    }
+    setCopiedUser(id);
+    setTimeout(() => setCopiedUser((current) => (current === id ? null : current)), 1500);
   };
 
   const closeCancelModal = () => {
@@ -129,7 +204,7 @@ export default function OrdersPage() {
     try {
       await api.updateOrderStatus(cancelModal.id, { status: 'cancelled', reason: cancelReason.trim() });
       closeCancelModal();
-      await loadOrders();
+      await refreshOrders();
     } catch (err: any) {
       setCancelError(err.message || 'Could not cancel the order');
     }
@@ -200,6 +275,18 @@ export default function OrdersPage() {
                   <td>
                     <div className={styles.customerName}>{order.customer?.name || '—'}</div>
                     <div className={styles.phone}>{order.customer?.phone}</div>
+                    {order.customer?.id && (
+                      <div className={styles.userIdRow} title={`User ID: ${order.customer.id}`}>
+                        <span className={styles.userId}>ID {order.customer.id.slice(0, 8)}</span>
+                        <button
+                          className={styles.copyBtn}
+                          onClick={() => copyUserId(order.customer.id)}
+                          aria-label={`Copy user ID ${order.customer.id}`}
+                        >
+                          {copiedUser === order.customer.id ? 'Copied' : 'Copy'}
+                        </button>
+                      </div>
+                    )}
                   </td>
                   <td className={styles.date}>
                     {new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
@@ -263,6 +350,20 @@ export default function OrdersPage() {
               )}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {!loading && orders.length > 0 && (
+        <div className={styles.loadMoreBar}>
+          <span className={styles.loadMoreInfo}>
+            {hasMore ? `Showing ${orders.length} orders` : `All ${orders.length} orders shown`}
+          </span>
+          {hasMore && (
+            <button className={styles.loadMoreBtn} onClick={loadMore} disabled={loadingMore}>
+              {loadingMore ? 'Loading...' : 'Load more'}
+            </button>
+          )}
+          {loadError && <span className={styles.loadMoreError}>{loadError}</span>}
         </div>
       )}
 

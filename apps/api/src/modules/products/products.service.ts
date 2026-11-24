@@ -6,9 +6,9 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
-import { ProductQueryDto, CreateProductDto, UpdateProductDto, UpdateVariantDto } from './dto';
+import { ProductQueryDto, AdminProductQueryDto, CreateProductDto, UpdateProductDto, UpdateVariantDto } from './dto';
 import { CreateVariantDto } from './dto/create-product.dto';
-import { generateSlug, ProductSortBy, PublishStatus, PAGINATION } from '@juhar/shared';
+import { generateSlug, ProductSortBy, PublishStatus, PAGINATION, INVENTORY } from '@juhar/shared';
 
 @Injectable()
 export class ProductsService {
@@ -80,9 +80,10 @@ export class ProductsService {
     let items: any[];
     let hasMore: boolean;
     let nextCursor: string | null;
+    let total: number; // every product that matches the filters, over all pages ("58 sarees")
 
     if (query.sortBy === ProductSortBy.PRICE_ASC || query.sortBy === ProductSortBy.PRICE_DESC) {
-      ({ items, hasMore, nextCursor } = await this.findPageByPrice(
+      ({ items, hasMore, nextCursor, total } = await this.findPageByPrice(
         where,
         include,
         limit,
@@ -93,7 +94,7 @@ export class ProductsService {
       // Newest first (also used when no sort is given)
       const findArgs: Prisma.ProductFindManyArgs = {
         where,
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], // id breaks ties, so paging never skips or repeats
         take: limit + 1,
         include,
       };
@@ -103,7 +104,11 @@ export class ProductsService {
         findArgs.skip = 1;
       }
 
-      const products = await this.prisma.product.findMany(findArgs as any);
+      const [products, count] = await Promise.all([
+        this.prisma.product.findMany(findArgs as any),
+        this.prisma.product.count({ where }),
+      ]);
+      total = count;
       hasMore = products.length > limit;
       items = hasMore ? products.slice(0, limit) : products;
       nextCursor = hasMore ? items[items.length - 1].id : null;
@@ -134,7 +139,7 @@ export class ProductsService {
       };
     });
 
-    return { items: cards, cursor: nextCursor, hasMore };
+    return { items: cards, cursor: nextCursor, hasMore, total };
   }
 
   /**
@@ -153,10 +158,10 @@ export class ProductsService {
     limit: number,
     cursor: string | undefined,
     descending: boolean,
-  ): Promise<{ items: any[]; hasMore: boolean; nextCursor: string | null }> {
+  ): Promise<{ items: any[]; hasMore: boolean; nextCursor: string | null; total: number }> {
     const matching = await this.prisma.product.findMany({ where, select: { id: true } });
     const ids = matching.map((p) => p.id);
-    if (ids.length === 0) return { items: [], hasMore: false, nextCursor: null };
+    if (ids.length === 0) return { items: [], hasMore: false, nextCursor: null, total: 0 };
 
     const direction = descending ? Prisma.sql`DESC` : Prisma.sql`ASC`;
     const ordered = await this.prisma.$queryRaw<{ id: string }[]>`
@@ -167,19 +172,20 @@ export class ProductsService {
       ORDER BY MIN(v.price_paise) ${direction}, v.product_id ASC
     `;
     const orderedIds = ordered.map((row) => row.id);
+    const total = orderedIds.length;
 
     let start = 0;
     if (cursor) {
       const position = orderedIds.indexOf(cursor);
       // A cursor that is not in the list (product removed or unpublished): nothing more to show
-      if (position === -1) return { items: [], hasMore: false, nextCursor: null };
+      if (position === -1) return { items: [], hasMore: false, nextCursor: null, total };
       start = position + 1;
     }
 
     const pageIds = orderedIds.slice(start, start + limit + 1);
     const hasMore = pageIds.length > limit;
     const idsOnPage = hasMore ? pageIds.slice(0, limit) : pageIds;
-    if (idsOnPage.length === 0) return { items: [], hasMore: false, nextCursor: null };
+    if (idsOnPage.length === 0) return { items: [], hasMore: false, nextCursor: null, total };
 
     const products = await this.prisma.product.findMany({
       where: { id: { in: idsOnPage } },
@@ -188,7 +194,36 @@ export class ProductsService {
     const byId = new Map<string, any>(products.map((product: any) => [product.id, product]));
     const items = idsOnPage.map((id) => byId.get(id)).filter(Boolean);
 
-    return { items, hasMore, nextCursor: hasMore ? idsOnPage[idsOnPage.length - 1] : null };
+    return { items, hasMore, nextCursor: hasMore ? idsOnPage[idsOnPage.length - 1] : null, total };
+  }
+
+  /**
+   * What the shop's filters can be chosen from: the fabrics, weaves and colours that the visible
+   * catalog really has, and its price range. Read from the data, so the filter lists never offer
+   * a value that matches nothing and never miss a new one. "Visible" is the same as in the list:
+   * published products, active variants only.
+   */
+  async findFilterOptions() {
+    const visibleProduct: Prisma.ProductWhereInput = {
+      publishStatus: 'published',
+      variants: { some: { active: true } },
+    };
+    const visibleVariant: Prisma.ProductVariantWhereInput = { active: true, product: { publishStatus: 'published' } };
+
+    const [fabrics, weaves, colors, prices] = await Promise.all([
+      this.prisma.product.groupBy({ by: ['fabric'], where: { ...visibleProduct, fabric: { not: null } } }),
+      this.prisma.product.groupBy({ by: ['weaveMethod'], where: { ...visibleProduct, weaveMethod: { not: null } } }),
+      this.prisma.productVariant.groupBy({ by: ['color'], where: { ...visibleVariant, color: { not: null } } }),
+      this.prisma.productVariant.aggregate({ where: visibleVariant, _min: { pricePaise: true }, _max: { pricePaise: true } }),
+    ]);
+
+    return {
+      fabrics: distinctSorted(fabrics.map((row) => row.fabric)),
+      weaveMethods: distinctSorted(weaves.map((row) => row.weaveMethod)),
+      colors: distinctSorted(colors.map((row) => row.color)),
+      minPricePaise: prices._min.pricePaise ?? null,
+      maxPricePaise: prices._max.pricePaise ?? null,
+    };
   }
 
   /**
@@ -272,7 +307,7 @@ export class ProductsService {
   /**
    * Admin product list (includes drafts and archived).
    */
-  async findAllAdmin(query: ProductQueryDto & { publishStatus?: string }) {
+  async findAllAdmin(query: AdminProductQueryDto) {
     const limit = query.limit ?? PAGINATION.DEFAULT_LIMIT;
 
     const where: Prisma.ProductWhereInput = {};
@@ -287,7 +322,8 @@ export class ProductsService {
 
     const findArgs: Prisma.ProductFindManyArgs = {
       where,
-      orderBy: { createdAt: 'desc' },
+      // id breaks ties, so products created in the same instant keep one fixed order across pages
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: limit + 1,
       include: {
         category: true,
@@ -304,13 +340,51 @@ export class ProductsService {
       findArgs.skip = 1;
     }
 
-    const products = await this.prisma.product.findMany(findArgs as any);
+    // The counts cover the whole catalog (not just this page or filter), for the page headings,
+    // the filter buttons and the dashboard's Low Stock tile.
+    const [products, byStatus, variants, lowStock] = await Promise.all([
+      this.prisma.product.findMany(findArgs as any),
+      this.prisma.product.groupBy({ by: ['publishStatus'], _count: { _all: true } }),
+      this.prisma.productVariant.count(),
+      this.countLowStockVariants(),
+    ]);
 
     const hasMore = products.length > limit;
     const items = hasMore ? products.slice(0, limit) : products;
     const nextCursor = hasMore ? items[items.length - 1].id : null;
 
-    return { items, cursor: nextCursor, hasMore };
+    const statusCount = (status: string) =>
+      byStatus.find((row) => row.publishStatus === status)?._count._all ?? 0;
+
+    return {
+      items,
+      cursor: nextCursor,
+      hasMore,
+      counts: {
+        products: byStatus.reduce((sum, row) => sum + row._count._all, 0),
+        published: statusCount('published'),
+        draft: statusCount('draft'),
+        archived: statusCount('archived'),
+        variants,
+        lowStock,
+        lowStockThreshold: INVENTORY.LOW_STOCK_THRESHOLD, // what "low" means, for the pages to show
+      },
+    };
+  }
+
+  /**
+   * Active variants with 1 to LOW_STOCK_THRESHOLD pieces available (on hand - reserved - unavailable).
+   * A variant with none left is out of stock, not low stock. The comparison is between two columns,
+   * which Prisma cannot express, so it is plain SQL.
+   */
+  private async countLowStockVariants(): Promise<number> {
+    const rows = await this.prisma.$queryRaw<{ count: bigint }[]>`
+      SELECT count(*) AS count
+      FROM inventory i
+      JOIN product_variants v ON v.id = i.variant_id
+      WHERE v.active
+        AND i.on_hand - i.reserved - i.unavailable BETWEEN 1 AND ${INVENTORY.LOW_STOCK_THRESHOLD}`;
+    return Number(rows[0]?.count ?? 0);
   }
 
   /**
@@ -547,4 +621,17 @@ export class ProductsService {
       include: { inventory: true },
     });
   }
+}
+
+/**
+ * Distinct, trimmed, non-empty values in alphabetical order. The list filters compare without
+ * regard to capital letters ("Maroon" and "maroon" are the same filter), so the first spelling wins.
+ */
+function distinctSorted(values: (string | null)[]): string[] {
+  const seen = new Map<string, string>();
+  for (const value of values) {
+    const trimmed = value?.trim();
+    if (trimmed && !seen.has(trimmed.toLowerCase())) seen.set(trimmed.toLowerCase(), trimmed);
+  }
+  return [...seen.values()].sort((a, b) => a.localeCompare(b, 'en', { sensitivity: 'base' }));
 }

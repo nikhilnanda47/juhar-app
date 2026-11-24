@@ -3,7 +3,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AddToCartDto, UpdateCartItemDto } from './dto';
-import { CART } from '@juhar/shared';
+import { CART, INVENTORY } from '@juhar/shared';
 
 @Injectable()
 export class CartService {
@@ -42,7 +42,7 @@ export class CartService {
         availabilityWarning = 'Out of stock';
       } else if (available < item.quantity) {
         availabilityWarning = `Only ${available} available`;
-      } else if (available <= 3) {
+      } else if (available <= INVENTORY.LOW_STOCK_THRESHOLD) {
         availabilityWarning = `Only ${available} left`;
       }
 
