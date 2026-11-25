@@ -168,8 +168,20 @@ export default function TabNavigator() {
         headerShown: false,
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Shop" component={ExploreStackScreen} />
+      <Tab.Screen
+        name="Home"
+        component={HomeScreen}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => { e.preventDefault(); navigation.navigate('Home'); },
+        })}
+      />
+      <Tab.Screen
+        name="Shop"
+        component={ExploreStackScreen}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => { e.preventDefault(); navigation.navigate('Shop', { screen: 'ExploreList' }); },
+        })}
+      />
       <Tab.Screen
         name="Cart"
         component={CartStackScreen}
@@ -186,9 +198,24 @@ export default function TabNavigator() {
             borderRadius: 9,
           },
         }}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => { e.preventDefault(); navigation.navigate('Cart', { screen: 'CartView' }); },
+        })}
       />
-      <Tab.Screen name="Orders" component={OrdersStackScreen} />
-      <Tab.Screen name="Account" component={AccountStackScreen} />
+      <Tab.Screen
+        name="Orders"
+        component={OrdersStackScreen}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => { e.preventDefault(); navigation.navigate('Orders', { screen: 'OrdersList' }); },
+        })}
+      />
+      <Tab.Screen
+        name="Account"
+        component={AccountStackScreen}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => { e.preventDefault(); navigation.navigate('Account', { screen: 'Profile' }); },
+        })}
+      />
     </Tab.Navigator>
   );
 }

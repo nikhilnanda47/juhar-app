@@ -10,7 +10,7 @@ import ErrorReference from '@/components/ErrorReference';
 export default function WishlistPage() {
   const { loaded, items, toggleVariant, total, refreshWishlist } = useWishlist();
   const [addingId, setAddingId] = useState<string | null>(null);
-  const [addedId, setAddedId] = useState<string | null>(null);
+  const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState('');
   const [errorRef, setErrorRef] = useState(''); // the API's reference for the failed request
 
@@ -53,11 +53,10 @@ export default function WishlistPage() {
   }
 
   const handleAddToCart = async (variantId: string) => {
-    setAddingId(variantId); setError(''); setErrorRef(''); setAddedId(null);
+    setAddingId(variantId); setError(''); setErrorRef('');
     try {
       await addToCart(variantId, 1);
-      setAddedId(variantId);
-      setTimeout(() => setAddedId((current) => (current === variantId ? null : current)), 2000);
+      setAddedIds((prev) => new Set(prev).add(variantId));
     } catch (e: any) {
       // used to fail without a word
       setError(e?.message || 'Could not add this saree to your bag. Please try again.');
@@ -124,14 +123,24 @@ export default function WishlistPage() {
               {v.isListed ? <Link href={`/shop/${p.slug}`}>{card}</Link> : <div>{card}</div>}
               <div className="flex gap-2 mt-2">
                 {v.isAvailable && (
-                  <button
-                    onClick={() => handleAddToCart(v.id)}
-                    disabled={addingId === v.id}
-                    className="flex-1 h-9 rounded-lg bg-primary text-white font-sans text-label-md font-medium flex items-center justify-center gap-1.5 hover:bg-primary-dark transition-colors disabled:opacity-60"
-                  >
-                    <ShoppingBag size={14} strokeWidth={2} />
-                    {addingId === v.id ? 'Adding...' : addedId === v.id ? 'Added' : 'Add to Bag'}
-                  </button>
+                  addedIds.has(v.id) ? (
+                    <Link
+                      href="/cart"
+                      className="flex-1 h-9 rounded-lg bg-accent text-white font-sans text-label-md font-medium flex items-center justify-center gap-1.5 hover:opacity-90 transition-opacity"
+                    >
+                      <ShoppingBag size={14} strokeWidth={2} />
+                      Go to Bag
+                    </Link>
+                  ) : (
+                    <button
+                      onClick={() => handleAddToCart(v.id)}
+                      disabled={addingId === v.id}
+                      className="flex-1 h-9 rounded-lg bg-primary text-white font-sans text-label-md font-medium flex items-center justify-center gap-1.5 hover:bg-primary-dark transition-colors disabled:opacity-60"
+                    >
+                      <ShoppingBag size={14} strokeWidth={2} />
+                      {addingId === v.id ? 'Adding...' : 'Add to Bag'}
+                    </button>
+                  )
                 )}
                 <button
                   onClick={() => toggleVariant(v.id, p.id)}

@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ShoppingBag, Trash2, Minus, Plus, Truck, ArrowRight, Leaf } from 'lucide-react';
+import { Heart, ShoppingBag, Trash2, Minus, Plus, Truck, ArrowRight, Leaf } from 'lucide-react';
 import { isLoggedIn, loadToken, getCart, updateCartItem, removeCartItem, formatPaise, type CartResponse } from '@/lib/api';
 import { readLocalCart, saveLocalCart } from '@/lib/cart-events';
 import { remainingForFreeShipping, shippingFor, shippingProgressPercent, useShippingRule } from '@/lib/shipping';
+import { useWishlist } from '@/lib/wishlist-context';
 
 
 const getLocalCart = readLocalCart;
@@ -36,7 +37,16 @@ export default function CartPage() {
   const [loading, setLoading] = useState(true);
   const [loggedIn, setLoggedIn] = useState(false);
   const [updating, setUpdating] = useState<string | null>(null);
+  const [wishlistBusy, setWishlistBusy] = useState<Set<string>>(new Set());
   const { rule, loaded: ruleLoaded } = useShippingRule();
+  const { isSaved, toggleVariant } = useWishlist();
+
+  const handleWishlistToggle = async (variantId: string) => {
+    if (wishlistBusy.has(variantId)) return;
+    setWishlistBusy((prev) => new Set(prev).add(variantId));
+    await toggleVariant(variantId, '').catch(() => {});
+    setWishlistBusy((prev) => { const next = new Set(prev); next.delete(variantId); return next; });
+  };
 
   useEffect(() => { load(); }, []);
 
@@ -147,7 +157,7 @@ export default function CartPage() {
                   </div>
                 </div>
               </div>
-              {/* Stepper */}
+              {/* Stepper + Wishlist */}
               <div className="flex items-center justify-between mt-3 pt-2 border-t border-border">
                 <div className="flex items-center bg-surface-container-low rounded-lg">
                   <button
@@ -168,6 +178,24 @@ export default function CartPage() {
                     <Plus size={14} className="text-text-primary" />
                   </button>
                 </div>
+                <button
+                  onClick={() => handleWishlistToggle(item.variant.id)}
+                  disabled={wishlistBusy.has(item.variant.id)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 ${
+                    isSaved(item.variant.id)
+                      ? 'text-primary'
+                      : 'text-text-tertiary hover:text-text-secondary'
+                  }`}
+                >
+                  <Heart
+                    size={15}
+                    strokeWidth={1.5}
+                    fill={isSaved(item.variant.id) ? 'currentColor' : 'none'}
+                  />
+                  <span className="font-sans text-body-sm font-medium">
+                    {isSaved(item.variant.id) ? 'Saved' : 'Save to Wishlist'}
+                  </span>
+                </button>
               </div>
             </div>
           );

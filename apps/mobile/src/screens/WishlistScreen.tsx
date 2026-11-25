@@ -18,6 +18,7 @@ export default function WishlistScreen({ navigation }: Props) {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { loaded, items, toggleVariant, total, refreshWishlist } = useWishlist();
   const [addingId, setAddingId] = useState<string | null>(null);
+  const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
 
   // Opening the screen always asks again, so it is never older than the last time the customer looked
   useFocusEffect(useCallback(() => { refreshWishlist(); }, [refreshWishlist]));
@@ -46,6 +47,7 @@ export default function WishlistScreen({ navigation }: Props) {
     setAddingId(variantId);
     try {
       await addToCart(variantId, 1);
+      setAddedIds((prev) => new Set(prev).add(variantId));
     } catch (err: any) {
       // used to fail without a word
       const reference = referenceOf(err);
@@ -104,14 +106,24 @@ export default function WishlistScreen({ navigation }: Props) {
                   )}
                   <View style={styles.rowActions}>
                     {v.isAvailable && (
-                      <TouchableOpacity
-                        style={[styles.addBtn, addingId === v.id && { opacity: 0.6 }]}
-                        onPress={() => handleAddToCart(v.id)}
-                        disabled={addingId === v.id}
-                      >
-                        <ShoppingBag size={14} color="#fff" strokeWidth={2} />
-                        <Text style={styles.addBtnText}>{addingId === v.id ? 'Adding...' : 'Add to Bag'}</Text>
-                      </TouchableOpacity>
+                      addedIds.has(v.id) ? (
+                        <TouchableOpacity
+                          style={[styles.addBtn, styles.goToBagBtn]}
+                          onPress={() => navigation.navigate('Cart')}
+                        >
+                          <ShoppingBag size={14} color="#fff" strokeWidth={2} />
+                          <Text style={styles.addBtnText}>Go to Bag</Text>
+                        </TouchableOpacity>
+                      ) : (
+                        <TouchableOpacity
+                          style={[styles.addBtn, addingId === v.id && { opacity: 0.6 }]}
+                          onPress={() => handleAddToCart(v.id)}
+                          disabled={addingId === v.id}
+                        >
+                          <ShoppingBag size={14} color="#fff" strokeWidth={2} />
+                          <Text style={styles.addBtnText}>{addingId === v.id ? 'Adding...' : 'Add to Bag'}</Text>
+                        </TouchableOpacity>
+                      )
                     )}
                     <TouchableOpacity
                       style={styles.removeBtn}
@@ -185,6 +197,7 @@ function createStyles(colors: ColorPalette) {
       flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
       gap: 6, height: 32, borderRadius: borderRadius.sm, backgroundColor: colors.primary,
     },
+    goToBagBtn: { backgroundColor: colors.accent },
     addBtnText: { fontFamily: 'DMSans-Medium', fontSize: 12, color: '#fff' },
     removeBtn: {
       width: 32, height: 32, borderRadius: borderRadius.sm,
