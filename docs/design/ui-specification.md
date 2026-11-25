@@ -151,7 +151,8 @@ Source of truth: mobile `apps/mobile/src/theme/colors.ts` (`lightColors`, `darkC
 |---------|-----------|
 | Mobile, logged in | Profile screen menu card: "Dark Mode" / "Light Mode" row with a switch |
 | Mobile, logged out | Sun/moon icon button at the right of the Account header, so guests can switch too |
-| Web, desktop | Sun/moon icon button in the Header actions |
+| Web, any width | Sun/moon icon button in the Header (on a phone it is the only button there, so logged-out visitors can switch) |
+| Admin panel | Sun/moon icon button in the top bar, right of the page actions; the login page follows the saved choice but has no button |
 | Web, logged in | Toggle row in the Account page menu |
 
 ### Rules for building screens
@@ -159,15 +160,13 @@ Source of truth: mobile `apps/mobile/src/theme/colors.ts` (`lightColors`, `darkC
 1. **Use tokens, never literals, for surfaces and text.** No `bg-white`, `#fff` or hard-coded hex on a surface or text colour; both themes must stay readable.
 2. **Overlays on product photos** (wishlist/share buttons, origin and "GI CERTIFIED LOOM" badges) use the surface token with opacity (`bg-surface/80` to `bg-surface/90`; mobile `surfaceOverlay`), so their text stays readable in both themes. A fixed white overlay with token text becomes unreadable in dark mode.
 3. **Status colours** always come from the paired status tokens above.
-4. **Allowed fixed colours:** white text or icons on the burgundy primary, the white switch thumb, the WhatsApp green, and product colour swatches (they depict the real product colour).
+4. **Allowed fixed colours:** white text or icons on the burgundy primary, the white switch thumb, the WhatsApp green, and product colour swatches (they depict the real product colour). A swatch has a thin outline so a black one does not vanish on the dark page (nor a white one on the light), and the selected tick sits on a dark disc so it shows on any colour.
 5. **Check both themes** before shipping a screen, including empty, error and loading states.
 
 ### Known gaps
 
 - No "follow system appearance" default.
-- On mobile-width web, logged-out visitors have no toggle (the Header toggle is desktop-only and the login panel has none).
-- The admin panel has no dark mode.
-- A few mobile screens still carry local colours: the Welcome slides define their own light/dark background pairs, and the product screen maps colour names to swatch hex values.
+- The Welcome slides define their own light/dark background pairs, and the product screen maps colour names to swatch hex values (both checked in dark mode: fine).
 
 ---
 
@@ -521,7 +520,7 @@ The web app (`localhost:3001`) mirrors all mobile app features with responsive l
 
 ### 12.2 Web-specific Components
 
-- **Header** (`components/Header.tsx`): Sticky, brand + nav links (desktop), icons hidden on mobile (bottom nav handles it). Cart badge count. The desktop actions include the dark-mode toggle (sun/moon icon) next to search, cart and account.
+- **Header** (`components/Header.tsx`): Sticky, brand + nav links (desktop), icons hidden on mobile (bottom nav handles it). Cart badge count. The dark-mode toggle (sun/moon icon) shows at every width; search, cart and account are desktop-only.
 - **BottomNav** (`components/BottomNav.tsx`): 5 tabs matching mobile app, hidden on desktop (`lg:hidden`). Cart badge count.
 - **CartProvider** (`lib/cart-context.tsx`): React context providing `itemCount` to Header and BottomNav. It reads the server cart (logged in) or the localStorage guest cart, and refreshes only when the cart changes (`notifyCartChanged()` in `lib/cart-events.ts`, also across tabs through the `storage` event), when the customer returns to the tab or window (`focus` / `visibilitychange`), and every 5 minutes while the tab is visible as a safety net. There is no polling timer. Scheduling lives in `lib/cart-refresh.ts`.
 - **ThemeProvider** (`lib/theme-context.tsx`): React context providing `{ isDark, toggleTheme }`. Toggles the `dark` class on `<html>`, saves the choice in `localStorage` (`juhar_theme`) and updates the `theme-color` meta tag. See section 3a.

@@ -25,7 +25,7 @@
 }
 .cancelBtn:hover {
   border-color: var(--maroon);
-  color: var(--maroon);
+  color: var(--maroon-text);
 }
 
 /* ── Create form card ── */
@@ -206,7 +206,7 @@
 }
 .toggleBtn:hover {
   border-color: var(--maroon);
-  color: var(--maroon);
+  color: var(--maroon-text);
 }
 
 /* ── Empty / loading states ── */

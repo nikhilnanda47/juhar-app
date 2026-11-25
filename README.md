@@ -62,7 +62,7 @@ Juhar is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce pl
 | 9 | Order review — place order (COD) | ✅ |
 | 10 | Orders — table layout (desktop), card layout (mobile), filter chips; order detail handles cancelled, return and refund states | ✅ |
 | 11 | Account — split-panel login, profile with sidebar (desktop) | ✅ |
-| 12 | Light / dark mode — toggle in the desktop header and the Account menu; choice is remembered, no flash on load | ✅ |
+| 12 | Light / dark mode — toggle in the header (desktop and phone width, so logged-out visitors can switch) and the Account menu; choice is remembered, no flash on load | ✅ |
 
 ### Admin Panel (Web) — 15 features working
 
@@ -89,7 +89,7 @@ Juhar is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce pl
 | Feature | Planned Phase |
 |---------|--------------|
 | Real OTP/SMS provider (login currently uses a mock that accepts `123456`) | Before launch |
-| Dark mode for the admin panel; follow the device's light/dark setting | Post-pilot |
+| Follow the device's light/dark setting on first launch (web and mobile) | Post-pilot |
 | Real product images (using placeholders) | Phase 5 |
 | UPI/online payment | Phase 4 |
 | Text search | Phase 5 |
@@ -119,9 +119,8 @@ Open items as of 2026-11-22, grouped by urgency. The team tracker holds owners a
 - **Support number.** The "Need help?" link on the web order page uses a placeholder WhatsApp number (WhatsApp integration is pending).
 
 ### Dark mode follow-ups
-- Web: visitors who are logged out on a phone-width screen have no theme toggle (the header toggle is desktop-only and the Account menu only appears after login).
-- Both apps always start in light mode and ignore the device setting; the admin panel has no dark mode.
-- A few mobile screens (product detail, welcome) use fixed colours that need a visual check in dark mode.
+- Web and mobile always start in light mode and ignore the device setting (tracker step 30, left for later).
+- The admin panel has dark mode: a sun/moon button in the top bar (the choice is kept in this browser under `juhar_admin_theme`; the login page follows it but has no button of its own).
 
 ### Engineering hygiene
 - Test coverage is early: the order state machine, stock (reserve, release, commit, ship, adjust, expiry job), admin order status changes, checkout (quote, order placement, shipping and totals) and rate limiting have tests (`npm test -w apps/api`). The automatic token refresh in the admin, web and mobile API clients is also tested (`npm test -w apps/admin`, `npm test -w apps/web`, and `npm test` inside `apps/mobile`). Auth, cart, the orders service, products and the web and mobile screens are not covered yet. Most of these tests use a fake database, so they cannot prove real concurrent locking or real SQL. The one exception is the test of the database `CHECK` constraints (`apps/api/src/database/check-constraints.spec.ts`), which runs against a real migrated Postgres only when you set `DB_TESTS=1` (CI does): `cd apps/api && npx prisma migrate deploy && DB_TESTS=1 npm test -- check-constraints`.
@@ -245,6 +244,7 @@ Full spec: [`docs/api/openapi.yaml`](docs/api/openapi.yaml)
 
 Both apps start in light mode; the user's choice is remembered under the key `juhar_theme` (AsyncStorage on mobile, `localStorage` on web).
 
+- **Admin** — plain CSS variables in `globals.css`; `:root[data-theme='dark']` swaps their values. A button in the top bar (`components/ThemeToggle.tsx`) switches it, `components/theme.ts` reads and saves the choice under `juhar_admin_theme`, and a small script in `layout.tsx` applies it before the first paint. New admin CSS should use the variables (`--bg-card`, `--text-primary`, `--maroon-text` for brand-coloured text, the `--badge-*` pairs for status colours), never a literal hex.
 - **Mobile** — `src/theme/colors.ts` defines `lightColors` and `darkColors` with identical keys. Components call `const { colors, isDark, toggleTheme } = useTheme()` and build styles with `createStyles(colors)` inside `useMemo`, so styles update when the theme changes.
 - **Web** — colours are CSS variables holding RGB channels (for example `--color-surface: 30 30 30`) defined in `globals.css` under `:root` and `.dark`. `tailwind.config.ts` maps each name to `rgb(var(--color-…) / <alpha-value>)`, so opacity classes such as `bg-surface/80` work in both themes. `ThemeProvider` (`src/lib/theme-context.tsx`) toggles the `dark` class on `<html>`, an inline script in `layout.tsx` applies the saved theme before first paint, and the browser's `theme-color` follows the toggle.
 - **Rule of thumb** — for anything that holds text, use semantic tokens (`bg-surface`, `text-text-primary`), not `bg-white` or hard-coded hex values. A fixed white is only safe on coloured fills, such as text on `bg-primary`.

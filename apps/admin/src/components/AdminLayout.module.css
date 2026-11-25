@@ -68,6 +68,26 @@
   flex-shrink: 0;
 }
 
+/* Light / dark switch */
+.themeToggle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.themeToggle:hover {
+  color: var(--maroon-text);
+  border-color: var(--maroon);
+}
+
 /* Content */
 .content {
   flex: 1;

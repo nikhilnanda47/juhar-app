@@ -155,9 +155,9 @@ No Internet, App Update Required, Maintenance, My Addresses (standalone), Search
 - **Tokens:** colours are CSS custom properties holding RGB channels (e.g. `--color-primary: 139 58 74`) in `src/app/globals.css`, defined under `:root` (light) and `.dark` (dark). `tailwind.config.ts` maps every colour to `rgb(var(--color-…) / <alpha-value>)`, so opacity modifiers such as `bg-surface/80` work in both themes. `darkMode: 'class'`.
 - **Provider:** `ThemeProvider` / `useTheme()` in `src/lib/theme-context.tsx` toggles the `dark` class on `<html>`, saves the choice in `localStorage` under `juhar_theme`, and updates the `theme-color` meta tag (`#FAFAF7` light, `#121212` dark).
 - **No flash on load:** an inline script in `src/app/layout.tsx` reads `juhar_theme` before first paint and adds the `dark` class; `<html>` uses `suppressHydrationWarning`.
-- **Toggle:** sun/moon button in the desktop Header, and a toggle row in the Account page menu (logged-in profile view).
+- **Toggle:** sun/moon button in the Header (all widths), and a toggle row in the Account page menu (logged-in profile view).
 
-> **Implementation status (2026-11-22):** The default is light; the system preference is not detected. There is no toggle in the mobile-width layout for logged-out visitors (the Header toggle is desktop-only and the login panel has none). The admin panel has no dark mode.
+> **Implementation status:** The default is light; the system preference is not detected. The Header sun/moon button shows at every width, so logged-out visitors on a phone can switch. The admin panel has its own dark mode (CSS variables under `data-theme='dark'`, a top-bar button, choice kept under `juhar_admin_theme`).
 
 ### 3.3 Guest Cart Flow
 

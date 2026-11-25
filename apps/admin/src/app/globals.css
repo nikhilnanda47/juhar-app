@@ -31,6 +31,18 @@
   --info: #3B82F6;
   --info-bg: #EFF6FF;
 
+  /* Text that sits on the page in the brand colour (the maroon itself is too dark to read on a dark page) */
+  --maroon-text: #6B1D2A;
+  --on-accent: #FFFFFF;
+
+  /* Status badges (order status): background + text */
+  --badge-packed-bg: #FFF7ED;
+  --badge-packed-text: #C2410C;
+  --badge-shipped-bg: #F0F9FF;
+  --badge-shipped-text: #0284C7;
+  --badge-confirmed-text: #B45309;
+  --badge-delivered-text: #047857;
+
   /* Accents for stat cards */
   --accent-blue: #3B82F6;
   --accent-green: #10B981;
@@ -55,6 +67,46 @@
 
   /* Transitions */
   --transition: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Dark mode: the same names with dark values. Chosen with the switch in the top bar; the choice is kept in
+   this browser (see layout.tsx, which sets it before the page paints so there is no light flash). */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --maroon-50: rgba(217, 138, 154, 0.12);
+  --maroon-text: #E7A3B1;
+
+  --text-primary: #E6E8EE;
+  --text-secondary: #A3ABBB;
+  --text-muted: #7A8397;
+
+  --bg-body: #0E1016;
+  --bg-card: #171A22;
+  --bg-hover: #1E222C;
+  --border: #2B3040;
+  --border-light: #222736;
+
+  --success: #34D399;
+  --success-bg: rgba(16, 185, 129, 0.16);
+  --warning: #FBBF24;
+  --warning-bg: rgba(245, 158, 11, 0.16);
+  --error: #F87171;
+  --error-bg: rgba(239, 68, 68, 0.16);
+  --info: #60A5FA;
+  --info-bg: rgba(59, 130, 246, 0.16);
+
+  --badge-packed-bg: rgba(249, 115, 22, 0.16);
+  --badge-packed-text: #FB923C;
+  --badge-shipped-bg: rgba(14, 165, 233, 0.16);
+  --badge-shipped-text: #38BDF8;
+  --badge-confirmed-text: #FBBF24;
+  --badge-delivered-text: #34D399;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.55), 0 4px 6px -2px rgba(0, 0, 0, 0.4);
 }
 
 * {

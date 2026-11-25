@@ -42,24 +42,27 @@ export default function Header() {
           ))}
         </nav>
 
-        {/* Actions — desktop only (mobile uses bottom nav) */}
-        <div className="hidden lg:flex items-center gap-3">
+        {/* Actions. On a phone the bottom bar has the pages, so only the light/dark switch stays up here,
+            which is the one place a visitor who is not logged in can find it. */}
+        <div className="flex items-center gap-3">
           <button
             onClick={toggleTheme}
             className="w-9 h-9 rounded-full bg-surface-container-low flex items-center justify-center text-text-secondary hover:text-primary transition-colors"
-            aria-label="Toggle dark mode"
+            aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
           >
             {isDark ? <Sun size={18} strokeWidth={1.5} /> : <Moon size={18} strokeWidth={1.5} />}
           </button>
           <Link
             href="/shop"
-            className="w-9 h-9 rounded-full bg-surface-container-low flex items-center justify-center text-text-secondary hover:text-primary transition-colors"
+            className="hidden lg:flex w-9 h-9 rounded-full bg-surface-container-low items-center justify-center text-text-secondary hover:text-primary transition-colors"
+            aria-label="Search"
           >
             <Search size={18} strokeWidth={1.5} />
           </Link>
           <Link
             href="/cart"
-            className="relative w-9 h-9 rounded-full bg-surface-container-low flex items-center justify-center text-text-secondary hover:text-primary transition-colors"
+            className="hidden lg:flex relative w-9 h-9 rounded-full bg-surface-container-low items-center justify-center text-text-secondary hover:text-primary transition-colors"
+            aria-label="Bag"
           >
             <ShoppingBag size={18} strokeWidth={1.5} />
             {itemCount > 0 && (
@@ -70,7 +73,8 @@ export default function Header() {
           </Link>
           <Link
             href="/account"
-            className="w-9 h-9 rounded-full bg-surface-container-low flex items-center justify-center text-text-secondary hover:text-primary transition-colors"
+            className="hidden lg:flex w-9 h-9 rounded-full bg-surface-container-low items-center justify-center text-text-secondary hover:text-primary transition-colors"
+            aria-label="Account"
           >
             <User size={18} strokeWidth={1.5} />
           </Link>

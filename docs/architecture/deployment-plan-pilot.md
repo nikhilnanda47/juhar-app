@@ -130,7 +130,7 @@
 4. Add custom domain `admin.juhar.co.in`
 5. Every push to `main` auto-deploys
 
-> **Build note (2026-11-22):** CI typechecks and builds this app. The admin panel has no dark mode and does not import `packages/shared` yet. See the monorepo install note in 2.4.
+> **Build note (2026-11-22):** CI typechecks and builds this app. The admin panel does not import `packages/shared` yet. See the monorepo install note in 2.4.
 
 ---
 

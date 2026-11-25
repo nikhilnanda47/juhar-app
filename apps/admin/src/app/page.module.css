@@ -192,18 +192,18 @@
 
 .statusConfirmed {
   background: var(--warning-bg);
-  color: #B45309;
+  color: var(--badge-confirmed-text);
 }
 
 .statusPacked,
 .statusShipped {
-  background: #FFF7ED;
-  color: #C2410C;
+  background: var(--badge-packed-bg);
+  color: var(--badge-packed-text);
 }
 
 .statusDelivered {
   background: var(--success-bg);
-  color: #047857;
+  color: var(--badge-delivered-text);
 }
 
 .statusCancelled {

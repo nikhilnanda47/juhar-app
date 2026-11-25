@@ -525,9 +525,12 @@ const createStyles = (colors: ColorPalette) => StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
   },
   swatchActive: { backgroundColor: colors.primary },
-  swatchInner: { width: '100%', height: '100%', borderRadius: 16 },
+  // a thin outline, so a black swatch does not disappear on the dark background (nor a white one on the light)
+  swatchInner: { width: '100%', height: '100%', borderRadius: 16, borderWidth: 1, borderColor: colors.borderMedium },
+  // a dark disc behind the tick, so it shows on a light colour as well as a dark one
   swatchCheck: {
     position: 'absolute', justifyContent: 'center', alignItems: 'center',
+    width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.45)',
   },
 
   // PIN

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from './Sidebar';
+import ThemeToggle from './ThemeToggle';
 import { api } from '../services/api';
 import styles from './AdminLayout.module.css';
 
@@ -72,7 +73,10 @@ export default function AdminLayout({ children, title, subtitle, actions }: Admi
               {subtitle && <span className={styles.subtitle}>{subtitle}</span>}
             </div>
           </div>
-          {actions && <div className={styles.actions}>{actions}</div>}
+          <div className={styles.actions}>
+            {actions}
+            <ThemeToggle />
+          </div>
         </header>
         <div className={styles.content}>
           {children}

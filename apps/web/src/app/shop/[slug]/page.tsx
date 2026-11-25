@@ -218,14 +218,17 @@ export default function ProductDetailPage() {
                       key={v.id}
                       onClick={() => { pickedVariant.current = true; setSelectedVariant(v); }}
                       className={`w-12 h-12 rounded-full border-2 transition-all hover:scale-105 ${
-                        selectedVariant?.id === v.id ? 'border-primary ring-2 ring-primary/20 scale-110' : 'border-border'
+                        selectedVariant?.id === v.id ? 'border-primary ring-2 ring-primary/20 scale-110' : 'border-outline/50'
                       }`}
                       style={{ backgroundColor: v.color || '#D5CFC9' }}
                       aria-label={v.color || v.name || 'Colour'}
                       title={v.color || v.name || undefined}
                     >
                       {selectedVariant?.id === v.id && (
-                        <Check size={16} className="text-white mx-auto" strokeWidth={3} />
+                        // a dark disc behind the tick, so it shows on a light colour (ivory, white) as well as a dark one
+                        <span className="mx-auto w-6 h-6 rounded-full bg-black/45 flex items-center justify-center">
+                          <Check size={14} className="text-white" strokeWidth={3} />
+                        </span>
                       )}
                     </button>
                   ))}
