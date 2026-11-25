@@ -579,7 +579,7 @@ Admin                    API                           S3
 > - **Cancel** (placed or confirmed only): `releaseReservation` gives back every `held`/`committed` hold (`reserved -= qty`), status `released`.
 > - **Expiry job:** expires `held` reservations past `expires_at` **except those of cash-on-delivery orders**, which stay until an admin confirms, ships or cancels the order (decision, 2026-11-22). Reservations with no order and non-COD holds (the future UPI flow) still expire. Expiring a UPI hold does not yet cancel its order; Phase 4 payments should do that.
 > - **Known limits:** an unconfirmed COD order holds its stock indefinitely (the admin panel flags those still `placed` after 24 hours as overdue, see the admin endpoints note below; nothing cancels them); `commitReservation(reservationId, orderId)` (single hold) exists but the order flow uses `commitOrderReservations`.
-> - Admin routes in code: `GET /admin/inventory/:variantId` and `POST /admin/inventory/adjust` (the adjust route is restricted to `owner` and `catalog_editor`).
+> - Admin routes in code: `GET /admin/inventory/:variantId`, `GET /admin/inventory/:variantId/history` (any admin) and `POST /admin/inventory/adjust` (restricted to `owner` and `catalog_editor`).
 
 ```
 modules/inventory/
@@ -600,13 +600,16 @@ class AdjustStockDto {
   @IsUUID()
   variantId: string;
 
-  @IsInt()
-  adjustment: number;           // Positive = add, negative = remove
+  @IsOptional() @IsInt() @Min(-10000) @Max(10000)
+  adjustment?: number;          // Positive = add, negative = remove (give this OR setTo, not both)
+
+  @IsOptional() @IsInt() @Min(0) @Max(100000)
+  setTo?: number;               // The counted on-hand number
 
   @IsEnum(AdjustmentReason)
   reason: 'received' | 'damaged' | 'correction' | 'return_restocked' | 'other';
 
-  @IsOptional() @IsString()
+  @IsOptional() @IsString() @MaxLength(255)
   notes?: string;
 }
 ```
@@ -617,7 +620,8 @@ class AdjustStockDto {
 |---|---|---|---|
 | `getStock(variantId)` | UUID | StockResponse | Return on_hand, reserved, unavailable, available (computed) |
 | `getStockBulk(variantIds)` | UUID[] | StockResponse[] | Batch lookup for cart/catalog |
-| `adjustStock(dto, adminId)` | AdjustStockDto, UUID | StockResponse | Validate: `on_hand + adjustment >= reserved + unavailable`. Update with optimistic lock (`version`). Audit log with before/after. |
+| `adjustStock(dto, adminId)` | AdjustStockDto, UUID | StockResponse | One transaction: lock the row (`SELECT … FOR UPDATE`, the same lock `reserve` takes), work out the new on-hand (from `adjustment`, or exactly `setTo`), refuse a no-op (`STOCK_NO_CHANGE`) or a result below `reserved + unavailable` (`STOCK_WOULD_GO_NEGATIVE`), update (`version` +1), write the `inventory.adjusted` audit entry in the same transaction. The old read-then-write version lost updates: ten simultaneous +1 ended at +1 instead of +10 (found with a real-Postgres test). |
+| `getAdjustmentHistory(variantId, limit)` | UUID, int | StockChange[] | The last 20 (max 50) `inventory.adjusted` audit entries, newest first, with the actor's name via `resolveActors` (see the audit note under orders). |
 | `reserve(variantId, qty, expiresAt)` | UUID, int, Date | Reservation | **Inside existing transaction.** `SELECT ... FOR UPDATE`. Check available >= qty. Increment reserved. Create reservation row. |
 | `commitReservation(reservationId)` | UUID | void | Set status = 'committed'. (Stock stays reserved until fulfillment.) |
 | `releaseReservation(reservationId)` | UUID | void | Decrement reserved. Set status = 'released'. |

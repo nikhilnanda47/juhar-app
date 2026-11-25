@@ -177,3 +177,21 @@
   font-size: 0.8rem;
   color: var(--error, #C44A4A);
 }
+
+/* Adjust stock button */
+.adjustBtn {
+  padding: 0.35rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.adjustBtn:hover {
+  border-color: var(--maroon);
+  color: var(--maroon-text);
+}

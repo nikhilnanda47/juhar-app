@@ -9,8 +9,8 @@ info:
     ## Implementation status
     Operations marked `x-status: planned` are part of the target design but are **not implemented yet**
     (Phase 4: payments, webhooks, returns, refunds; Phase 5: media uploads, reports, admin users,
-    admin inventory list). This spec lists **36 implemented** and
-    **13 planned** operations (49 in total). Unmarked operations match the code in `apps/api`.
+    admin inventory list). This spec lists **37 implemented** and
+    **13 planned** operations (50 in total). Unmarked operations match the code in `apps/api`.
 
     ## Conventions
     - All monetary values are in **integer paise** (1 INR = 100 paise)
@@ -1288,21 +1288,66 @@ components:
 
     AdjustStockBody:
       type: object
-      required: [variantId, adjustment, reason]
+      description: |
+        Give exactly ONE of `adjustment` (how many to add or remove) or `setTo` (the new on-hand
+        count, for when someone counted the shelf). Both or neither is a 400.
+      required: [variantId, reason]
       properties:
         variantId:
           type: string
           format: uuid
         adjustment:
           type: integer
-          description: Positive to add, negative to remove
+          description: Positive to add, negative to remove. Between -10000 and 10000, not 0.
+          minimum: -10000
+          maximum: 10000
           example: 5
+        setTo:
+          type: integer
+          description: The new on-hand count (0 to 100000). Worked out against the stock at the moment of the change, so it always ends at this number.
+          minimum: 0
+          maximum: 100000
+          example: 7
         reason:
           type: string
           enum: [received, damaged, correction, return_restocked, other]
         notes:
           type: string
-          maxLength: 500
+          maxLength: 255
+
+    StockChange:
+      type: object
+      properties:
+        at:
+          type: string
+          format: date-time
+        adjustment:
+          type: integer
+          nullable: true
+          description: The change that was made (positive or negative)
+        onHandBefore:
+          type: integer
+          nullable: true
+        onHandAfter:
+          type: integer
+          nullable: true
+        reason:
+          type: string
+          nullable: true
+          enum: [received, damaged, correction, return_restocked, other]
+        notes:
+          type: string
+          nullable: true
+        by:
+          type: object
+          nullable: true
+          description: Who made the change (null when unknown)
+          properties:
+            name:
+              type: string
+            role:
+              type: string
+              description: Empty when the person is no longer an admin
 
     # ── Admin Order ──
     UpdateOrderStatusBody:
@@ -3081,8 +3126,11 @@ paths:
       tags: ["Admin: Inventory"]
       summary: Adjust stock
       description: |
-        Add or remove stock with an audited reason. Creates an audit_events record
-        with before/after state. Roles: `owner`, `catalog_editor`.
+        Add or remove stock, or set the counted number, with an audited reason. Roles: `owner`, `catalog_editor`.
+        Runs in one transaction with the inventory row locked (the same lock orders take), so two changes at
+        the same moment both count and the audit entry is written together with the change.
+        Stock cannot go below what is reserved for orders plus what is unavailable (`STOCK_WOULD_GO_NEGATIVE`),
+        and a change that changes nothing is refused (`STOCK_NO_CHANGE`).
       operationId: adminAdjustStock
       security:
         - BearerAuth: []
@@ -3109,6 +3157,35 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/admin/inventory/{variantId}/history:
+    get:
+      tags: ["Admin: Inventory"]
+      summary: Recent manual stock changes of one variant
+      description: The last 20 changes, newest first: when, how much, before and after, reason, note, and who made them. Any admin role.
+      operationId: adminStockHistory
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: variantId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: The changes
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/StockChange'
 
   /api/v1/admin/inventory/{variantId}:
     get:

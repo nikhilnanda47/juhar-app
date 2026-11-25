@@ -197,6 +197,20 @@ export class ApiClient {
     );
   }
 
+  // ── Stock ──
+  /** Change the on-hand stock of one colour: add or remove an `adjustment`, or give the counted number as `setTo`. */
+  async adjustStock(body: { variantId: string; adjustment?: number; setTo?: number; reason: StockReason; notes?: string }) {
+    return this.request<{ variantId: string; onHand: number; reserved: number; unavailable: number; available: number }>(
+      '/api/v1/admin/inventory/adjust',
+      { method: 'POST', body: JSON.stringify(body) },
+    );
+  }
+
+  /** The recent manual stock changes of one colour, newest first. */
+  async getStockHistory(variantId: string) {
+    return this.request<StockChange[]>(`/api/v1/admin/inventory/${variantId}/history`);
+  }
+
   /** One order in full: items, delivery address, customer, payment, shipments and history. */
   async getOrder(id: string) {
     return this.request<AdminOrderDetail>(`/api/v1/admin/orders/${id}`);
@@ -267,4 +281,16 @@ export interface AdminOrderDetail {
   history: { status: string; at: string; by: { name: string; role: string } | null; reason: string | null }[];
   waitingMinutes: number | null;
   overdue: boolean;
+}
+
+export type StockReason = 'received' | 'damaged' | 'correction' | 'return_restocked' | 'other';
+
+export interface StockChange {
+  at: string;
+  adjustment: number | null;
+  onHandBefore: number | null;
+  onHandAfter: number | null;
+  reason: StockReason | null;
+  notes: string | null;
+  by: { name: string; role: string } | null;
 }

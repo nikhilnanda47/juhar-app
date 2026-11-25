@@ -4,6 +4,7 @@ import {
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { indiaDayBounds } from '../../common/time/india-day';
+import { resolveActors, type ActorName } from '../../common/audit/actor-names';
 import { InventoryService } from '../inventory/inventory.service';
 import { OrderQueryDto, AdminOrderQueryDto, UpdateOrderStatusDto, CancelOrderDto } from './dto';
 import { canTransitionOrder, INVENTORY, OrderStatus, PAGINATION } from '@juhar/shared';
@@ -234,28 +235,12 @@ export class OrdersService {
     });
     if (!order) throw new NotFoundException('Order not found');
 
-    // who changed the status: the audit trail holds the acting person's USER id (the login id, the same
-    // "user=<id>" the logs show), not the admin_users row id. The admin record is matched by phone number.
+    // who changed the status (see common/audit/actor-names.ts for why this goes through the user id)
     const audit = await this.prisma.auditEvent.findMany({
       where: { entityType: 'order', entityId: orderId, action: 'order.status_changed' },
       orderBy: { createdAt: 'asc' },
     });
-    const actorIds = [...new Set(audit.map((a: any) => a.actorId).filter(Boolean))] as string[];
-    const actors = actorIds.length
-      ? await this.prisma.user.findMany({ where: { id: { in: actorIds } }, select: { id: true, phone: true, name: true } })
-      : [];
-    const adminRecords = actors.length
-      ? await this.prisma.adminUser.findMany({
-          where: { phone: { in: actors.map((u: any) => u.phone) } },
-          select: { phone: true, name: true, role: true },
-        })
-      : [];
-    const admins = actors.map((u: any) => {
-      const admin = adminRecords.find((a: any) => a.phone === u.phone);
-      // a person who is no longer an admin is still named, from their login
-      return { id: u.id as string, name: (admin?.name || u.name || u.phone) as string, role: (admin?.role || '') as string };
-    });
-
+    const actors = await resolveActors(this.prisma, audit.map((a: any) => a.actorId));
     return {
       id: order.id,
       publicNumber: order.publicNumber,
@@ -299,7 +284,7 @@ export class OrdersService {
         amountPaise: p.amountPaise,
         paidAt: p.paidAt,
       })),
-      history: this.orderHistory(order, audit, admins),
+      history: this.orderHistory(order, audit, actors),
       ...this.waitingInfo(order, now),
     };
   }
@@ -309,7 +294,7 @@ export class OrdersService {
    * who did it. Times come from the order itself (so old orders without audit rows still show);
    * the audit trail only adds the name. A status the customer reached on their own has no admin.
    */
-  private orderHistory(order: any, audit: any[], admins: { id: string; name: string; role: string }[]) {
+  private orderHistory(order: any, audit: any[], actors: Map<string, ActorName>) {
     const steps: { status: string; at: Date | null }[] = [
       { status: 'confirmed', at: order.confirmedAt },
       { status: 'packed', at: order.packedAt },
@@ -323,11 +308,11 @@ export class OrdersService {
         .filter((s) => s.at)
         .map((s) => {
           const event = [...audit].reverse().find((a) => a.afterState?.status === s.status);
-          const admin = event?.actorId ? admins.find((a) => a.id === event.actorId) : undefined;
+          const actor = event?.actorId ? actors.get(event.actorId) : undefined;
           return {
             status: s.status,
             at: s.at as Date,
-            by: admin ? { name: admin.name, role: admin.role } : null,
+            by: actor ?? null,
             reason: s.status === 'cancelled' ? order.cancellationReason ?? null : null,
           };
         }),

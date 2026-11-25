@@ -17,11 +17,13 @@ const CATALOG: Record<string, Wording> = {
   QUANTITY_EXCEEDS_LIMIT: `You can order at most ${CART.MAX_QUANTITY_PER_VARIANT} of one saree.`,
 
   // Saved items (wishlist)
-  ALREADY_IN_WISHLIST: 'This saree is already in your saved items.',
-  WISHLIST_ITEM_NOT_FOUND: 'That saree is not in your saved items.',
+  ALREADY_IN_WISHLIST: 'This saree is already in your wishlist.',
+  WISHLIST_ITEM_NOT_FOUND: 'That saree is not in your wishlist.',
 
   // Stock handling (admin side)
-  STOCK_WOULD_GO_NEGATIVE: 'That change would take the stock below zero.',
+  STOCK_WOULD_GO_NEGATIVE: 'That would take the stock below what is already reserved for customers\' orders. Cancel or ship those orders first, or choose a bigger number.',
+  STOCK_NO_CHANGE: 'That would not change the stock.',
+  STOCK_CHANGE_UNCLEAR: 'Say either how many to add or remove, or the new count, not both.',
   RESERVATION_NOT_FOUND: 'We could not find the stock hold for this order.',
   RESERVATION_ALREADY_PROCESSED: 'The stock hold for this order was already used or released.',
   // already a full sentence after the code, with the SKU and the numbers
