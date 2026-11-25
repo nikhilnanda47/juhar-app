@@ -66,7 +66,7 @@ Juhar is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce pl
 | 12 | Light / dark mode — toggle in the header (desktop and phone width, so logged-out visitors can switch) and the Account menu; choice is remembered, no flash on load | ✅ |
 | 13 | My Addresses (`/account/addresses`) — edit, delete, make default; the pencil on the checkout list opens the same edit page | ✅ |
 
-### Admin Panel (Web) — 17 features working
+### Admin Panel (Web) — 18 features working
 
 | # | Feature | Status |
 |---|---------|--------|
@@ -87,6 +87,7 @@ Juhar is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce pl
 | 15 | Cancel a placed or confirmed order with a required reason (releases the reserved stock) | ✅ |
 | 16 | Order page (`/orders/[id]`): items to pack with SKU, delivery address and phone (copy buttons), customer, cash to collect, payment, shipment and tracking, history with who did each step; the same Confirm / Pack / Ship / Deliver / Cancel buttons; the orders list links to it and shows what is in each order | ✅ |
 | 17 | Adjust stock (Inventory > Adjust): add pieces, remove pieces, or type the counted number; shows what the stock will be, refuses to go below what orders have reserved, requires a reason, and lists the recent changes with who made them | ✅ |
+| 18 | Edit product (Catalog > Edit): change title, description, fabric details, category and visibility (draft, published, archived); per colour change name, colour, price and compare price, hide it from the shop, adjust its stock, or add a new colour (the SKU is fixed). Only real changes are saved and each is recorded (old and new value, who). A published product keeps its shop address when the title changes | ✅ |
 
 ### Not Yet Built
 
@@ -97,7 +98,6 @@ Juhar is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce pl
 | Real product images (using placeholders) | Phase 5 |
 | UPI/online payment | Phase 4 |
 | Text search | Phase 5 |
-| Product edit page (admin) | Phase 5 |
 | Customer lookup (admin) | Phase 5 |
 | Reports (GMV, top products, stock) | Phase 5 |
 | Admin user management / roles | Phase 5 |

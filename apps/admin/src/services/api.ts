@@ -176,6 +176,27 @@ export class ApiClient {
     });
   }
 
+  /** One product in full with ALL its colours (also the ones hidden from the shop) and their stock. */
+  async getProduct(id: string) {
+    return this.request<AdminProductDetail>(`/api/v1/admin/products/${id}`);
+  }
+
+  /** Change one colour: name, colour, price, compare-at price (null removes it), or hide/show it in the shop. */
+  async updateVariant(productId: string, variantId: string, data: Record<string, unknown>) {
+    return this.request(`/api/v1/admin/products/${productId}/variants/${variantId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  /** Add a new colour to an existing product. */
+  async addVariant(productId: string, data: Record<string, unknown>) {
+    return this.request(`/api/v1/admin/products/${productId}/variants`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
   // ── Orders ──
   async getOrders(params?: Record<string, string>) {
     const query = params ? '?' + new URLSearchParams(params).toString() : '';
@@ -293,4 +314,35 @@ export interface StockChange {
   reason: StockReason | null;
   notes: string | null;
   by: { name: string; role: string } | null;
+}
+
+export interface AdminProductDetail {
+  id: string;
+  slug: string;
+  title: string;
+  description: string | null;
+  shortDescription: string | null;
+  categoryId: string;
+  category: { id: string; name: string } | null;
+  publishStatus: 'draft' | 'published' | 'archived';
+  fabric: string | null;
+  weaveMethod: string | null;
+  origin: string | null;
+  careInstructions: string | null;
+  blousePiece: string | null;
+  length: string | null;
+  width: string | null;
+  weight: string | null;
+  occasion: string[];
+  tags: string[];
+  variants: {
+    id: string;
+    sku: string;
+    name: string | null;
+    color: string | null;
+    pricePaise: number;
+    compareAtPaise: number | null;
+    active: boolean;
+    inventory: { onHand: number; reserved: number; unavailable: number } | null;
+  }[];
 }

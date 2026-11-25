@@ -10,7 +10,7 @@ import { api, type AdminOrderDetail } from '../../../services/api';
 import listStyles from '../orders.module.css';
 import styles from './order-detail.module.css';
 
-const money = (paise: number) => '₹' + (paise / 100).toLocaleString('en-IN');
+const money = (paise: number) => '₹' + (paise / 100).toLocaleString('en-IN', { minimumFractionDigits: paise % 100 ? 2 : 0, maximumFractionDigits: 2 });
 const when = (iso: string) =>
   new Date(iso).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 

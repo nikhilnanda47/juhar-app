@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import AdminLayout from '../../components/AdminLayout';
 import { api, type ProductCounts } from '../../services/api';
 import { appendUnique, loadAtLeast } from '../../services/paging';
@@ -206,6 +207,9 @@ export default function CatalogPage() {
                       </span>
                     </td>
                     <td className={styles.actions}>
+                      <Link href={`/catalog/${product.id}`} className={styles.actionBtn}>
+                        Edit
+                      </Link>
                       <button
                         className={styles.actionBtn}
                         onClick={() => togglePublish(product)}

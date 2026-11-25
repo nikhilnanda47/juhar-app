@@ -5,13 +5,17 @@ import { ProductsService } from './products.service';
 // updateVariant: the compare-at price must stay above the price (the database enforces it too).
 function setup(stored: { pricePaise: number; compareAtPaise: number | null } | null) {
   const update = jest.fn(async ({ data }: any) => ({ id: 'v1', ...data }));
+  const auditCreate = jest.fn(async () => ({}));
+  const tx = { productVariant: { update }, auditEvent: { create: auditCreate } };
   const prisma = {
     productVariant: {
-      findFirst: jest.fn(async () => (stored ? { id: 'v1', productId: 'p1', ...stored } : null)),
+      findFirst: jest.fn(async () => (stored ? { id: 'v1', productId: 'p1', sku: 'SKU-1', name: 'Red', color: 'Red', active: true, ...stored } : null)),
+      findUniqueOrThrow: jest.fn(async () => ({ id: 'v1', ...stored })),
       update,
     },
+    $transaction: jest.fn(async (work: any) => work(tx)),
   };
-  return { service: new ProductsService(prisma as any), update };
+  return { service: new ProductsService(prisma as any), update, auditCreate, prisma };
 }
 
 describe('ProductsService.updateVariant', () => {
@@ -184,5 +188,111 @@ describe('ProductsService.findAll price sorting (fake database)', () => {
       expect(first.total).toBe(5);
       expect(last.total).toBe(5);
     });
+  });
+});
+
+// The edit page: only real changes are written and recorded, a published product keeps its shop address,
+// and the colours include the ones hidden from the shop.
+describe('ProductsService.updateVariant (audit)', () => {
+  it('records a price change with the old and the new price, and who made it', async () => {
+    const { service, auditCreate } = setup({ pricePaise: 100000, compareAtPaise: null });
+    await service.updateVariant('p1', 'v1', { pricePaise: 120000 } as any, 'user-1');
+    expect(auditCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        action: 'variant.updated', entityType: 'product_variant', entityId: 'v1', actorId: 'user-1',
+        beforeState: { pricePaise: 100000 }, afterState: { pricePaise: 120000 },
+        metadata: { productId: 'p1', sku: 'SKU-1' },
+      }),
+    });
+  });
+
+  it('writes nothing when the values sent are the values already stored', async () => {
+    const { service, update, auditCreate } = setup({ pricePaise: 100000, compareAtPaise: null });
+    await service.updateVariant('p1', 'v1', { pricePaise: 100000, color: 'Red', active: true } as any, 'user-1');
+    expect(update).not.toHaveBeenCalled();
+    expect(auditCreate).not.toHaveBeenCalled();
+  });
+
+  it('only the fields that differ are written', async () => {
+    const { service, update } = setup({ pricePaise: 100000, compareAtPaise: null });
+    await service.updateVariant('p1', 'v1', { pricePaise: 100000, color: 'Crimson', active: false } as any, 'user-1');
+    expect((update.mock.calls[0] as any[])[0].data).toEqual({ color: 'Crimson', active: false });
+  });
+});
+
+describe('ProductsService.update', () => {
+  const stored = (over: any = {}) => ({ id: 'p1', title: 'Old Title', slug: 'old-title', publishStatus: 'draft', fabric: 'Silk', tags: ['a'], ...over });
+  function setupProduct(product: any, slugOwner: any = null) {
+    const update = jest.fn(async ({ data }: any) => ({ ...product, ...data }));
+    const auditCreate = jest.fn(async () => ({}));
+    const tx = { product: { update }, auditEvent: { create: auditCreate } };
+    const prisma = {
+      product: {
+        findUnique: jest.fn(async ({ where }: any) => (where.id ? product : where.slug ? slugOwner : null)),
+        findUniqueOrThrow: jest.fn(async () => product),
+      },
+      category: { findUnique: jest.fn(async () => ({ id: 'c1' })) },
+      $transaction: jest.fn(async (work: any) => work(tx)),
+    };
+    return { service: new ProductsService(prisma as any), update, auditCreate };
+  }
+
+  it('a draft product\'s shop address follows its title', async () => {
+    const { service, update } = setupProduct(stored());
+    await service.update('p1', { title: 'New Title' } as any, 'user-1');
+    expect((update.mock.calls[0] as any[])[0].data).toMatchObject({ title: 'New Title', slug: 'new-title' });
+  });
+
+  it('a published product keeps its shop address when the title changes', async () => {
+    const { service, update } = setupProduct(stored({ publishStatus: 'published' }));
+    await service.update('p1', { title: 'New Title' } as any, 'user-1');
+    const data = (update.mock.calls[0] as any[])[0].data;
+    expect(data.title).toBe('New Title');
+    expect(data).not.toHaveProperty('slug');
+  });
+
+  it('refuses a title whose address another product already has', async () => {
+    const { service, update } = setupProduct(stored(), { id: 'other' });
+    await expect(service.update('p1', { title: 'New Title' } as any, 'user-1')).rejects.toThrow('already exists');
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('records what changed, from what, and who changed it', async () => {
+    const { service, auditCreate } = setupProduct(stored());
+    await service.update('p1', { fabric: 'Cotton', tags: ['a'] } as any, 'user-1');
+    expect(auditCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        action: 'product.updated', entityType: 'product', entityId: 'p1', actorId: 'user-1',
+        beforeState: { fabric: 'Silk' }, afterState: { fabric: 'Cotton' }, // the unchanged tags are not repeated
+      }),
+    });
+  });
+
+  it('writes nothing when nothing really changed', async () => {
+    const { service, update, auditCreate } = setupProduct(stored());
+    await service.update('p1', { title: 'Old Title', fabric: 'Silk', tags: ['a'] } as any, 'user-1');
+    expect(update).not.toHaveBeenCalled();
+    expect(auditCreate).not.toHaveBeenCalled();
+  });
+
+  it('a product that does not exist is "not found"', async () => {
+    const { service } = setupProduct(null);
+    await expect(service.update('nope', { fabric: 'x' } as any, 'user-1')).rejects.toBeInstanceOf(NotFoundException);
+  });
+});
+
+describe('ProductsService.findOneAdmin', () => {
+  it('asks for every colour, hidden ones included, with its stock', async () => {
+    const findUnique = jest.fn(async () => ({ id: 'p1', variants: [] }));
+    const service = new ProductsService({ product: { findUnique } } as any);
+    await service.findOneAdmin('p1');
+    const args = (findUnique.mock.calls[0] as any[])[0];
+    expect(args.include.variants.include).toEqual({ inventory: true });
+    expect(args.include.variants.where).toBeUndefined(); // no "active only" filter
+  });
+
+  it('is "not found" for an unknown product', async () => {
+    const service = new ProductsService({ product: { findUnique: jest.fn(async () => null) } } as any);
+    await expect(service.findOneAdmin('nope')).rejects.toBeInstanceOf(NotFoundException);
   });
 });

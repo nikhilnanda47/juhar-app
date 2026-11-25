@@ -7,6 +7,7 @@ import { ProductQueryDto, AdminProductQueryDto, CreateProductDto, UpdateProductD
 import { CreateVariantDto } from './dto/create-product.dto';
 import { JwtAuthGuard, AdminAuthGuard, RolesGuard } from '../auth/guards';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { CurrentUser, AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 
 // ── Public Endpoints ──
 @ApiTags('Products')
@@ -48,6 +49,12 @@ export class ProductsAdminController {
     return this.productsService.findAllAdmin(query);
   }
 
+  @Get(':id')
+  @ApiOperation({ summary: 'One product in full, with all its colours and their stock (admin edit page)' })
+  async findOne(@Param('id', ParseUUIDPipe) id: string) {
+    return this.productsService.findOneAdmin(id);
+  }
+
   @Post()
   @Roles('owner', 'catalog_editor')
   @ApiOperation({ summary: 'Create product with variants' })
@@ -61,8 +68,9 @@ export class ProductsAdminController {
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateProductDto,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.productsService.update(id, dto);
+    return this.productsService.update(id, dto, user.id);
   }
 
   @Post(':id/variants')
@@ -82,7 +90,8 @@ export class ProductsAdminController {
     @Param('id', ParseUUIDPipe) id: string,
     @Param('variantId', ParseUUIDPipe) variantId: string,
     @Body() dto: UpdateVariantDto,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.productsService.updateVariant(id, variantId, dto);
+    return this.productsService.updateVariant(id, variantId, dto, user.id);
   }
 }

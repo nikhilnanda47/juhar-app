@@ -9,8 +9,8 @@ info:
     ## Implementation status
     Operations marked `x-status: planned` are part of the target design but are **not implemented yet**
     (Phase 4: payments, webhooks, returns, refunds; Phase 5: media uploads, reports, admin users,
-    admin inventory list). This spec lists **37 implemented** and
-    **13 planned** operations (50 in total). Unmarked operations match the code in `apps/api`.
+    admin inventory list). This spec lists **38 implemented** and
+    **13 planned** operations (51 in total). Unmarked operations match the code in `apps/api`.
 
     ## Conventions
     - All monetary values are in **integer paise** (1 INR = 100 paise)
@@ -2904,9 +2904,43 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 
   /api/v1/admin/products/{id}:
+    get:
+      tags: ["Admin: Catalog"]
+      summary: Get one product for editing
+      description: |
+        Every field, the category, and ALL colours (also the ones hidden from the shop) with their stock
+        (`inventory`: onHand, reserved, unavailable). Any admin role. `404` when the product does not exist.
+      operationId: adminGetProduct
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        "200":
+          description: The product
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/ProductDetail'
+        "404":
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     patch:
       tags: ["Admin: Catalog"]
       summary: Update product
+      description: |
+        Only the fields that are sent and really differ are written (nothing differs: nothing is written), and the
+        change is recorded in the audit trail (`product.updated`, before and after). Text limits follow the database
+        (for example fabric 100, origin 200, length/width/weight 50). **The shop address (`slug`) follows the title only
+        while the product is a draft**; once published it stays the same, so shared links keep working.
+        Roles: `owner`, `catalog_editor`.
       operationId: adminUpdateProduct
       security:
         - BearerAuth: []
@@ -2961,6 +2995,10 @@ paths:
     patch:
       tags: ["Admin: Catalog"]
       summary: Update variant
+      description: |
+        Name, colour, price, compare-at price (send `null` to remove it) and `active` (false hides the colour from the
+        shop). Only fields that really differ are written, and the change is audited (`variant.updated`, with the old and
+        new price). The SKU cannot be changed. Roles: `owner`, `catalog_editor`.
       operationId: adminUpdateVariant
       security:
         - BearerAuth: []

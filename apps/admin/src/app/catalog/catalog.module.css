@@ -164,6 +164,8 @@
 }
 
 .actionBtn {
+  display: inline-block;
+  text-decoration: none;
   padding: 0.35rem 0.85rem;
   background: none;
   border: 1px solid var(--border);
@@ -173,6 +175,10 @@
   cursor: pointer;
   font-weight: 500;
   transition: all var(--transition);
+}
+
+.actions .actionBtn + .actionBtn {
+  margin-left: 0.4rem;
 }
 
 .actionBtn:hover {
