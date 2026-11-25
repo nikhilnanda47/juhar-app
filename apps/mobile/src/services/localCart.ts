@@ -8,6 +8,8 @@ export interface LocalCartItem {
   variantId: string;
   quantity: number;
   // Snapshot of product info for display
+  /** older guest carts do not have it */
+  productId?: string;
   productTitle: string;
   productSlug: string;
   variantName: string | null;
@@ -81,6 +83,7 @@ export function localCartToResponse(items: LocalCartItem[]): CartResponse {
       pricePaise: item.pricePaise,
       compareAtPaise: item.compareAtPaise,
       available: item.available,
+      productId: item.productId,
       productTitle: item.productTitle,
       productSlug: item.productSlug,
       imageUrl: null,

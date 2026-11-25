@@ -271,7 +271,7 @@ export default function ShopPage() {
                     <button
                       className="absolute top-2 right-2 w-8 h-8 rounded-full bg-surface/80 backdrop-blur flex items-center justify-center z-10"
                       onClick={(e) => { e.preventDefault(); toggleProduct(product.id, product.firstVariantId); }}
-                      aria-label={saved ? 'Remove from saved items' : 'Save this saree'}
+                      aria-label={saved ? 'Remove from wishlist' : 'Save this saree'}
                       aria-pressed={saved}
                     >
                       <Heart size={16} className={saved ? 'text-primary fill-primary' : 'text-text-tertiary'} strokeWidth={2} />

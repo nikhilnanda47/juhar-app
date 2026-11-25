@@ -351,7 +351,7 @@ export default function ProfileScreen() {
           <View style={styles.tileIconWrap}>
             <Heart size={22} color={colors.textPrimary} strokeWidth={1.5} />
           </View>
-          <Text style={styles.tileLabel}>Saved</Text>
+          <Text style={styles.tileLabel}>Wishlist</Text>
           <Text style={styles.tileSub}>{savedCount} items</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.tile} activeOpacity={0.7} onPress={() => navigation.navigate('Cart', { screen: 'SelectAddress' })}>

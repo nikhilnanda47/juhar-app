@@ -933,6 +933,10 @@ components:
               type: integer
             available:
               type: integer
+            productId:
+              type: string
+              format: uuid
+              description: The saree this colour belongs to (the wishlist heart on a shop card is per saree)
             productTitle:
               type: string
             productSlug:

@@ -321,6 +321,8 @@ export interface CartItemResponse {
     pricePaise: number;
     compareAtPaise: number | null;
     available: number;
+    /** the saree this colour belongs to; carts saved before this existed (guest carts) may not have it */
+    productId?: string;
     productTitle: string;
     productSlug: string;
     imageUrl: string | null;

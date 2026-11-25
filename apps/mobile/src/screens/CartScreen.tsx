@@ -4,6 +4,7 @@ import {
   ActivityIndicator, RefreshControl, TextInput,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useWishlist } from '../contexts/WishlistContext';
 import {
   ShoppingBag, Trash2, Heart, Minus, Plus, Package,
   ChevronLeft, Truck, ArrowRight, X, BadgeCheck, Leaf,
@@ -11,7 +12,7 @@ import {
 import { useTheme, type ColorPalette, spacing, borderRadius, elevation } from '../theme';
 import RefreshButton from '../components/RefreshButton';
 import {
-  isLoggedIn, loadToken, getCart, updateCartItem, removeCartItem, formatPaise,
+  isLoggedIn, loadToken, getCart, getProductBySlug, updateCartItem, removeCartItem, formatPaise,
   type CartResponse, type CartItemResponse,
 } from '../services/api';
 import {
@@ -268,8 +269,23 @@ function CartItemCard({
 }) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const { isSaved, toggleVariant } = useWishlist();
+  const [wishlistBusy, setWishlistBusy] = useState(false);
+  const saved = isSaved(item.variant.id);
   const discount = item.variant.compareAtPaise && item.variant.compareAtPaise > item.variant.pricePaise
     ? Math.round((1 - item.variant.pricePaise / item.variant.compareAtPaise) * 100) : null;
+
+  const handleWishlist = async () => {
+    if (wishlistBusy) return;
+    setWishlistBusy(true);
+    try {
+      // The heart on the shop card is per saree, so a save needs to know which saree this colour is from.
+      // Bags saved before the bag carried it look it up by the saree's page address.
+      const productId = item.variant.productId || (await getProductBySlug(item.variant.productSlug)).id;
+      await toggleVariant(item.variant.id, productId);
+    } catch { /* could not look it up: nothing was saved, the heart stays as it was */ }
+    setWishlistBusy(false);
+  };
 
   return (
     <View style={styles.itemCard}>
@@ -319,9 +335,20 @@ function CartItemCard({
             <Plus size={14} color={colors.textPrimary} strokeWidth={2} />
           </TouchableOpacity>
         </View>
-        <TouchableOpacity style={styles.wishlistLink}>
-          <Heart size={16} color={colors.textTertiary} strokeWidth={1.5} />
-          <Text style={styles.wishlistText}>Save to Wishlist</Text>
+        <TouchableOpacity
+          style={[styles.wishlistLink, wishlistBusy && { opacity: 0.5 }]}
+          onPress={handleWishlist}
+          disabled={wishlistBusy}
+        >
+          <Heart
+            size={16}
+            color={saved ? colors.primary : colors.textTertiary}
+            fill={saved ? colors.primary : 'none'}
+            strokeWidth={1.5}
+          />
+          <Text style={[styles.wishlistText, saved && { color: colors.primary }]}>
+            {saved ? 'Saved' : 'Save to Wishlist'}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
