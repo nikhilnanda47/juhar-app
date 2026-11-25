@@ -12,7 +12,7 @@ import {
 import { useTheme, type ColorPalette, spacing, borderRadius, elevation } from '../theme';
 import RefreshButton from '../components/RefreshButton';
 import {
-  isLoggedIn, loadToken, getCart, updateCartItem, removeCartItem, formatPaise,
+  isLoggedIn, loadToken, getCart, getProductBySlug, updateCartItem, removeCartItem, formatPaise,
   type CartResponse, type CartItemResponse,
 } from '../services/api';
 import {
@@ -278,7 +278,12 @@ function CartItemCard({
   const handleWishlist = async () => {
     if (wishlistBusy) return;
     setWishlistBusy(true);
-    await toggleVariant(item.variant.id, '').catch(() => {});
+    try {
+      // The heart on the shop card is per saree, so a save needs to know which saree this colour is from.
+      // Bags saved before the bag carried it look it up by the saree's page address.
+      const productId = item.variant.productId || (await getProductBySlug(item.variant.productSlug)).id;
+      await toggleVariant(item.variant.id, productId);
+    } catch { /* could not look it up: nothing was saved, the heart stays as it was */ }
     setWishlistBusy(false);
   };
 

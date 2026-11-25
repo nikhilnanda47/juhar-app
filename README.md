@@ -100,7 +100,7 @@ Juhar is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce pl
 | Reports (GMV, top products, stock) | Phase 5 |
 | Admin user management / roles | Phase 5 |
 | Refund initiation | Phase 4 |
-| Wishlist (saved items: heart on cards and product pages, Saved list, guest hearts kept until login) | ✅ |
+| Wishlist (saved items: heart on cards and product pages, Wishlist page, "Save to Wishlist" from the bag, guest hearts kept until login) | ✅ |
 | Push notifications / SMS updates | Phase 5 |
 | WhatsApp support integration | Phase 5 |
 | No internet / force update screens | Phase 5 |

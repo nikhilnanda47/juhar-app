@@ -416,7 +416,7 @@ function ProductCard({ product, onPress }: { product: any; onPress: () => void }
         <TouchableOpacity
           style={styles.wishlistBtn}
           onPress={(e) => { e.stopPropagation?.(); toggleProduct(product.id, product.firstVariantId); }}
-          accessibilityLabel={wishlisted ? 'Remove from saved items' : 'Save this saree'}
+          accessibilityLabel={wishlisted ? 'Remove from wishlist' : 'Save this saree'}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
           <Heart

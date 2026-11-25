@@ -20,7 +20,7 @@ export class CartService {
         variant: {
           include: {
             product: {
-              select: { title: true, slug: true, publishStatus: true },
+              select: { id: true, title: true, slug: true, publishStatus: true },
             },
             inventory: {
               select: { onHand: true, reserved: true, unavailable: true },
@@ -56,6 +56,7 @@ export class CartService {
           pricePaise: v.pricePaise,
           compareAtPaise: v.compareAtPaise,
           available,
+          productId: v.product.id,
           productTitle: v.product.title,
           productSlug: v.product.slug,
           imageUrl: null, // Media upload coming in Phase 5

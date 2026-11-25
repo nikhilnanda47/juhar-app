@@ -1,11 +1,12 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Heart, Trash2, ShoppingBag, ChevronLeft } from 'lucide-react-native';
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
-import { addToCart, formatPaise, isLoggedIn, referenceOf } from '../services/api';
+import { addToCart, getCart, formatPaise, isLoggedIn, referenceOf } from '../services/api';
+import { onCartChanged } from '../services/cartEvents';
 import { useWishlist } from '../contexts/WishlistContext';
 import { showAlert } from '../utils/showAlert';
 
@@ -18,10 +19,19 @@ export default function WishlistScreen({ navigation }: Props) {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { loaded, items, toggleVariant, total, refreshWishlist } = useWishlist();
   const [addingId, setAddingId] = useState<string | null>(null);
-  const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
+  // Which of these are in the bag right now. It is read from the bag itself, so "Go to Bag" goes away
+  // when the bag is emptied somewhere else instead of staying until the app restarts.
+  const [inBag, setInBag] = useState<Set<string>>(new Set());
 
   // Opening the screen always asks again, so it is never older than the last time the customer looked
   useFocusEffect(useCallback(() => { refreshWishlist(); }, [refreshWishlist]));
+
+  const readBag = useCallback(() => {
+    if (!isLoggedIn()) return Promise.resolve();
+    return getCart().then((cart) => setInBag(new Set(cart.items.map((i) => i.variant.id)))).catch(() => {});
+  }, []);
+  useFocusEffect(useCallback(() => { readBag(); }, [readBag])); // coming back to this screen
+  useEffect(() => onCartChanged(() => { readBag(); }), [readBag]); // the bag changed while this screen is open
 
   // Wait for the answer instead of saying "no saved items" to someone who has some
   if (!loaded) {
@@ -33,7 +43,7 @@ export default function WishlistScreen({ navigation }: Props) {
       <View style={styles.center}>
         <Heart size={48} color={colors.textTertiary} strokeWidth={1.5} />
         <Text style={styles.emptyTitle}>
-          {total > 0 ? `${total} saved on this phone` : 'Sign in to see your saved items'}
+          {total > 0 ? `${total} on your wishlist on this phone` : 'Sign in to see your wishlist'}
         </Text>
         {total > 0 && <Text style={styles.emptySubtext}>Sign in to keep {total === 1 ? 'it' : 'them'} in your account.</Text>}
         <TouchableOpacity style={styles.ctaBtn} onPress={() => navigation.navigate('Account')}>
@@ -47,7 +57,7 @@ export default function WishlistScreen({ navigation }: Props) {
     setAddingId(variantId);
     try {
       await addToCart(variantId, 1);
-      setAddedIds((prev) => new Set(prev).add(variantId));
+      setInBag((prev) => new Set(prev).add(variantId)); // the bag change event re-reads it too
     } catch (err: any) {
       // used to fail without a word
       const reference = referenceOf(err);
@@ -64,7 +74,7 @@ export default function WishlistScreen({ navigation }: Props) {
           <ChevronLeft size={22} color={colors.textPrimary} strokeWidth={2} />
         </TouchableOpacity>
         <View>
-          <Text style={styles.headerTitle}>Saved Items</Text>
+          <Text style={styles.headerTitle}>Wishlist</Text>
           <Text style={styles.headerSub}>{total} {total === 1 ? 'item' : 'items'}</Text>
         </View>
       </View>
@@ -72,7 +82,7 @@ export default function WishlistScreen({ navigation }: Props) {
       {total === 0 ? (
         <View style={styles.center}>
           <Heart size={48} color={colors.textTertiary} strokeWidth={1.5} />
-          <Text style={styles.emptyTitle}>No saved items yet</Text>
+          <Text style={styles.emptyTitle}>Your wishlist is empty</Text>
           <Text style={styles.emptySubtext}>Tap the heart on any saree to save it here</Text>
           <TouchableOpacity style={styles.ctaBtn} onPress={() => navigation.navigate('Shop')}>
             <Text style={styles.ctaBtnText}>Browse Sarees</Text>
@@ -106,7 +116,7 @@ export default function WishlistScreen({ navigation }: Props) {
                   )}
                   <View style={styles.rowActions}>
                     {v.isAvailable && (
-                      addedIds.has(v.id) ? (
+                      inBag.has(v.id) ? (
                         <TouchableOpacity
                           style={[styles.addBtn, styles.goToBagBtn]}
                           onPress={() => navigation.navigate('Cart')}
@@ -128,7 +138,7 @@ export default function WishlistScreen({ navigation }: Props) {
                     <TouchableOpacity
                       style={styles.removeBtn}
                       onPress={() => toggleVariant(v.id, p.id)}
-                      accessibilityLabel={`Remove ${p.title} from saved items`}
+                      accessibilityLabel={`Remove ${p.title} from wishlist`}
                     >
                       <Trash2 size={16} color={colors.textTertiary} strokeWidth={2} />
                     </TouchableOpacity>

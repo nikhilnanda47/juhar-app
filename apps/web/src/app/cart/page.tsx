@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Heart, ShoppingBag, Trash2, Minus, Plus, Truck, ArrowRight, Leaf } from 'lucide-react';
-import { isLoggedIn, loadToken, getCart, updateCartItem, removeCartItem, formatPaise, type CartResponse } from '@/lib/api';
+import { isLoggedIn, loadToken, getCart, getProductBySlug, updateCartItem, removeCartItem, formatPaise, type CartResponse } from '@/lib/api';
 import { readLocalCart, saveLocalCart } from '@/lib/cart-events';
 import { remainingForFreeShipping, shippingFor, shippingProgressPercent, useShippingRule } from '@/lib/shipping';
 import { useWishlist } from '@/lib/wishlist-context';
@@ -18,7 +18,7 @@ function localToCartResponse(items: any[]): CartResponse {
       id: item.variantId, sku: item.sku, name: item.variantName,
       color: item.color, pricePaise: item.pricePaise,
       compareAtPaise: item.compareAtPaise, available: item.available,
-      productTitle: item.productTitle, productSlug: item.productSlug, imageUrl: null,
+      productId: item.productId, productTitle: item.productTitle, productSlug: item.productSlug, imageUrl: null,
     },
     quantity: item.quantity,
     lineTotalPaise: item.pricePaise * item.quantity,
@@ -41,10 +41,16 @@ export default function CartPage() {
   const { rule, loaded: ruleLoaded } = useShippingRule();
   const { isSaved, toggleVariant } = useWishlist();
 
-  const handleWishlistToggle = async (variantId: string) => {
+  const handleWishlistToggle = async (item: CartResponse['items'][number]) => {
+    const variantId = item.variant.id;
     if (wishlistBusy.has(variantId)) return;
     setWishlistBusy((prev) => new Set(prev).add(variantId));
-    await toggleVariant(variantId, '').catch(() => {});
+    try {
+      // The heart on the shop card is per saree, so a save needs to know which saree this colour is from.
+      // Bags saved before the bag carried it look it up by the saree's page address.
+      const productId = item.variant.productId || (await getProductBySlug(item.variant.productSlug)).id;
+      await toggleVariant(variantId, productId);
+    } catch { /* could not look it up: nothing was saved, the heart stays as it was */ }
     setWishlistBusy((prev) => { const next = new Set(prev); next.delete(variantId); return next; });
   };
 
@@ -179,7 +185,7 @@ export default function CartPage() {
                   </button>
                 </div>
                 <button
-                  onClick={() => handleWishlistToggle(item.variant.id)}
+                  onClick={() => handleWishlistToggle(item)}
                   disabled={wishlistBusy.has(item.variant.id)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 ${
                     isSaved(item.variant.id)
