@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AdminLayout from '../../components/AdminLayout';
 import { api, type ProductCounts } from '../../services/api';
-import { appendUnique } from '../../services/paging';
+import { appendUnique, loadAtLeast } from '../../services/paging';
+import StockAdjustModal, { type StockTarget } from '../../components/StockAdjustModal';
 import styles from './inventory.module.css';
 
 interface VariantStock {
@@ -15,6 +16,7 @@ interface VariantStock {
   productTitle: string;
   onHand: number;
   reserved: number;
+  unavailable: number;
   available: number;
 }
 
@@ -28,6 +30,7 @@ export default function InventoryPage() {
   const [counts, setCounts] = useState<ProductCounts | null>(null);
   const [loading, setLoading] = useState(true);
   const lowAt = counts?.lowStockThreshold ?? 3;
+  const [adjusting, setAdjusting] = useState<StockTarget | null>(null);
 
   useEffect(() => {
     loadInventory();
@@ -44,6 +47,23 @@ export default function InventoryPage() {
       router.push('/login');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Read the same rows again after a stock change, so the page keeps showing as many products as before
+  const refresh = async () => {
+    try {
+      const page = await loadAtLeast(
+        (after, limit) => api.getProducts({ limit: String(limit), ...(after ? { cursor: after } : {}) }),
+        Math.max(products.length, 20),
+      );
+      setProducts(page.items);
+      setCursor(page.cursor);
+      setHasMore(page.hasMore);
+      const fresh = (await api.getProducts({ limit: '1' })).counts;
+      if (fresh) setCounts(fresh);
+    } catch {
+      // keep what is on screen
     }
   };
 
@@ -76,6 +96,7 @@ export default function InventoryPage() {
         productTitle: p.title,
         onHand: inv.onHand ?? 0,
         reserved: inv.reserved ?? 0,
+        unavailable: inv.unavailable ?? 0,
         available: (inv.onHand ?? 0) - (inv.reserved ?? 0) - (inv.unavailable ?? 0),
       };
     }),
@@ -99,6 +120,7 @@ export default function InventoryPage() {
               <th className={styles.thCenter}>Reserved</th>
               <th className={styles.thCenter}>Available</th>
               <th>Status</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -123,10 +145,22 @@ export default function InventoryPage() {
                     <span className={styles.badgeOk}>IN STOCK</span>
                   )}
                 </td>
+                <td>
+                  <button
+                    className={styles.adjustBtn}
+                    onClick={() => setAdjusting({
+                      variantId: v.variantId, productTitle: v.productTitle, sku: v.sku,
+                      label: v.color || v.name || 'Default', onHand: v.onHand, reserved: v.reserved, unavailable: v.unavailable,
+                    })}
+                    aria-label={`Adjust stock for ${v.productTitle} ${v.color || v.name || ''} ${v.sku}`}
+                  >
+                    Adjust
+                  </button>
+                </td>
               </tr>
             ))}
             {variants.length === 0 && (
-              <tr><td colSpan={7} className={styles.empty}>No inventory data</td></tr>
+              <tr><td colSpan={8} className={styles.empty}>No inventory data</td></tr>
             )}
           </tbody>
         </table>
@@ -144,6 +178,9 @@ export default function InventoryPage() {
           )}
           {loadError && <span className={styles.loadMoreError}>{loadError}</span>}
         </div>
+      )}
+      {adjusting && (
+        <StockAdjustModal target={adjusting} onClose={() => setAdjusting(null)} onSaved={refresh} />
       )}
     </AdminLayout>
   );

@@ -21,6 +21,12 @@ export class OrdersAdminController {
     return this.ordersService.findAllAdmin(query);
   }
 
+  @Get(':id')
+  @ApiOperation({ summary: 'One order in full: items, delivery address, customer, payment, shipments, history (admin)' })
+  async findOne(@Param('id', ParseUUIDPipe) id: string) {
+    return this.ordersService.findOneAdmin(id);
+  }
+
   @Patch(':id/status')
   @Roles('owner', 'fulfillment_operator')
   @ApiOperation({ summary: 'Update order status' })

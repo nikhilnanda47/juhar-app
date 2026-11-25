@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Heart, ShoppingBag, Trash2, Minus, Plus, Truck, ArrowRight, Leaf } from 'lucide-react';
-import { isLoggedIn, loadToken, getCart, getProductBySlug, updateCartItem, removeCartItem, formatPaise, type CartResponse } from '@/lib/api';
+import { loadToken, getCart, getProductBySlug, updateCartItem, removeCartItem, formatPaise, type CartResponse } from '@/lib/api';
 import { readLocalCart, saveLocalCart } from '@/lib/cart-events';
 import { remainingForFreeShipping, shippingFor, shippingProgressPercent, useShippingRule } from '@/lib/shipping';
 import { useWishlist } from '@/lib/wishlist-context';

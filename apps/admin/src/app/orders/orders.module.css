@@ -50,7 +50,7 @@
 
 .filterBtn:hover {
   border-color: var(--maroon);
-  color: var(--maroon);
+  color: var(--maroon-text);
 }
 
 .filterActive {
@@ -223,13 +223,13 @@
 }
 
 .status_packed {
-  background: #FFF7ED;
-  color: #EA580C;
+  background: var(--badge-packed-bg);
+  color: var(--badge-packed-text);
 }
 
 .status_shipped {
-  background: #F0F9FF;
-  color: #0284C7;
+  background: var(--badge-shipped-bg);
+  color: var(--badge-shipped-text);
 }
 
 .status_delivered {
@@ -508,7 +508,7 @@
 .loadMoreBtn {
   padding: 0.5rem 1.4rem;
   background: var(--bg-card);
-  color: var(--maroon);
+  color: var(--maroon-text);
   border: 1px solid var(--maroon);
   border-radius: var(--radius-sm);
   font-size: 0.8rem;
@@ -561,5 +561,36 @@
 
 .copyBtn:hover {
   border-color: var(--maroon);
-  color: var(--maroon);
+  color: var(--maroon-text);
+}
+
+/* Order number as a link to the order page */
+.orderLink {
+  color: var(--maroon-text);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.orderLink:hover {
+  text-decoration: underline;
+}
+
+/* What is in the order (list) */
+.itemLine {
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.itemQty {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.itemMore {
+  font-size: 0.72rem;
+  color: var(--text-muted);
 }

@@ -21,9 +21,15 @@ export class InventoryController {
     return this.inventoryService.getStock(variantId);
   }
 
+  @Get(':variantId/history')
+  @ApiOperation({ summary: 'Recent manual stock changes of a variant: when, how much, why, by whom' })
+  async history(@Param('variantId', ParseUUIDPipe) variantId: string) {
+    return this.inventoryService.getAdjustmentHistory(variantId);
+  }
+
   @Post('adjust')
   @Roles('owner', 'catalog_editor')
-  @ApiOperation({ summary: 'Adjust stock (add/remove)' })
+  @ApiOperation({ summary: 'Change stock: add or remove an amount, or set the counted number' })
   async adjustStock(
     @Body() dto: AdjustStockDto,
     @CurrentUser() user: AuthenticatedUser,

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import AdminLayout from '../../../components/AdminLayout';
 import { api } from '../../../services/api';
 import styles from './new.module.css';
+import { BasicInfoSection, FabricSection, emptyProductFields, splitList, type ProductFields } from './ProductFields';
 
 interface Category {
   id: string;
@@ -42,24 +43,13 @@ export default function CreateProductPage() {
   const [error, setError] = useState('');
   const [activeSection, setActiveSection] = useState(0);
 
-  // Product fields
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [shortDescription, setShortDescription] = useState('');
-  const [categoryId, setCategoryId] = useState('');
-  const [publishStatus, setPublishStatus] = useState<'draft' | 'published'>('draft');
-
-  // Fabric metadata
-  const [fabric, setFabric] = useState('');
-  const [weaveMethod, setWeaveMethod] = useState('');
-  const [origin, setOrigin] = useState('');
-  const [careInstructions, setCareInstructions] = useState('');
-  const [blousePiece, setBlousePiece] = useState('');
-  const [length, setLength] = useState('');
-  const [width, setWidth] = useState('');
-  const [weight, setWeight] = useState('');
-  const [occasion, setOccasion] = useState('');
-  const [tags, setTags] = useState('');
+  // Product fields (the basic information and the fabric details; the form sections are shared with the Edit page)
+  const [fields, setFields] = useState<ProductFields>(emptyProductFields());
+  const setField = (name: keyof ProductFields, value: string) => setFields((f) => ({ ...f, [name]: value }));
+  const {
+    title, description, shortDescription, categoryId, publishStatus,
+    fabric, weaveMethod, origin, careInstructions, blousePiece, length, width, weight, occasion, tags,
+  } = fields;
 
   // Variants
   const [variants, setVariants] = useState<VariantForm[]>([emptyVariant()]);
@@ -111,8 +101,8 @@ export default function CreateProductPage() {
       if (length) body.length = length;
       if (width) body.width = width;
       if (weight) body.weight = weight;
-      if (occasion.trim()) body.occasion = occasion.split(',').map((s) => s.trim()).filter(Boolean);
-      if (tags.trim()) body.tags = tags.split(',').map((s) => s.trim()).filter(Boolean);
+      if (occasion.trim()) body.occasion = splitList(occasion);
+      if (tags.trim()) body.tags = splitList(tags);
 
       await api.createProduct(body);
       router.push('/catalog');
@@ -124,9 +114,7 @@ export default function CreateProductPage() {
   };
 
   const selectedCategory = categories.find((c) => c.id === categoryId);
-  const occasionTags = occasion.split(',').map((s) => s.trim()).filter(Boolean);
-  const tagsList = tags.split(',').map((s) => s.trim()).filter(Boolean);
-
+  
   // Completion tracking
   const basicComplete = !!title && !!categoryId;
   const variantsComplete = variants.length > 0 && variants.every((v) => v.sku && v.pricePaise);
@@ -147,172 +135,15 @@ export default function CreateProductPage() {
         {/* Main Form Column */}
         <div className={styles.formColumn}>
 
-          {/* Section 1: Basic Information */}
-          <section
-            className={`${styles.section} ${activeSection === 0 ? styles.sectionActive : ''}`}
-            onClick={() => setActiveSection(0)}
-          >
-            <div className={styles.sectionHeader}>
-              <div className={styles.sectionNumber}>
-                {basicComplete ? (
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                ) : '1'}
-              </div>
-              <div>
-                <h3 className={styles.sectionTitle}>Basic Information</h3>
-                <p className={styles.sectionDesc}>Product name, category, and description</p>
-              </div>
-            </div>
-            <div className={styles.sectionBody}>
-              <div className={styles.formGroup}>
-                <label>Product Title <span className={styles.required}>*</span></label>
-                <input
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g. Sambalpuri Ikat Silk Saree – Maroon & Gold"
-                  required
-                  className={styles.inputLg}
-                />
-              </div>
-              <div className={styles.formGroup}>
-                <label>Short Description</label>
-                <input
-                  value={shortDescription}
-                  onChange={(e) => setShortDescription(e.target.value)}
-                  placeholder="One-liner for product cards (max 500 chars)"
-                  maxLength={500}
-                />
-                <span className={styles.charCount}>{shortDescription.length}/500</span>
-              </div>
-              <div className={styles.formGroup}>
-                <label>Full Description</label>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Detailed product description — fabric story, craftsmanship, styling tips..."
-                  rows={5}
-                />
-              </div>
-              <div className={styles.formRow}>
-                <div className={styles.formGroup}>
-                  <label>Category <span className={styles.required}>*</span></label>
-                  <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} required>
-                    <option value="">Select category</option>
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Visibility</label>
-                  <div className={styles.toggleWrapper}>
-                    <button
-                      type="button"
-                      className={`${styles.toggleBtn} ${publishStatus === 'draft' ? styles.toggleActive : ''}`}
-                      onClick={() => setPublishStatus('draft')}
-                    >
-                      <span className={styles.toggleDot} style={{ background: '#F59E0B' }} />
-                      Draft
-                    </button>
-                    <button
-                      type="button"
-                      className={`${styles.toggleBtn} ${publishStatus === 'published' ? styles.toggleActive : ''}`}
-                      onClick={() => setPublishStatus('published')}
-                    >
-                      <span className={styles.toggleDot} style={{ background: '#10B981' }} />
-                      Published
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
+          <BasicInfoSection
+            values={fields} onChange={setField} categories={categories}
+            active={activeSection === 0} onActivate={() => setActiveSection(0)} complete={basicComplete}
+          />
 
-          {/* Section 2: Fabric & Craft */}
-          <section
-            className={`${styles.section} ${activeSection === 1 ? styles.sectionActive : ''}`}
-            onClick={() => setActiveSection(1)}
-          >
-            <div className={styles.sectionHeader}>
-              <div className={styles.sectionNumber}>
-                {fabricFilled >= 2 ? (
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                ) : '2'}
-              </div>
-              <div>
-                <h3 className={styles.sectionTitle}>Fabric & Craft Details</h3>
-                <p className={styles.sectionDesc}>Material, weave technique, and dimensions</p>
-              </div>
-            </div>
-            <div className={styles.sectionBody}>
-              <div className={styles.formGrid3}>
-                <div className={styles.formGroup}>
-                  <label>Fabric</label>
-                  <input value={fabric} onChange={(e) => setFabric(e.target.value)} placeholder="Pure Silk" />
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Weave Method</label>
-                  <input value={weaveMethod} onChange={(e) => setWeaveMethod(e.target.value)} placeholder="Handloom Ikat" />
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Origin</label>
-                  <input value={origin} onChange={(e) => setOrigin(e.target.value)} placeholder="Sonepur, Odisha" />
-                </div>
-              </div>
-              <div className={styles.formGrid3}>
-                <div className={styles.formGroup}>
-                  <label>Length</label>
-                  <input value={length} onChange={(e) => setLength(e.target.value)} placeholder="5.5 meters" />
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Width</label>
-                  <input value={width} onChange={(e) => setWidth(e.target.value)} placeholder="46 inches" />
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Weight</label>
-                  <input value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="450 grams" />
-                </div>
-              </div>
-              <div className={styles.formRow}>
-                <div className={styles.formGroup}>
-                  <label>Blouse Piece</label>
-                  <input value={blousePiece} onChange={(e) => setBlousePiece(e.target.value)} placeholder="Included – 0.8m unstitched" />
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Care Instructions</label>
-                  <input value={careInstructions} onChange={(e) => setCareInstructions(e.target.value)} placeholder="Dry clean only" />
-                </div>
-              </div>
-              <div className={styles.formRow}>
-                <div className={styles.formGroup}>
-                  <label>Occasion</label>
-                  <input value={occasion} onChange={(e) => setOccasion(e.target.value)} placeholder="Festive, Wedding, Party" />
-                  {occasionTags.length > 0 && (
-                    <div className={styles.chipRow}>
-                      {occasionTags.map((t, i) => (
-                        <span key={i} className={styles.chip}>{t}</span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Tags</label>
-                  <input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="silk, ikat, bapta" />
-                  {tagsList.length > 0 && (
-                    <div className={styles.chipRow}>
-                      {tagsList.map((t, i) => (
-                        <span key={i} className={styles.chipAlt}>{t}</span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </section>
+          <FabricSection
+            values={fields} onChange={setField}
+            active={activeSection === 1} onActivate={() => setActiveSection(1)} complete={fabricFilled >= 2}
+          />
 
           {/* Section 3: Variants */}
           <section
@@ -583,7 +414,7 @@ export default function CreateProductPage() {
                 type="submit"
                 className={styles.saveDraftBtn}
                 disabled={saving}
-                onClick={() => setPublishStatus('draft')}
+                onClick={() => setField('publishStatus', 'draft')}
               >
                 Save as Draft
               </button>
@@ -591,7 +422,7 @@ export default function CreateProductPage() {
                 type="submit"
                 className={styles.publishBtn}
                 disabled={saving}
-                onClick={() => setPublishStatus('published')}
+                onClick={() => setField('publishStatus', 'published')}
               >
                 {saving ? (
                   <>

@@ -4,6 +4,7 @@ import {
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AdjustStockDto } from './dto';
+import { resolveActors } from '../../common/audit/actor-names';
 
 @Injectable()
 export class InventoryService {
@@ -31,42 +32,84 @@ export class InventoryService {
   }
 
   /**
-   * Admin: adjust stock (add/remove).
-   * Validates that on_hand + adjustment >= reserved + unavailable.
+   * Admin: change the on-hand stock, by an amount (`adjustment`) or to a counted number (`setTo`).
+   * Runs in one transaction with the inventory row locked (the same lock the order flow takes), so it
+   * cannot lose an update to a parcel being shipped at the same moment, and the audit entry is written
+   * together with the change. Stock cannot go below what is reserved for orders plus what is unavailable.
    */
   async adjustStock(dto: AdjustStockDto, adminId: string) {
-    const inv = await this.prisma.inventory.findUnique({
-      where: { variantId: dto.variantId },
+    const hasAmount = dto.adjustment !== undefined && dto.adjustment !== null;
+    const hasCount = dto.setTo !== undefined && dto.setTo !== null;
+    if (hasAmount === hasCount) throw new BadRequestException('STOCK_CHANGE_UNCLEAR'); // neither, or both
+
+    return this.prisma.$transaction(async (tx) => {
+      const rows = await tx.$queryRaw<any[]>`
+        SELECT * FROM inventory WHERE variant_id = ${dto.variantId}::uuid FOR UPDATE
+      `;
+      if (rows.length === 0) throw new NotFoundException('VARIANT_NOT_FOUND');
+      const inv = rows[0];
+
+      const newOnHand = hasCount ? (dto.setTo as number) : inv.on_hand + (dto.adjustment as number);
+      const change = newOnHand - inv.on_hand;
+      if (change === 0) throw new BadRequestException('STOCK_NO_CHANGE');
+      if (newOnHand < inv.reserved + inv.unavailable) {
+        throw new BadRequestException('STOCK_WOULD_GO_NEGATIVE');
+      }
+
+      const updated = await tx.inventory.update({
+        where: { variantId: dto.variantId },
+        data: { onHand: newOnHand, version: { increment: 1 } },
+      });
+
+      await tx.auditEvent.create({
+        data: {
+          action: 'inventory.adjusted',
+          entityType: 'inventory',
+          entityId: dto.variantId,
+          actorType: 'admin',
+          actorId: adminId,
+          beforeState: { onHand: inv.on_hand } as any,
+          afterState: {
+            onHand: updated.onHand,
+            adjustment: change,
+            ...(hasCount ? { setTo: dto.setTo } : {}),
+            reason: dto.reason,
+            notes: dto.notes,
+          } as any,
+        },
+      });
+
+      this.logger.log(
+        `stock adjusted variant=${dto.variantId} ${inv.on_hand} -> ${updated.onHand} (${change > 0 ? '+' : ''}${change}) reason=${dto.reason} by admin ${adminId}`,
+      );
+      return this.toStockResponse(updated);
     });
-    if (!inv) throw new NotFoundException('VARIANT_NOT_FOUND');
+  }
 
-    const newOnHand = inv.onHand + dto.adjustment;
-    if (newOnHand < inv.reserved + inv.unavailable) {
-      throw new BadRequestException('STOCK_WOULD_GO_NEGATIVE');
-    }
-
-    const updated = await this.prisma.inventory.update({
-      where: { variantId: dto.variantId },
-      data: {
-        onHand: newOnHand,
-        version: { increment: 1 },
-      },
+  /**
+   * Admin: the recent manual stock changes of one colour, newest first: when, how much, why,
+   * and who made them.
+   */
+  async getAdjustmentHistory(variantId: string, limit = 20) {
+    const events = await this.prisma.auditEvent.findMany({
+      where: { entityType: 'inventory', entityId: variantId, action: 'inventory.adjusted' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: Math.min(Math.max(limit, 1), 50),
     });
-
-    // Audit log
-    await this.prisma.auditEvent.create({
-      data: {
-        action: 'inventory.adjusted',
-        entityType: 'inventory',
-        entityId: dto.variantId,
-        actorType: 'admin',
-        actorId: adminId,
-        beforeState: { onHand: inv.onHand } as any,
-        afterState: { onHand: updated.onHand, adjustment: dto.adjustment, reason: dto.reason, notes: dto.notes } as any,
-      },
+    const actors = await resolveActors(this.prisma, events.map((e) => e.actorId));
+    return events.map((e) => {
+      const before = (e.beforeState as any) ?? {};
+      const after = (e.afterState as any) ?? {};
+      return {
+        at: e.createdAt,
+        adjustment: after.adjustment ?? null,
+        onHandBefore: before.onHand ?? null,
+        onHandAfter: after.onHand ?? null,
+        reason: after.reason ?? null,
+        notes: after.notes ?? null,
+        by: e.actorId ? actors.get(e.actorId) ?? null : null,
+      };
     });
-
-    return this.toStockResponse(updated);
   }
 
   /**

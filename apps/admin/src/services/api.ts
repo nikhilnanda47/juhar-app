@@ -176,6 +176,27 @@ export class ApiClient {
     });
   }
 
+  /** One product in full with ALL its colours (also the ones hidden from the shop) and their stock. */
+  async getProduct(id: string) {
+    return this.request<AdminProductDetail>(`/api/v1/admin/products/${id}`);
+  }
+
+  /** Change one colour: name, colour, price, compare-at price (null removes it), or hide/show it in the shop. */
+  async updateVariant(productId: string, variantId: string, data: Record<string, unknown>) {
+    return this.request(`/api/v1/admin/products/${productId}/variants/${variantId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  /** Add a new colour to an existing product. */
+  async addVariant(productId: string, data: Record<string, unknown>) {
+    return this.request(`/api/v1/admin/products/${productId}/variants`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
   // ── Orders ──
   async getOrders(params?: Record<string, string>) {
     const query = params ? '?' + new URLSearchParams(params).toString() : '';
@@ -195,6 +216,25 @@ export class ApiClient {
     }>(
       `/api/v1/admin/orders${query}`,
     );
+  }
+
+  // ── Stock ──
+  /** Change the on-hand stock of one colour: add or remove an `adjustment`, or give the counted number as `setTo`. */
+  async adjustStock(body: { variantId: string; adjustment?: number; setTo?: number; reason: StockReason; notes?: string }) {
+    return this.request<{ variantId: string; onHand: number; reserved: number; unavailable: number; available: number }>(
+      '/api/v1/admin/inventory/adjust',
+      { method: 'POST', body: JSON.stringify(body) },
+    );
+  }
+
+  /** The recent manual stock changes of one colour, newest first. */
+  async getStockHistory(variantId: string) {
+    return this.request<StockChange[]>(`/api/v1/admin/inventory/${variantId}/history`);
+  }
+
+  /** One order in full: items, delivery address, customer, payment, shipments and history. */
+  async getOrder(id: string) {
+    return this.request<AdminOrderDetail>(`/api/v1/admin/orders/${id}`);
   }
 
   async updateOrderStatus(id: string, data: { status: string; trackingId?: string; courierName?: string; reason?: string }) {
@@ -230,3 +270,79 @@ export class ApiError extends Error {
 }
 
 export const api = new ApiClient();
+
+export interface AdminOrderDetail {
+  id: string;
+  publicNumber: string;
+  status: string;
+  paymentMode: string;
+  paymentStatus: string;
+  subtotalPaise: number;
+  shippingPaise: number;
+  taxPaise: number;
+  discountPaise: number;
+  totalPaise: number;
+  notes: string | null;
+  createdAt: string;
+  cancellationReason: string | null;
+  /** the delivery address as it was when the order was placed */
+  address: {
+    recipientName: string; recipientPhone: string;
+    line1: string; line2?: string | null; landmark?: string | null;
+    city: string; district: string; state: string; pinCode: string;
+  };
+  customer: { id: string; phone: string; name: string | null } | null;
+  items: {
+    id: string; productTitle: string; variantName: string | null; color: string | null; sku: string;
+    qty: number; unitPricePaise: number; totalPaise: number;
+  }[];
+  shipments: { id: string; carrier: string | null; trackingId: string | null; status: string; dispatchedAt: string | null; deliveredAt: string | null }[];
+  payments: { id: string; gateway: string; method: string | null; status: string; amountPaise: number; paidAt: string | null }[];
+  /** oldest first; `by` is the admin who did the step, null when it was the customer */
+  history: { status: string; at: string; by: { name: string; role: string } | null; reason: string | null }[];
+  waitingMinutes: number | null;
+  overdue: boolean;
+}
+
+export type StockReason = 'received' | 'damaged' | 'correction' | 'return_restocked' | 'other';
+
+export interface StockChange {
+  at: string;
+  adjustment: number | null;
+  onHandBefore: number | null;
+  onHandAfter: number | null;
+  reason: StockReason | null;
+  notes: string | null;
+  by: { name: string; role: string } | null;
+}
+
+export interface AdminProductDetail {
+  id: string;
+  slug: string;
+  title: string;
+  description: string | null;
+  shortDescription: string | null;
+  categoryId: string;
+  category: { id: string; name: string } | null;
+  publishStatus: 'draft' | 'published' | 'archived';
+  fabric: string | null;
+  weaveMethod: string | null;
+  origin: string | null;
+  careInstructions: string | null;
+  blousePiece: string | null;
+  length: string | null;
+  width: string | null;
+  weight: string | null;
+  occasion: string[];
+  tags: string[];
+  variants: {
+    id: string;
+    sku: string;
+    name: string | null;
+    color: string | null;
+    pricePaise: number;
+    compareAtPaise: number | null;
+    active: boolean;
+    inventory: { onHand: number; reserved: number; unavailable: number } | null;
+  }[];
+}

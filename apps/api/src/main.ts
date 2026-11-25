@@ -80,4 +80,8 @@ async function bootstrap() {
   logger.log(`📄 Swagger docs at http://localhost:${port}/api/docs`);
 }
 
-bootstrap();
+// A failed start (bad environment, no database) is reported plainly and stops the process with a failure code
+bootstrap().catch((err) => {
+  new Logger('Bootstrap').error(`The API could not start: ${err instanceof Error ? err.stack || err.message : String(err)}`);
+  process.exit(1);
+});

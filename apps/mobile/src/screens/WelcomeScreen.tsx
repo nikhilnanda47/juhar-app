@@ -89,7 +89,7 @@ export default function WelcomeScreen({ onComplete }: Props) {
       <View style={styles.topBar}>
         <View style={styles.brandRow}>
           <Award size={18} color={colors.primary} strokeWidth={1.5} />
-          <Text style={styles.brandLabel}>KALAVASTRA</Text>
+          <Text style={styles.brandLabel}>JUHAR</Text>
         </View>
         <TouchableOpacity style={styles.skipBtn} onPress={onComplete}>
           <Text style={styles.skipText}>Skip</Text>

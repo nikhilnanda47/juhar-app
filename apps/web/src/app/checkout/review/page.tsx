@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Phone, ArrowRight, Package, Handshake } from 'lucide-react';
+import { Phone, Package, Handshake } from 'lucide-react';
 import { loadToken, getAddresses, getCart, placeOrder, formatPaise, referenceOf, type Address, type CartResponse } from '@/lib/api';
 import ErrorReference from '@/components/ErrorReference';
 import { shippingFor, useShippingRule } from '@/lib/shipping';

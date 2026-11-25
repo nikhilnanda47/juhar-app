@@ -18,7 +18,7 @@ Juhar is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce pl
 
 > Status as of 2026-11-22. Open bugs and technical debt are listed under [Known Issues](#known-issues--technical-debt).
 
-### Customer App (Mobile) — 24 features working
+### Customer App (Mobile) — 25 features working
 
 | # | Feature | Status |
 |---|---------|--------|
@@ -46,8 +46,9 @@ Juhar is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce pl
 | 22 | Pull-to-refresh + refresh button on all screens | ✅ |
 | 23 | Fade-in animations across screens | ✅ |
 | 24 | Light / dark mode — Switch on Profile when logged in, Sun/Moon button on Account when logged out; choice is remembered | ✅ |
+| 25 | My Addresses — see, edit, delete and choose the default address (Account > Addresses, and the pencil on the checkout list) | ✅ |
 
-### Customer Website (Web) — 11 pages + dark mode
+### Customer Website (Web) — 13 pages + dark mode
 
 | # | Feature | Status |
 |---|---------|--------|
@@ -62,9 +63,10 @@ Juhar is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce pl
 | 9 | Order review — place order (COD) | ✅ |
 | 10 | Orders — table layout (desktop), card layout (mobile), filter chips; order detail handles cancelled, return and refund states | ✅ |
 | 11 | Account — split-panel login, profile with sidebar (desktop) | ✅ |
-| 12 | Light / dark mode — toggle in the desktop header and the Account menu; choice is remembered, no flash on load | ✅ |
+| 12 | Light / dark mode — toggle in the header (desktop and phone width, so logged-out visitors can switch) and the Account menu; choice is remembered, no flash on load | ✅ |
+| 13 | My Addresses (`/account/addresses`) — edit, delete, make default; the pencil on the checkout list opens the same edit page | ✅ |
 
-### Admin Panel (Web) — 15 features working
+### Admin Panel (Web) — 18 features working
 
 | # | Feature | Status |
 |---|---------|--------|
@@ -83,19 +85,19 @@ Juhar is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce pl
 | 13 | Ship with tracking ID and courier name | ✅ |
 | 14 | Logout | ✅ |
 | 15 | Cancel a placed or confirmed order with a required reason (releases the reserved stock) | ✅ |
+| 16 | Order page (`/orders/[id]`): items to pack with SKU, delivery address and phone (copy buttons), customer, cash to collect, payment, shipment and tracking, history with who did each step; the same Confirm / Pack / Ship / Deliver / Cancel buttons; the orders list links to it and shows what is in each order | ✅ |
+| 17 | Adjust stock (Inventory > Adjust): add pieces, remove pieces, or type the counted number; shows what the stock will be, refuses to go below what orders have reserved, requires a reason, and lists the recent changes with who made them | ✅ |
+| 18 | Edit product (Catalog > Edit): change title, description, fabric details, category and visibility (draft, published, archived); per colour change name, colour, price and compare price, hide it from the shop, adjust its stock, or add a new colour (the SKU is fixed). Only real changes are saved and each is recorded (old and new value, who). A published product keeps its shop address when the title changes | ✅ |
 
 ### Not Yet Built
 
 | Feature | Planned Phase |
 |---------|--------------|
 | Real OTP/SMS provider (login currently uses a mock that accepts `123456`) | Before launch |
-| Dark mode for the admin panel; follow the device's light/dark setting | Post-pilot |
+| Follow the device's light/dark setting on first launch (web and mobile) | Post-pilot |
 | Real product images (using placeholders) | Phase 5 |
 | UPI/online payment | Phase 4 |
 | Text search | Phase 5 |
-| Product edit page (admin) | Phase 5 |
-| Manual stock adjustment UI (admin) | Phase 5 |
-| Admin order detail page | Phase 5 |
 | Customer lookup (admin) | Phase 5 |
 | Reports (GMV, top products, stock) | Phase 5 |
 | Admin user management / roles | Phase 5 |
@@ -119,14 +121,13 @@ Open items as of 2026-11-22, grouped by urgency. The team tracker holds owners a
 - **Support number.** The "Need help?" link on the web order page uses a placeholder WhatsApp number (WhatsApp integration is pending).
 
 ### Dark mode follow-ups
-- Web: visitors who are logged out on a phone-width screen have no theme toggle (the header toggle is desktop-only and the Account menu only appears after login).
-- Both apps always start in light mode and ignore the device setting; the admin panel has no dark mode.
-- A few mobile screens (product detail, welcome) use fixed colours that need a visual check in dark mode.
+- Web and mobile always start in light mode and ignore the device setting (tracker step 30, left for later).
+- The admin panel has dark mode: a sun/moon button in the top bar (the choice is kept in this browser under `juhar_admin_theme`; the login page follows it but has no button of its own).
 
 ### Engineering hygiene
 - Test coverage is early: the order state machine, stock (reserve, release, commit, ship, adjust, expiry job), admin order status changes, checkout (quote, order placement, shipping and totals) and rate limiting have tests (`npm test -w apps/api`). The automatic token refresh in the admin, web and mobile API clients is also tested (`npm test -w apps/admin`, `npm test -w apps/web`, and `npm test` inside `apps/mobile`). Auth, cart, the orders service, products and the web and mobile screens are not covered yet. Most of these tests use a fake database, so they cannot prove real concurrent locking or real SQL. The one exception is the test of the database `CHECK` constraints (`apps/api/src/database/check-constraints.spec.ts`), which runs against a real migrated Postgres only when you set `DB_TESTS=1` (CI does): `cd apps/api && npx prisma migrate deploy && DB_TESTS=1 npm test -- check-constraints`.
-- No ESLint configuration, so the `lint` scripts do not run.
-- `apps/mobile/src/navigation/TabNavigator.tsx` has `@ts-nocheck`.
+- Lint: one ESLint setup (`eslint.config.mjs`) covers the API, web, admin, mobile and shared code. Run `npm run lint` from the repo root (`npm run lint:fix` fixes what is safe to fix); CI runs it as the **Lint** job and a failure blocks the merge. It checks unused code, hooks used wrongly, and (API only) promises that are not awaited. Two things are left loose on purpose: `any` is allowed for now (about 400 uses), and 20 `react-hooks/exhaustive-deps` warnings are tolerated (`--max-warnings 20` stops new ones from being added; fix some and lower the number).
+- The mobile tab bar and its screens are type-checked (`apps/mobile/src/navigation/types.ts` lists every screen and what it needs, so a wrong screen name fails the build). One loose spot: the order passed to the success screen is typed `any` because `placeOrder` returns `any`.
 
 ## Tech Stack
 
@@ -151,18 +152,20 @@ juhar-app/
 ├── apps/
 │   ├── mobile/              # React Native + Expo (customer mobile app)
 │   │   └── src/
-│   │       ├── screens/     # 13 screens (Splash, Welcome, Home, Explore,
-│   │       │                #   ProductDetail, Cart, SelectAddress, AddAddress,
-│   │       │                #   OrderReview, OrderSuccess, Orders, OrderDetail, Profile)
-│   │       ├── navigation/  # Tab (5 tabs) + Stack navigators
+│   │       ├── screens/     # 15 screens (Splash, Welcome, Home, Explore,
+│   │       │                #   ProductDetail, Cart, SelectAddress, AddAddress (add or edit),
+│   │       │                #   ManageAddresses, OrderReview, OrderSuccess, Orders, OrderDetail,
+│   │       │                #   Profile, Wishlist)
+│   │       ├── navigation/  # Tab (5 tabs) + Stack navigators + types.ts (screen names and params)
 │   │       ├── services/    # API client, local guest cart
 │   │       ├── components/  # AnimatedUI, RefreshButton
 │   │       └── theme/       # Design tokens + dark mode (light/dark colors,
 │   │                        #   ThemeContext, typography, spacing)
 │   ├── web/                 # Next.js customer website (responsive)
 │   │   └── src/
-│   │       ├── app/         # 11 pages (/, /shop, /shop/[slug], /cart,
+│   │       ├── app/         # 13 pages (/, /shop, /shop/[slug], /cart,
 │   │       │                #   /checkout/address, /checkout/address/new,
+│   │       │                #   /account/addresses, /account/addresses/[id],
 │   │       │                #   /checkout/review, /order-success,
 │   │       │                #   /orders, /orders/[id], /account)
 │   │       ├── components/  # Header, BottomNav
@@ -245,6 +248,7 @@ Full spec: [`docs/api/openapi.yaml`](docs/api/openapi.yaml)
 
 Both apps start in light mode; the user's choice is remembered under the key `juhar_theme` (AsyncStorage on mobile, `localStorage` on web).
 
+- **Admin** — plain CSS variables in `globals.css`; `:root[data-theme='dark']` swaps their values. A button in the top bar (`components/ThemeToggle.tsx`) switches it, `components/theme.ts` reads and saves the choice under `juhar_admin_theme`, and a small script in `layout.tsx` applies it before the first paint. New admin CSS should use the variables (`--bg-card`, `--text-primary`, `--maroon-text` for brand-coloured text, the `--badge-*` pairs for status colours), never a literal hex.
 - **Mobile** — `src/theme/colors.ts` defines `lightColors` and `darkColors` with identical keys. Components call `const { colors, isDark, toggleTheme } = useTheme()` and build styles with `createStyles(colors)` inside `useMemo`, so styles update when the theme changes.
 - **Web** — colours are CSS variables holding RGB channels (for example `--color-surface: 30 30 30`) defined in `globals.css` under `:root` and `.dark`. `tailwind.config.ts` maps each name to `rgb(var(--color-…) / <alpha-value>)`, so opacity classes such as `bg-surface/80` work in both themes. `ThemeProvider` (`src/lib/theme-context.tsx`) toggles the `dark` class on `<html>`, an inline script in `layout.tsx` applies the saved theme before first paint, and the browser's `theme-color` follows the toggle.
 - **Rule of thumb** — for anything that holds text, use semantic tokens (`bg-surface`, `text-text-primary`), not `bg-white` or hard-coded hex values. A fixed white is only safe on coloured fills, such as text on `bg-primary`.

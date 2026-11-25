@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { addToCart as serverAddToCart, getCart, isLoggedIn, type CartResponse } from './api';
+import { addToCart as serverAddToCart, type CartResponse } from './api';
 import { notifyCartChanged } from './cartEvents';
 
 const LOCAL_CART_KEY = 'juhar_local_cart';
@@ -73,7 +73,7 @@ export async function clearLocalCart(): Promise<void> {
 
 // ── Convert local cart to CartResponse format for UI ──
 export function localCartToResponse(items: LocalCartItem[]): CartResponse {
-  const cartItems = items.map((item, idx) => ({
+  const cartItems = items.map((item) => ({
     id: `local-${item.variantId}`,
     variant: {
       id: item.variantId,

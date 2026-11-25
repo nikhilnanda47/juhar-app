@@ -102,7 +102,7 @@ Tight palette — 3 brand colors + neutrals. No rainbow.
 
 ## 3a. Theming & Dark Mode
 
-> **Implementation status (2026-11-22):** Implemented in the mobile app and the customer website. The admin panel is light-only. The default is always light; the OS appearance setting is not followed yet.
+> **Implementation status (2026-11-22):** Implemented in the mobile app, the customer website and the admin panel (which has its own switch, see below). The default is always light; the OS appearance setting is not followed yet.
 
 Every colour is a **semantic token** with a light value and a dark value. Screens ask for the token (`surface`, `text-primary`, `border`, ...) and never for a literal colour, so a theme switch changes every screen at once. The brand colours and the functional colours (success, warning, error) are identical in both themes.
 
@@ -151,7 +151,8 @@ Source of truth: mobile `apps/mobile/src/theme/colors.ts` (`lightColors`, `darkC
 |---------|-----------|
 | Mobile, logged in | Profile screen menu card: "Dark Mode" / "Light Mode" row with a switch |
 | Mobile, logged out | Sun/moon icon button at the right of the Account header, so guests can switch too |
-| Web, desktop | Sun/moon icon button in the Header actions |
+| Web, any width | Sun/moon icon button in the Header (on a phone it is the only button there, so logged-out visitors can switch) |
+| Admin panel | Sun/moon icon button in the top bar, right of the page actions; the login page follows the saved choice but has no button |
 | Web, logged in | Toggle row in the Account page menu |
 
 ### Rules for building screens
@@ -159,15 +160,13 @@ Source of truth: mobile `apps/mobile/src/theme/colors.ts` (`lightColors`, `darkC
 1. **Use tokens, never literals, for surfaces and text.** No `bg-white`, `#fff` or hard-coded hex on a surface or text colour; both themes must stay readable.
 2. **Overlays on product photos** (wishlist/share buttons, origin and "GI CERTIFIED LOOM" badges) use the surface token with opacity (`bg-surface/80` to `bg-surface/90`; mobile `surfaceOverlay`), so their text stays readable in both themes. A fixed white overlay with token text becomes unreadable in dark mode.
 3. **Status colours** always come from the paired status tokens above.
-4. **Allowed fixed colours:** white text or icons on the burgundy primary, the white switch thumb, the WhatsApp green, and product colour swatches (they depict the real product colour).
+4. **Allowed fixed colours:** white text or icons on the burgundy primary, the white switch thumb, the WhatsApp green, and product colour swatches (they depict the real product colour). A swatch has a thin outline so a black one does not vanish on the dark page (nor a white one on the light), and the selected tick sits on a dark disc so it shows on any colour.
 5. **Check both themes** before shipping a screen, including empty, error and loading states.
 
 ### Known gaps
 
 - No "follow system appearance" default.
-- On mobile-width web, logged-out visitors have no toggle (the Header toggle is desktop-only and the login panel has none).
-- The admin panel has no dark mode.
-- A few mobile screens still carry local colours: the Welcome slides define their own light/dark background pairs, and the product screen maps colour names to swatch hex values.
+- The Welcome slides define their own light/dark background pairs, and the product screen maps colour names to swatch hex values (both checked in dark mode: fine).
 
 ---
 
@@ -521,7 +520,7 @@ The web app (`localhost:3001`) mirrors all mobile app features with responsive l
 
 ### 12.2 Web-specific Components
 
-- **Header** (`components/Header.tsx`): Sticky, brand + nav links (desktop), icons hidden on mobile (bottom nav handles it). Cart badge count. The desktop actions include the dark-mode toggle (sun/moon icon) next to search, cart and account.
+- **Header** (`components/Header.tsx`): Sticky, brand + nav links (desktop), icons hidden on mobile (bottom nav handles it). Cart badge count. The dark-mode toggle (sun/moon icon) shows at every width; search, cart and account are desktop-only.
 - **BottomNav** (`components/BottomNav.tsx`): 5 tabs matching mobile app, hidden on desktop (`lg:hidden`). Cart badge count.
 - **CartProvider** (`lib/cart-context.tsx`): React context providing `itemCount` to Header and BottomNav. It reads the server cart (logged in) or the localStorage guest cart, and refreshes only when the cart changes (`notifyCartChanged()` in `lib/cart-events.ts`, also across tabs through the `storage` event), when the customer returns to the tab or window (`focus` / `visibilitychange`), and every 5 minutes while the tab is visible as a safety net. There is no polling timer. Scheduling lives in `lib/cart-refresh.ts`.
 - **ThemeProvider** (`lib/theme-context.tsx`): React context providing `{ isDark, toggleTheme }`. Toggles the `dark` class on `<html>`, saves the choice in `localStorage` (`juhar_theme`) and updates the `theme-color` meta tag. See section 3a.
@@ -974,7 +973,9 @@ Reusable refresh icon (`RefreshCw`) with spin animation on press. Used on Home, 
 
 ### 13.12 Cart / My Bag (Screen 12)
 
-**Purpose:** View bag, adjust quantities, coupon, checkout.
+**Purpose:** View bag, adjust quantities, checkout.
+
+> **Coupons are not in the pilot.** The bag used to show a coupon box that accepted any text and showed a made-up −₹100; the server prices the order and has no coupons, so the customer saw a different total at checkout. The box and the coupon lines are removed (the sketch below still shows them as the future design). Bring them back only together with a real coupon system on the API (validation, usage limits, the discount in the order total).
 
 ```
 ┌─────────────────────────────┐
@@ -1028,11 +1029,11 @@ Reusable refresh icon (`RefreshCw`) with spin animation on press. Used on Home, 
 - Qty stepper: minus disabled at 1, plus disabled at available stock
 - Qty change: number fade + scale animation (150ms)
 
-**Coupon states:**
+**Coupon states (future design; not built, see the note at the top):**
 - Input: uppercase forced, "Apply" ghost disabled until ≥ 3 chars
 - Applied: input replaced by `#E8F5E9` pill with code + ✕ remove + savings text
 - Only 1 coupon at a time
-- Coupon backend behind feature flag for pilot
+- Needs a coupon backend first; there is none yet
 
 ---
 
@@ -1164,7 +1165,6 @@ Reusable refresh icon (`RefreshCw`) with spin animation on press. Used on Home, 
 │                             │
 │  Price Details              │
 │  Subtotal (3 items)  ₹9,100│
-│  Coupon (FIRST100)    −₹100│  ← #3D8B63, only if applied
 │  Shipping              FREE│
 │  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  │
 │  Total              ₹9,000 │  ← 16px bold
@@ -1378,6 +1378,8 @@ When an API call fails, the error message in the web and mobile apps (sign-in, s
 ### 13.20 My Addresses (Screen 20)
 
 **Purpose:** Manage saved addresses.
+
+> **Implementation status:** built on the website (`/account/addresses`, edit at `/account/addresses/[id]`) and in the app (Account > Addresses; the edit form is the Add Address screen opened with an address). Reached from the Account "Addresses" tile, and the pencil on the checkout address list opens the same edit form, then returns to checkout. Each card has **Edit**, **Make default** (not shown on the default) and **Delete** (asks first: the browser's confirm on the web, a native alert in the app). A customer with addresses always has exactly one default: the default's edit form shows a note instead of a switch, and deleting the default makes the most recently added remaining address the default. When 10 addresses are saved the Add button is disabled with a message. An address that was deleted elsewhere shows "This address is no longer saved" with a link back. Past orders are not affected by edits or deletes (they keep their own copy).
 
 ```
 ┌─────────────────────────────┐

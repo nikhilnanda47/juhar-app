@@ -162,12 +162,11 @@ describe('createAccessLogMiddleware', () => {
 
 describe('AppLogger', () => {
   let out: string[];
-  let spy: jest.SpyInstance;
   const logger = () => new AppLogger('Test', { plain: true, logLevels: ['fatal', 'error', 'warn', 'log', 'debug'] });
 
   beforeEach(() => {
     out = [];
-    spy = jest.spyOn(process.stdout, 'write').mockImplementation((chunk: any) => { out.push(String(chunk)); return true; });
+    jest.spyOn(process.stdout, 'write').mockImplementation((chunk: any) => { out.push(String(chunk)); return true; });
     jest.spyOn(process.stderr, 'write').mockImplementation((chunk: any) => { out.push(String(chunk)); return true; });
   });
   afterEach(() => jest.restoreAllMocks());

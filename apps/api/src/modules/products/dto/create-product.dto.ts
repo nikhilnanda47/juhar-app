@@ -1,6 +1,15 @@
 import {
-  IsString, IsOptional, IsUUID, IsEnum, IsArray, IsInt, Min, MaxLength,
-  ValidateNested, ArrayMinSize, IsObject, IsBoolean,
+  IsString,
+  IsOptional,
+  IsUUID,
+  IsEnum,
+  IsArray,
+  IsInt,
+  Min,
+  MaxLength,
+  ValidateNested,
+  ArrayMinSize,
+  IsObject,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -104,16 +113,19 @@ export class CreateProductDto {
   @ApiPropertyOptional({ example: '5.5 meters' })
   @IsOptional()
   @IsString()
+  @MaxLength(50)
   length?: string;
 
   @ApiPropertyOptional({ example: '46 inches' })
   @IsOptional()
   @IsString()
+  @MaxLength(50)
   width?: string;
 
   @ApiPropertyOptional({ example: '450 grams' })
   @IsOptional()
   @IsString()
+  @MaxLength(50)
   weight?: string;
 
   @ApiPropertyOptional({ example: ['Festive', 'Wedding'] })

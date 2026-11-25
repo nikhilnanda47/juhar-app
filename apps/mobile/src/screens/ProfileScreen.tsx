@@ -9,13 +9,21 @@ import {
 } from 'lucide-react-native';
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
 import {
-  isLoggedIn, loadToken, requestOtp, verifyOtp, clearTokens,
-  getProfile, updateProfile, getAddresses, getOrders, referenceOf, type UserProfile,
+  loadToken,
+  requestOtp,
+  verifyOtp,
+  clearTokens,
+  getProfile,
+  updateProfile,
+  getAddresses,
+  getOrders,
+  referenceOf,
+  type UserProfile,
 } from '../services/api';
 import { useWishlist } from '../contexts/WishlistContext';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import ErrorReference from '../components/ErrorReference';
-import { FadeInUp, ScalePress } from '../components/AnimatedUI';
+import { FadeInUp } from '../components/AnimatedUI';
 import RefreshButton from '../components/RefreshButton';
 import { syncLocalCartToServer } from '../services/localCart';
 
@@ -354,7 +362,7 @@ export default function ProfileScreen() {
           <Text style={styles.tileLabel}>Wishlist</Text>
           <Text style={styles.tileSub}>{savedCount} items</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.tile} activeOpacity={0.7} onPress={() => navigation.navigate('Cart', { screen: 'SelectAddress' })}>
+        <TouchableOpacity style={styles.tile} activeOpacity={0.7} onPress={() => navigation.navigate('Addresses')}>
           <View style={styles.tileIconWrap}>
             <MapPin size={22} color={colors.textPrimary} strokeWidth={1.5} />
           </View>

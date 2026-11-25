@@ -3,7 +3,7 @@ export {}; // keeps this file a module
 import { readdirSync, readFileSync, statSync } from 'fs';
 import { join } from 'path';
 
-let mockStore: Record<string, string> = {};
+const mockStore: Record<string, string> = {};
 jest.mock('@react-native-async-storage/async-storage', () => ({
   __esModule: true,
   default: {

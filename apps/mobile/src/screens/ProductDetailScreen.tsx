@@ -2,25 +2,30 @@ import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useFocusEffect } from '@react-navigation/native';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, Dimensions, TextInput, RefreshControl,
+  ActivityIndicator, TextInput, RefreshControl,
   Animated as RNAnimated, Platform,
 } from 'react-native';
 import {
   ChevronLeft, Heart, Share as ShareIcon, Check, CheckCircle,
   Package, RefreshCw, Banknote, ShoppingBag, Zap,
 } from 'lucide-react-native';
-import { useTheme, type ColorPalette, spacing, borderRadius, elevation } from '../theme';
+import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
 import { FadeInUp } from '../components/AnimatedUI';
-import { addToLocalCart, type LocalCartItem } from '../services/localCart';
+import { addToLocalCart } from '../services/localCart';
 import {
-  getProductBySlug, getProducts, formatPaise, getTotalStock, addToCart, isLoggedIn, referenceOf,
-  type Product, type ProductVariant,
+  getProductBySlug,
+  getProducts,
+  formatPaise,
+  addToCart,
+  isLoggedIn,
+  referenceOf,
+  type Product,
+  type ProductVariant,
 } from '../services/api';
 import { useWishlist } from '../contexts/WishlistContext';
 import { showAlert } from '../utils/showAlert';
 import ErrorReference from '../components/ErrorReference';
 
-const { width } = Dimensions.get('window');
 
 interface Props {
   route: { params: { slug: string } };
@@ -402,8 +407,8 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
 }
 
 function DetailRow({ label, value, even, colors }: { label: string; value: string | null | undefined; even: boolean; colors: ColorPalette }) {
+  const styles = useMemo(() => createStyles(colors), [colors]); // hooks first: before the early return below
   if (!value) return null;
-  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={[styles.detailRow, even && styles.detailRowEven]}>
       <Text style={styles.detailLabel}>{label}</Text>
@@ -520,9 +525,12 @@ const createStyles = (colors: ColorPalette) => StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
   },
   swatchActive: { backgroundColor: colors.primary },
-  swatchInner: { width: '100%', height: '100%', borderRadius: 16 },
+  // a thin outline, so a black swatch does not disappear on the dark background (nor a white one on the light)
+  swatchInner: { width: '100%', height: '100%', borderRadius: 16, borderWidth: 1, borderColor: colors.borderMedium },
+  // a dark disc behind the tick, so it shows on a light colour as well as a dark one
   swatchCheck: {
     position: 'absolute', justifyContent: 'center', alignItems: 'center',
+    width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.45)',
   },
 
   // PIN

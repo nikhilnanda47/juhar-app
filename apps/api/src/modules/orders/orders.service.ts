@@ -4,9 +4,23 @@ import {
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { indiaDayBounds } from '../../common/time/india-day';
+import { resolveActors, type ActorName } from '../../common/audit/actor-names';
 import { InventoryService } from '../inventory/inventory.service';
 import { OrderQueryDto, AdminOrderQueryDto, UpdateOrderStatusDto, CancelOrderDto } from './dto';
 import { canTransitionOrder, INVENTORY, OrderStatus, PAGINATION } from '@juhar/shared';
+
+/** The delivery address as the checkout froze it on the order. */
+export interface AddressSnapshot {
+  recipientName: string;
+  recipientPhone: string;
+  line1: string;
+  line2?: string | null;
+  landmark?: string | null;
+  city: string;
+  district: string;
+  state: string;
+  pinCode: string;
+}
 
 @Injectable()
 export class OrdersService {
@@ -206,6 +220,107 @@ export class OrdersService {
   }
 
   /**
+   * Admin: one order with everything needed to pack and ship it: what to pack, where it goes, who the
+   * customer is, what to collect, and who did what when.
+   */
+  async findOneAdmin(orderId: string, now: Date = new Date()) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        items: { include: { variant: { select: { color: true } } }, orderBy: { createdAt: 'asc' } },
+        shipments: { orderBy: { createdAt: 'asc' } },
+        payments: { orderBy: { createdAt: 'asc' } },
+        user: { select: { id: true, phone: true, name: true } },
+      },
+    });
+    if (!order) throw new NotFoundException('Order not found');
+
+    // who changed the status (see common/audit/actor-names.ts for why this goes through the user id)
+    const audit = await this.prisma.auditEvent.findMany({
+      where: { entityType: 'order', entityId: orderId, action: 'order.status_changed' },
+      orderBy: { createdAt: 'asc' },
+    });
+    const actors = await resolveActors(this.prisma, audit.map((a: any) => a.actorId));
+    return {
+      id: order.id,
+      publicNumber: order.publicNumber,
+      status: order.status,
+      paymentMode: order.paymentMode,
+      paymentStatus: order.paymentStatus,
+      subtotalPaise: order.subtotalPaise,
+      shippingPaise: order.shippingPaise,
+      taxPaise: order.taxPaise,
+      discountPaise: order.discountPaise,
+      totalPaise: order.totalPaise,
+      notes: order.notes,
+      createdAt: order.createdAt,
+      cancellationReason: order.cancellationReason,
+      // the address the customer chose at checkout, frozen on the order (editing a saved address does not change it)
+      address: order.addressSnapshot as unknown as AddressSnapshot,
+      customer: order.user ? { id: order.user.id, phone: order.user.phone, name: order.user.name } : null,
+      items: order.items.map((i: any) => ({
+        id: i.id,
+        productTitle: i.productTitle,
+        variantName: i.variantName,
+        color: i.variant?.color ?? null,
+        sku: i.sku,
+        qty: i.qty,
+        unitPricePaise: i.unitPricePaise,
+        totalPaise: i.totalPaise,
+      })),
+      shipments: order.shipments.map((s: any) => ({
+        id: s.id,
+        carrier: s.carrier,
+        trackingId: s.trackingId,
+        status: s.status,
+        dispatchedAt: s.dispatchedAt,
+        deliveredAt: s.deliveredAt,
+      })),
+      payments: order.payments.map((p: any) => ({
+        id: p.id,
+        gateway: p.gateway,
+        method: p.method,
+        status: p.status,
+        amountPaise: p.amountPaise,
+        paidAt: p.paidAt,
+      })),
+      history: this.orderHistory(order, audit, actors),
+      ...this.waitingInfo(order, now),
+    };
+  }
+
+  /**
+   * The order's story, oldest first: placed, then each step with its time and, when it was an admin,
+   * who did it. Times come from the order itself (so old orders without audit rows still show);
+   * the audit trail only adds the name. A status the customer reached on their own has no admin.
+   */
+  private orderHistory(order: any, audit: any[], actors: Map<string, ActorName>) {
+    const steps: { status: string; at: Date | null }[] = [
+      { status: 'confirmed', at: order.confirmedAt },
+      { status: 'packed', at: order.packedAt },
+      { status: 'shipped', at: order.shippedAt },
+      { status: 'delivered', at: order.deliveredAt },
+      { status: 'cancelled', at: order.cancelledAt },
+    ];
+    const history = [
+      { status: 'placed', at: order.createdAt, by: null as { name: string; role: string } | null, reason: null as string | null },
+      ...steps
+        .filter((s) => s.at)
+        .map((s) => {
+          const event = [...audit].reverse().find((a) => a.afterState?.status === s.status);
+          const actor = event?.actorId ? actors.get(event.actorId) : undefined;
+          return {
+            status: s.status,
+            at: s.at as Date,
+            by: actor ?? null,
+            reason: s.status === 'cancelled' ? order.cancellationReason ?? null : null,
+          };
+        }),
+    ];
+    return history.sort((a, b) => new Date(a.at as any).getTime() - new Date(b.at as any).getTime());
+  }
+
+  /**
    * Cash-on-delivery orders keep their stock held until an admin acts (the expiry job skips
    * them), so one that is still "placed" after the COD hold window (24 hours) is overdue:
    * it is only flagged, never cancelled automatically.
@@ -279,7 +394,7 @@ export class OrdersService {
             data: { status: 'delivered', deliveredAt: new Date() },
           });
           break;
-        case OrderStatus.CANCELLED:
+        case OrderStatus.CANCELLED: {
           data.cancelledAt = new Date();
           data.cancellationReason = dto.reason?.trim();
           // Release reservations
@@ -290,6 +405,7 @@ export class OrdersService {
             await this.inventoryService.releaseReservation(tx, res.id);
           }
           break;
+        }
       }
 
       const updated = await tx.order.update({

@@ -7,8 +7,16 @@ import {
   LogOut, ChevronRight, FileText, Settings, ShieldCheck, Truck, Sun, Moon,
 } from 'lucide-react';
 import {
-  isLoggedIn, loadToken, requestOtp, verifyOtp, clearTokens,
-  getProfile, updateProfile, getAddresses, getOrders, referenceOf, type UserProfile,
+  loadToken,
+  requestOtp,
+  verifyOtp,
+  clearTokens,
+  getProfile,
+  updateProfile,
+  getAddresses,
+  getOrders,
+  referenceOf,
+  type UserProfile,
 } from '@/lib/api';
 import { useWishlist } from '@/lib/wishlist-context';
 import { readLocalCart, clearLocalCart } from '@/lib/cart-events';
@@ -311,7 +319,7 @@ export default function AccountPage() {
             {[
               { href: '/orders', Icon: Package, label: 'Orders', sub: `${orderCount} placed`, desc: 'Track your handloom orders' },
               { href: '/wishlist', Icon: Heart, label: 'Wishlist', sub: `${wishlistCount} items`, desc: 'Your wishlist collection' },
-              { href: '/checkout/address', Icon: MapPin, label: 'Addresses', sub: `${addressCount} saved`, desc: 'Manage delivery addresses' },
+              { href: '/account/addresses', Icon: MapPin, label: 'Addresses', sub: `${addressCount} saved`, desc: 'Manage delivery addresses' },
             ].map(({ href, Icon, label, sub, desc }) => (
               <Link key={label} href={href} className="card flex flex-col items-center lg:flex-row lg:items-center lg:gap-4 text-center lg:text-left group hover:shadow-md transition-shadow">
                 <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-surface-container-low flex items-center justify-center mb-1 lg:mb-0 shrink-0 group-hover:bg-primary/10 transition-colors">

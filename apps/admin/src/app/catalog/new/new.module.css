@@ -17,7 +17,7 @@
 
 .backBtn:hover {
   border-color: var(--maroon);
-  color: var(--maroon);
+  color: var(--maroon-text);
 }
 
 /* ─── Page Layout: 2 columns ─── */
@@ -267,7 +267,7 @@
   align-items: center;
   padding: 0.2rem 0.6rem;
   background: rgba(107, 29, 42, 0.08);
-  color: var(--maroon);
+  color: var(--maroon-text);
   border-radius: 20px;
   font-size: 0.7rem;
   font-weight: 550;
@@ -370,7 +370,7 @@
   background: none;
   border: 1px solid var(--maroon);
   border-radius: var(--radius);
-  color: var(--maroon);
+  color: var(--maroon-text);
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
@@ -518,7 +518,7 @@
 .previewMainPrice {
   font-size: 0.85rem;
   font-weight: 650;
-  color: var(--maroon);
+  color: var(--maroon-text);
 }
 
 /* ─── Sidebar: Status Card ─── */
@@ -677,7 +677,7 @@
   border-radius: var(--radius);
   font-size: 0.85rem;
   font-weight: 600;
-  color: var(--maroon);
+  color: var(--maroon-text);
   cursor: pointer;
   transition: all var(--transition);
   font-family: inherit;

@@ -1,5 +1,5 @@
 export {}; // keeps this file a module
-let mockStore: Record<string, string> = { juhar_token: 'TOKEN' };
+const mockStore: Record<string, string> = { juhar_token: 'TOKEN' };
 jest.mock('@react-native-async-storage/async-storage', () => ({
   __esModule: true,
   default: {

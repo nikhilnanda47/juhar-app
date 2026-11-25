@@ -1,10 +1,9 @@
-// @ts-nocheck
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AppState } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Home, Search, ShoppingBag, Package, User } from 'lucide-react-native';
-import { useTheme, type ColorPalette, spacing, elevation } from '../theme';
+import { useTheme } from '../theme';
 import { loadToken, getCart } from '../services/api';
 import { getLocalCart, localCartToResponse } from '../services/localCart';
 import { onCartChanged } from '../services/cartEvents';
@@ -21,12 +20,14 @@ import OrdersScreen from '../screens/OrdersScreen';
 import OrderDetailScreen from '../screens/OrderDetailScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import WishlistScreen from '../screens/WishlistScreen';
+import ManageAddressesScreen from '../screens/ManageAddressesScreen';
+import type { TabParams, ExploreStackParams, CartStackParams, OrdersStackParams, AccountStackParams } from './types';
 
-const Tab = createBottomTabNavigator();
-const ExploreStack = createNativeStackNavigator();
-const CartStack = createNativeStackNavigator();
-const OrdersStack = createNativeStackNavigator();
-const AccountStack = createNativeStackNavigator();
+const Tab = createBottomTabNavigator<TabParams>();
+const ExploreStack = createNativeStackNavigator<ExploreStackParams>();
+const CartStack = createNativeStackNavigator<CartStackParams>();
+const OrdersStack = createNativeStackNavigator<OrdersStackParams>();
+const AccountStack = createNativeStackNavigator<AccountStackParams>();
 
 function ExploreStackScreen() {
   const { colors } = useTheme();
@@ -56,7 +57,7 @@ function CartStackScreen() {
     }}>
       <CartStack.Screen name="CartView" component={CartScreen} options={{ headerShown: false }} />
       <CartStack.Screen name="SelectAddress" component={SelectAddressScreen} options={{ headerTitle: 'Delivery Address' }} />
-      <CartStack.Screen name="AddAddress" component={AddAddressScreen} options={{ headerTitle: 'Add Address' }} />
+      <CartStack.Screen name="AddAddress" component={AddAddressScreen} options={({ route }) => ({ headerTitle: route.params?.address ? 'Edit Address' : 'Add Address' })} />
       <CartStack.Screen name="OrderReview" component={OrderReviewScreen} options={{ headerTitle: 'Order Review' }} />
       <CartStack.Screen name="OrderSuccess" component={OrderSuccessScreen} options={{ headerShown: false }} />
     </CartStack.Navigator>
@@ -91,6 +92,8 @@ function AccountStackScreen() {
     }}>
       <AccountStack.Screen name="Profile" component={ProfileScreen} options={{ headerShown: false }} />
       <AccountStack.Screen name="Wishlist" component={WishlistScreen} options={{ headerShown: false }} />
+      <AccountStack.Screen name="Addresses" component={ManageAddressesScreen} options={{ headerTitle: 'My Addresses' }} />
+      <AccountStack.Screen name="AddAddress" component={AddAddressScreen} options={({ route }) => ({ headerTitle: route.params?.address ? 'Edit Address' : 'Add Address' })} />
     </AccountStack.Navigator>
   );
 }
@@ -139,7 +142,7 @@ export default function TabNavigator() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
-        tabBarIcon: ({ focused, size }) => {
+        tabBarIcon: ({ focused }) => {
           const color = focused ? colors.primary : colors.textTertiary;
           const iconSize = 22;
           const sw = focused ? 2.5 : 1.5;

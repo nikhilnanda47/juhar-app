@@ -457,7 +457,7 @@ Immutable log of all admin and system mutations.
 |---|---|---|---|
 | id | UUID | PK | |
 | actor_type | VARCHAR(20) | NOT NULL | "admin", "system", "customer" |
-| actor_id | UUID | NULL | admin_users.id or users.id |
+| actor_id | UUID | NULL | The acting person's **users.id** (the login id; the JWT `sub`). For admin actions it is NOT `admin_users.id`; the admin record is matched through the phone number |
 | action | VARCHAR(50) | NOT NULL | "product.created", "inventory.adjusted", "order.confirmed" |
 | entity_type | VARCHAR(50) | NOT NULL | "product", "inventory", "order" |
 | entity_id | UUID | NOT NULL | |

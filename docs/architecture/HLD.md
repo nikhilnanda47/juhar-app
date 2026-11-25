@@ -58,7 +58,7 @@
 > - **Payments:** not integrated. Only Cash on Delivery works.
 > - **Object storage / CDN:** not integrated. Products use placeholder images; there is no Media module.
 > - **Notifications / WhatsApp:** not built. WhatsApp integration is pending, and the web order page still contains a placeholder support number.
-> - **CI/CD:** GitHub Actions runs typecheck/test/build for API, web, admin and mobile (section 8). There is no lint step (no ESLint config yet) and no automated deploy.
+> - **CI/CD:** GitHub Actions runs typecheck/test/build for API, web, admin and mobile (section 8). A **Lint** job runs ESLint over all four apps (`eslint.config.mjs`; section 8) and there is no automated deploy.
 
 ---
 
@@ -84,7 +84,7 @@ Login Phone, OTP Verify, and Name Capture are inline states within the Profile/A
 | Home | Sub-header "Juhar ଜୁହାର୍" + "WESTERN ODISHA", 16:9 hero with gradient overlay, 2×2 collection grid with gradient name overlay, horizontal New Arrivals with low stock text |
 | Explore | "Shop" title (Noto Serif 22px), search bar with shadow + filter icon, category chips, count row, product cards with wishlist heart overlay, origin badge, stock status |
 | Product Detail | 3:4 hero with "GI CERTIFIED LOOM" badge, dot pagination, scarcity pill, price + discount pill, color swatches, PIN code check, details table, delivery items, "You may also like" scroll, sticky Add to Bag (green on success). Guests can add to bag (local guest cart, see 3.3); login is required at checkout |
-| Cart | Back circle + "My Bag (N)", free shipping progress meter, item cards with thumbnails + stepper (minus removes at qty 0) + "Save to Wishlist", coupon section, price details, sticky bar with savings |
+| Cart | Back circle + "My Bag (N)", free shipping progress meter, item cards with thumbnails + stepper (minus removes at qty 0) + "Save to Wishlist", price details (no coupon box: there is no coupon system yet), sticky bar with savings |
 | Checkout — Address | "Saved Addresses" with count badge, address cards with radio + "Default" badge + delivery estimate, "Add New Address" button, assurance note, sticky "Deliver Here" |
 | Checkout — Add Address | Reassurance banner, shadow inputs (no border), +91 phone prefix, label chips (Home/Office/Other), custom checkbox, sticky "Save Address" |
 | Checkout — Review | "Delivering to" + "VERIFIED ADDRESS" badge, address card with Change, items with cluster dot badge, payment radios (COD selected, UPI disabled), price details, delivery notice, trust footer, sticky "Place Order" |
@@ -155,9 +155,9 @@ No Internet, App Update Required, Maintenance, My Addresses (standalone), Search
 - **Tokens:** colours are CSS custom properties holding RGB channels (e.g. `--color-primary: 139 58 74`) in `src/app/globals.css`, defined under `:root` (light) and `.dark` (dark). `tailwind.config.ts` maps every colour to `rgb(var(--color-…) / <alpha-value>)`, so opacity modifiers such as `bg-surface/80` work in both themes. `darkMode: 'class'`.
 - **Provider:** `ThemeProvider` / `useTheme()` in `src/lib/theme-context.tsx` toggles the `dark` class on `<html>`, saves the choice in `localStorage` under `juhar_theme`, and updates the `theme-color` meta tag (`#FAFAF7` light, `#121212` dark).
 - **No flash on load:** an inline script in `src/app/layout.tsx` reads `juhar_theme` before first paint and adds the `dark` class; `<html>` uses `suppressHydrationWarning`.
-- **Toggle:** sun/moon button in the desktop Header, and a toggle row in the Account page menu (logged-in profile view).
+- **Toggle:** sun/moon button in the Header (all widths), and a toggle row in the Account page menu (logged-in profile view).
 
-> **Implementation status (2026-11-22):** The default is light; the system preference is not detected. There is no toggle in the mobile-width layout for logged-out visitors (the Header toggle is desktop-only and the login panel has none). The admin panel has no dark mode.
+> **Implementation status:** The default is light; the system preference is not detected. The Header sun/moon button shows at every width, so logged-out visitors on a phone can switch. The admin panel has its own dark mode (CSS variables under `data-theme='dark'`, a top-bar button, choice kept under `juhar_admin_theme`).
 
 ### 3.3 Guest Cart Flow
 
@@ -206,7 +206,7 @@ Users can browse and add to cart without logging in:
 | Reports | Orders, GMV, COD pending, refunds, stock summary, top products |
 | Settings | Admin user management, role assignment |
 
-> **Implementation status (2026-11-22):** Built: OTP login, dashboard (stats + recent orders), categories (list/create/activate), product catalog (list, create with variants, publish/unpublish), inventory (view only) and orders (search/filter; confirm → pack → ship with tracking ID → deliver; cancel a placed or confirmed order with a required reason). **Not built:** product edit, manual stock adjustment UI (the API endpoint exists), order detail page, returns and refunds, customers, reports, settings/RBAC management. The panel is light-theme only.
+> **Implementation status (2026-11-22):** Built: OTP login, dashboard (stats + recent orders), categories (list/create/activate), product catalog (list, create with variants, publish/unpublish), inventory (view only) and orders (search/filter; confirm → pack → ship with tracking ID → deliver; cancel a placed or confirmed order with a required reason). **Order page built:** `/orders/[id]` shows what to pack, where it goes, the customer, the cash to collect, the shipment and the history, with the same action buttons as the list. **Stock adjustment built:** Inventory > Adjust (add, remove or set the counted number, with a reason and the recent history). **Product edit built:** `/catalog/[id]` (basic info, fabric, and per colour: name, colour, price, compare price, hide from shop, stock with Adjust, add a colour), shared sections with the create page. **Not built:** returns and refunds, customers, reports, settings/RBAC management. The panel has a light/dark switch in the top bar.
 
 ### 3.6 Shared Package (`packages/shared`)
 
@@ -397,7 +397,7 @@ Key constraints: integer paise for money, UTC timestamps, UUID PKs, indexes on S
 
 **46 endpoints in the table above.** `docs/api/openapi.yaml` is the detailed reference and lists 49 operations (35 implemented, 14 planned): it also documents `GET /auth/me`, `GET /admin/categories` and `GET /admin/inventory/{variantId}`, which are implemented but not in this table. Errors: `{success, error: {code, message, details?}, requestId}` with 400/401/403/404/409/429 statuses. See `docs/api/openapi.yaml` for full request/response schemas.
 
-> **Implementation status (2026-11-22):** The API implements the auth, profile, address, catalog, cart, checkout, customer-order and admin category/product/order endpoints in the table. **Not implemented yet:** `POST /orders/:id/return`, `POST /payments/:orderId/initiate`, `POST /webhooks/payments`, the three `/admin/media/*` endpoints, `GET /admin/orders/:id`, `POST /admin/orders/:id/refund`, the three `/admin/reports/*` endpoints and both `/admin/users` endpoints. **Differences:** inventory is exposed as `GET /admin/inventory/:variantId` and `POST /admin/inventory/adjust` (the table shows `GET /admin/inventory` and `POST /admin/inventory/adjustments`); `GET /admin/categories` and `GET /auth/me` exist but are not listed. The table above remains the design target.
+> **Implementation status (2026-11-22):** The API implements the auth, profile, address, catalog, cart, checkout, customer-order and admin category/product/order endpoints in the table. **Not implemented yet:** `POST /orders/:id/return`, `POST /payments/:orderId/initiate`, `POST /webhooks/payments`, the three `/admin/media/*` endpoints, `POST /admin/orders/:id/refund`, the three `/admin/reports/*` endpoints and both `/admin/users` endpoints. **Differences:** inventory is exposed as `GET /admin/inventory/:variantId`, `GET /admin/inventory/:variantId/history` and `POST /admin/inventory/adjust` (the table shows `GET /admin/inventory` and `POST /admin/inventory/adjustments`); `GET /admin/categories` and `GET /auth/me` exist but are not listed. The table above remains the design target.
 
 ---
 
@@ -475,7 +475,7 @@ Push → Lint + Typecheck + Test (parallel) → Build → Deploy Staging (auto) 
 >
 > - `npm ci` at the repo root also runs the `postinstall` that builds `packages/shared` into `dist/`.
 > - Mobile has its own install because `apps/mobile` is not part of the root npm workspaces (Expo needs an isolated `node_modules`).
-> - There is no lint step (no ESLint config exists yet), and the API test job runs Jest (`npm test -w apps/api`); it now fails if no tests are found. Covered so far: the order state machine, stock reservation and checkout (fake database, no Postgres needed), plus the database `CHECK` constraints, which are tested against the migrated Postgres service (`DB_TESTS=1`).
+> - The **Lint** job runs `npm run lint` (ESLint with typescript-eslint and the React hooks rules for web, admin and mobile; the API also gets the no-floating-promises rule). It fails on any error and on more than 20 warnings. The API test job runs Jest (`npm test -w apps/api`); it now fails if no tests are found. Covered so far: the order state machine, stock reservation and checkout (fake database, no Postgres needed), plus the database `CHECK` constraints, which are tested against the migrated Postgres service (`DB_TESTS=1`).
 > - A fifth job, `build`, depends on the four above and fails unless they all succeeded. The repository ruleset `main-protection` requires a check with exactly that name, plus a pull request with 1 approving review, and blocks deletion and force-pushes on `main`. Renaming or removing the `build` job would make pull requests unmergeable until the ruleset is updated.
 
 ---

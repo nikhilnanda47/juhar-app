@@ -227,7 +227,6 @@ describe('AppModule', () => {
   it('turns rate limiting on (imports ThrottlingModule)', () => {
     // AppModule checks the environment when it is loaded, so load it with the required variables set
     Object.assign(process.env, { DATABASE_URL: 'postgresql://x', JWT_SECRET: SECRET, JWT_REFRESH_SECRET: 'r' });
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { AppModule } = require('../../app.module');
     const imports: unknown[] = Reflect.getMetadata('imports', AppModule);
     expect(imports).toContain(ThrottlingModule);

@@ -63,7 +63,8 @@ export class AddressesService {
 
   /**
    * Update an address. Ownership check enforced.
-   * If setting as default, unset others.
+   * If setting as default, unset others. A customer who has addresses always has exactly one default,
+   * so turning the default off is ignored (the way to change it is to make another address the default).
    */
   async update(userId: string, id: string, dto: UpdateAddressDto) {
     const address = await this.prisma.address.findFirst({
@@ -71,8 +72,11 @@ export class AddressesService {
     });
     if (!address) throw new NotFoundException('Address not found');
 
+    // "not the default" for the address that is the default would leave the customer with none
+    const isDefault = dto.isDefault === false && address.isDefault ? undefined : dto.isDefault;
+
     return this.prisma.$transaction(async (tx) => {
-      if (dto.isDefault) {
+      if (isDefault) {
         await tx.address.updateMany({
           where: { userId, isDefault: true, id: { not: id } },
           data: { isDefault: false },
@@ -92,22 +96,34 @@ export class AddressesService {
           ...(dto.state !== undefined && { state: dto.state }),
           ...(dto.pinCode !== undefined && { pinCode: dto.pinCode }),
           ...(dto.label !== undefined && { label: dto.label }),
-          ...(dto.isDefault !== undefined && { isDefault: dto.isDefault }),
+          ...(isDefault !== undefined && { isDefault }),
         },
       });
     });
   }
 
   /**
-   * Delete an address. Ownership check enforced.
+   * Delete an address. Ownership check enforced. Orders keep their own copy of the address they were
+   * placed with (order.addressSnapshot), so deleting a saved address never changes a past order.
+   * If the default is deleted, the most recently added of the remaining addresses becomes the default.
    */
   async delete(userId: string, id: string) {
-    const address = await this.prisma.address.findFirst({
-      where: { id, userId },
-    });
-    if (!address) throw new NotFoundException('Address not found');
+    await this.prisma.$transaction(async (tx) => {
+      // read inside the transaction, so "was it the default?" is the answer at the moment of deleting
+      const address = await tx.address.findFirst({ where: { id, userId } });
+      if (!address) throw new NotFoundException('Address not found');
 
-    await this.prisma.address.delete({ where: { id } });
+      // deleteMany: two deletes at once cannot both succeed (the loser gets "not found", not a 500)
+      const removed = await tx.address.deleteMany({ where: { id, userId } });
+      if (removed.count === 0) throw new NotFoundException('Address not found');
+      if (!address.isDefault) return;
+
+      const next = await tx.address.findFirst({
+        where: { userId },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      });
+      if (next) await tx.address.update({ where: { id: next.id }, data: { isDefault: true } });
+    });
     return { message: 'Address deleted' };
   }
 }

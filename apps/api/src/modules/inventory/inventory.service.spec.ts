@@ -161,38 +161,77 @@ describe('InventoryService', () => {
   });
 
   describe('adjustStock', () => {
-    const current = { variantId: 'v1', onHand: 10, reserved: 3, unavailable: 2, version: 4 };
-    const dto = (adjustment: number) => ({ variantId: 'v1', adjustment, reason: 'received', notes: 'new batch' }) as any;
+    // the stock row as the locked read returns it (snake_case) and as the update returns it
+    const row = { on_hand: 10, reserved: 3, unavailable: 2 };
+    const after = (onHand: number) => ({ variantId: 'v1', onHand, reserved: 3, unavailable: 2, version: 5 });
+    const add = (adjustment: number) => ({ variantId: 'v1', adjustment, reason: 'received', notes: 'new batch' }) as any;
+    const count = (setTo: number) => ({ variantId: 'v1', setTo, reason: 'correction' }) as any;
+
+    // a fake database whose transaction runs the work on one fake "tx"
+    function setup(rows: StockRow[]) {
+      const tx = {
+        $queryRaw: jest.fn().mockResolvedValue(rows),
+        inventory: { update: jest.fn() },
+        auditEvent: { create: jest.fn().mockResolvedValue({}) },
+      };
+      const prisma = { $transaction: jest.fn(async (work: any) => work(tx)) };
+      return { tx, service: newService(prisma) };
+    }
 
     it('fails when the variant has no stock row', async () => {
-      await expect(newService(makePrisma(null)).adjustStock(dto(1), 'admin-1')).rejects.toThrow(NotFoundException);
+      const { service } = setup([]);
+      await expect(service.adjustStock(add(1), 'admin-1')).rejects.toThrow(NotFoundException);
+    });
+
+    it('needs exactly one of an amount or a counted number', async () => {
+      const { service, tx } = setup([row]);
+      await expect(service.adjustStock({ variantId: 'v1', reason: 'other' } as any, 'a')).rejects.toThrow('STOCK_CHANGE_UNCLEAR');
+      await expect(service.adjustStock({ variantId: 'v1', adjustment: 1, setTo: 3, reason: 'other' } as any, 'a')).rejects.toThrow('STOCK_CHANGE_UNCLEAR');
+      expect(tx.$queryRaw).not.toHaveBeenCalled();
+    });
+
+    it('locks the stock row before changing it, and writes the audit entry inside the same transaction', async () => {
+      const { service, tx } = setup([row]);
+      tx.inventory.update.mockResolvedValue(after(15));
+      await service.adjustStock(add(5), 'admin-1');
+      const [sql] = tx.$queryRaw.mock.calls[0];
+      expect((sql as TemplateStringsArray).join('?')).toContain('FOR UPDATE');
+      expect(tx.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(tx.inventory.update.mock.invocationCallOrder[0]);
+      expect(tx.auditEvent.create).toHaveBeenCalledTimes(1);
     });
 
     it('refuses to drop below what is already reserved or unavailable', async () => {
-      const prisma = makePrisma(current);
-      await expect(newService(prisma).adjustStock(dto(-6), 'admin-1')).rejects.toThrow(BadRequestException);
-      await expect(newService(prisma).adjustStock(dto(-6), 'admin-1')).rejects.toThrow('STOCK_WOULD_GO_NEGATIVE');
-      expect(prisma.inventory.update).not.toHaveBeenCalled();
-      expect(prisma.auditEvent.create).not.toHaveBeenCalled();
+      const { service, tx } = setup([row]);
+      await expect(service.adjustStock(add(-6), 'admin-1')).rejects.toThrow(BadRequestException);
+      await expect(service.adjustStock(add(-6), 'admin-1')).rejects.toThrow('STOCK_WOULD_GO_NEGATIVE');
+      expect(tx.inventory.update).not.toHaveBeenCalled();
+      expect(tx.auditEvent.create).not.toHaveBeenCalled();
     });
 
     it('allows going down to exactly reserved + unavailable', async () => {
-      const prisma = makePrisma(current);
-      prisma.inventory.update.mockResolvedValue({ ...current, onHand: 5, version: 5 });
-      await expect(newService(prisma).adjustStock(dto(-5), 'admin-1')).resolves.toMatchObject({ onHand: 5, available: 0 });
+      const { service, tx } = setup([row]);
+      tx.inventory.update.mockResolvedValue(after(5));
+      await expect(service.adjustStock(add(-5), 'admin-1')).resolves.toMatchObject({ onHand: 5, available: 0 });
+    });
+
+    it('refuses a change that changes nothing (zero, or a count equal to the stock)', async () => {
+      const { service, tx } = setup([row]);
+      await expect(service.adjustStock(add(0), 'admin-1')).rejects.toThrow('STOCK_NO_CHANGE');
+      await expect(service.adjustStock(count(10), 'admin-1')).rejects.toThrow('STOCK_NO_CHANGE');
+      expect(tx.inventory.update).not.toHaveBeenCalled();
     });
 
     it('updates on-hand, bumps the version and writes an audit entry', async () => {
-      const prisma = makePrisma(current);
-      prisma.inventory.update.mockResolvedValue({ ...current, onHand: 15, version: 5 });
+      const { service, tx } = setup([row]);
+      tx.inventory.update.mockResolvedValue(after(15));
 
-      const result = await newService(prisma).adjustStock(dto(5), 'admin-1');
+      const result = await service.adjustStock(add(5), 'admin-1');
 
-      expect(prisma.inventory.update).toHaveBeenCalledWith({
+      expect(tx.inventory.update).toHaveBeenCalledWith({
         where: { variantId: 'v1' },
         data: { onHand: 15, version: { increment: 1 } },
       });
-      expect(prisma.auditEvent.create).toHaveBeenCalledWith({
+      expect(tx.auditEvent.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
           action: 'inventory.adjusted',
           entityType: 'inventory',
@@ -204,6 +243,59 @@ describe('InventoryService', () => {
         }),
       });
       expect(result).toEqual({ variantId: 'v1', onHand: 15, reserved: 3, unavailable: 2, available: 10, version: 5 });
+    });
+
+    it('a counted number is worked out against the locked stock, and the change is recorded', async () => {
+      const { service, tx } = setup([{ on_hand: 12, reserved: 3, unavailable: 2 }]); // 12 now, not the 10 the admin saw
+      tx.inventory.update.mockResolvedValue(after(7));
+      await service.adjustStock(count(7), 'admin-1');
+      expect(tx.inventory.update).toHaveBeenCalledWith({ where: { variantId: 'v1' }, data: { onHand: 7, version: { increment: 1 } } });
+      expect(tx.auditEvent.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          beforeState: { onHand: 12 },
+          afterState: expect.objectContaining({ onHand: 7, adjustment: -5, setTo: 7 }),
+        }),
+      });
+    });
+
+    it('a counted number below the reserved stock is refused', async () => {
+      const { service } = setup([row]);
+      await expect(service.adjustStock(count(4), 'admin-1')).rejects.toThrow('STOCK_WOULD_GO_NEGATIVE'); // reserved 3 + unavailable 2 = 5
+    });
+  });
+
+  describe('getAdjustmentHistory', () => {
+    const event = (over: any) => ({
+      id: 'e1', createdAt: new Date('2026-11-25T10:00:00Z'), actorId: 'u1',
+      beforeState: { onHand: 10 }, afterState: { onHand: 15, adjustment: 5, reason: 'received', notes: 'new batch' }, ...over,
+    });
+    function setup(events: any[], users: any[] = [], admins: any[] = []) {
+      const prisma = {
+        auditEvent: { findMany: jest.fn().mockResolvedValue(events) },
+        user: { findMany: jest.fn().mockResolvedValue(users) },
+        adminUser: { findMany: jest.fn().mockResolvedValue(admins) },
+      };
+      return { prisma, service: newService(prisma) };
+    }
+
+    it('lists the changes newest first with who made them', async () => {
+      const { service, prisma } = setup([event({})], [{ id: 'u1', phone: '+911', name: null }], [{ phone: '+911', name: 'Owner One', role: 'owner' }]);
+      const [h] = await service.getAdjustmentHistory('v1');
+      expect(h).toMatchObject({ adjustment: 5, onHandBefore: 10, onHandAfter: 15, reason: 'received', notes: 'new batch', by: { name: 'Owner One', role: 'owner' } });
+      const args = (prisma.auditEvent.findMany.mock.calls[0] as any[])[0];
+      expect(args.where).toEqual({ entityType: 'inventory', entityId: 'v1', action: 'inventory.adjusted' });
+      expect(args.orderBy[0]).toEqual({ createdAt: 'desc' });
+    });
+
+    it('has no name when the actor is unknown', async () => {
+      const { service } = setup([event({ actorId: null })]);
+      expect((await service.getAdjustmentHistory('v1'))[0].by).toBeNull();
+    });
+
+    it('never asks for more than 50 at a time', async () => {
+      const { service, prisma } = setup([]);
+      await service.getAdjustmentHistory('v1', 5000);
+      expect((prisma.auditEvent.findMany.mock.calls[0] as any[])[0].take).toBe(50);
     });
   });
 

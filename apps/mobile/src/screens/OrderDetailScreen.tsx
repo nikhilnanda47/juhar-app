@@ -4,7 +4,13 @@ import {
   ActivityIndicator, Linking, RefreshControl,
 } from 'react-native';
 import {
-  Check, Truck, MapPin, Phone, MessageCircle, ArrowRight, Copy, Info,
+  Check,
+  Truck,
+  MapPin,
+  Phone,
+  MessageCircle,
+  ArrowRight,
+  Copy,
 } from 'lucide-react-native';
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
 import { getOrder, formatPaise } from '../services/api';
@@ -17,7 +23,7 @@ const STEP_LABELS: Record<string, string> = {
 
 interface Props { navigation: any; route: { params: { orderId: string } }; }
 
-export default function OrderDetailScreen({ navigation, route }: Props) {
+export default function OrderDetailScreen({ route }: Props) {
   const { orderId } = route.params;
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);

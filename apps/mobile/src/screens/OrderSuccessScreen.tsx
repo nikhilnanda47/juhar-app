@@ -4,7 +4,6 @@ import {
 } from 'react-native';
 import { Check, Truck, Package, ShieldCheck, ArrowRight, Copy } from 'lucide-react-native';
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
-import { formatPaise } from '../services/api';
 import { BounceIn, FadeInUp } from '../components/AnimatedUI';
 import { useCopyToClipboard } from '../utils/useCopyToClipboard';
 

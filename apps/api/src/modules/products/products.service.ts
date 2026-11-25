@@ -489,17 +489,37 @@ export class ProductsService {
   }
 
   /**
-   * Update product (admin).
+   * One product for the admin edit page: every field, the category, and ALL its colours (also the ones
+   * hidden from the shop) with their stock.
    */
-  async update(id: string, dto: UpdateProductDto) {
+  async findOneAdmin(id: string) {
+    const product = await this.prisma.product.findUnique({
+      where: { id },
+      include: {
+        category: true,
+        variants: { include: { inventory: true }, orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }] },
+        media: { orderBy: { sortOrder: 'asc' } },
+      },
+    });
+    if (!product) throw new NotFoundException({ code: 'PROD_001', message: 'Product not found' });
+    return product;
+  }
+
+  /**
+   * Update product (admin). Only the fields that are sent AND really differ are written; if nothing
+   * differs, nothing is written. The change is recorded in the audit trail (what it was, what it is now).
+   *
+   * The shop address (slug) follows the title only while the product is still a draft. Once a product has
+   * been published its address stays the same, so links people have already shared keep working.
+   */
+  async update(id: string, dto: UpdateProductDto, adminId?: string) {
     const product = await this.prisma.product.findUnique({ where: { id } });
     if (!product) {
       throw new NotFoundException({ code: 'PROD_001', message: 'Product not found' });
     }
 
-    // If title changes, update slug
     let slug: string | undefined;
-    if (dto.title && dto.title !== product.title) {
+    if (dto.title && dto.title !== product.title && product.publishStatus === PublishStatus.DRAFT) {
       slug = generateSlug(dto.title);
       const existing = await this.prisma.product.findUnique({ where: { slug } });
       if (existing && existing.id !== id) {
@@ -514,31 +534,48 @@ export class ProductsService {
       }
     }
 
-    return this.prisma.product.update({
-      where: { id },
-      data: {
-        ...(dto.title && { title: dto.title }),
-        ...(slug && { slug }),
-        ...(dto.description !== undefined && { description: dto.description }),
-        ...(dto.shortDescription !== undefined && { shortDescription: dto.shortDescription }),
-        ...(dto.categoryId && { categoryId: dto.categoryId }),
-        ...(dto.publishStatus && { publishStatus: dto.publishStatus }),
-        ...(dto.fabric !== undefined && { fabric: dto.fabric }),
-        ...(dto.weaveMethod !== undefined && { weaveMethod: dto.weaveMethod }),
-        ...(dto.origin !== undefined && { origin: dto.origin }),
-        ...(dto.careInstructions !== undefined && { careInstructions: dto.careInstructions }),
-        ...(dto.blousePiece !== undefined && { blousePiece: dto.blousePiece }),
-        ...(dto.length !== undefined && { length: dto.length }),
-        ...(dto.width !== undefined && { width: dto.width }),
-        ...(dto.weight !== undefined && { weight: dto.weight }),
-        ...(dto.occasion && { occasion: dto.occasion }),
-        ...(dto.tags && { tags: dto.tags }),
-      },
-      include: {
-        category: true,
-        variants: { include: { inventory: true } },
-        media: { orderBy: { sortOrder: 'asc' } },
-      },
+    const wanted: Record<string, unknown> = {
+      ...(dto.title && { title: dto.title }),
+      ...(slug && { slug }),
+      ...(dto.description !== undefined && { description: dto.description }),
+      ...(dto.shortDescription !== undefined && { shortDescription: dto.shortDescription }),
+      ...(dto.categoryId && { categoryId: dto.categoryId }),
+      ...(dto.publishStatus && { publishStatus: dto.publishStatus }),
+      ...(dto.fabric !== undefined && { fabric: dto.fabric }),
+      ...(dto.weaveMethod !== undefined && { weaveMethod: dto.weaveMethod }),
+      ...(dto.origin !== undefined && { origin: dto.origin }),
+      ...(dto.careInstructions !== undefined && { careInstructions: dto.careInstructions }),
+      ...(dto.blousePiece !== undefined && { blousePiece: dto.blousePiece }),
+      ...(dto.length !== undefined && { length: dto.length }),
+      ...(dto.width !== undefined && { width: dto.width }),
+      ...(dto.weight !== undefined && { weight: dto.weight }),
+      ...(dto.occasion && { occasion: dto.occasion }),
+      ...(dto.tags && { tags: dto.tags }),
+    };
+    const { before, after } = changedFields(product as any, wanted);
+    const include = {
+      category: true,
+      variants: { include: { inventory: true } },
+      media: { orderBy: { sortOrder: 'asc' as const } },
+    };
+    if (Object.keys(after).length === 0) {
+      return this.prisma.product.findUniqueOrThrow({ where: { id }, include });
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.product.update({ where: { id }, data: after as any, include });
+      await tx.auditEvent.create({
+        data: {
+          action: 'product.updated',
+          entityType: 'product',
+          entityId: id,
+          actorType: 'admin',
+          actorId: adminId,
+          beforeState: before as any,
+          afterState: after as any,
+        },
+      });
+      return updated;
     });
   }
 
@@ -588,9 +625,10 @@ export class ProductsService {
   }
 
   /**
-   * Update variant (admin).
+   * Update variant (admin). Only fields that really differ are written, and the change (a new price,
+   * a colour hidden from the shop) is recorded in the audit trail.
    */
-  async updateVariant(productId: string, variantId: string, dto: UpdateVariantDto) {
+  async updateVariant(productId: string, variantId: string, dto: UpdateVariantDto, adminId?: string) {
     const variant = await this.prisma.productVariant.findFirst({
       where: { id: variantId, productId },
     });
@@ -609,17 +647,34 @@ export class ProductsService {
       });
     }
 
-    return this.prisma.productVariant.update({
-      where: { id: variantId },
-      data: {
-        ...(dto.name !== undefined && { name: dto.name }),
-        ...(dto.color !== undefined && { color: dto.color }),
-        ...(dto.attributes !== undefined && { attributes: (dto.attributes as any) ?? Prisma.JsonNull }),
-        ...(dto.pricePaise !== undefined && { pricePaise: dto.pricePaise }),
-        ...(dto.compareAtPaise !== undefined && { compareAtPaise: dto.compareAtPaise }),
-        ...(dto.active !== undefined && { active: dto.active }),
-      },
-      include: { inventory: true },
+    const wanted: Record<string, unknown> = {
+      ...(dto.name !== undefined && { name: dto.name }),
+      ...(dto.color !== undefined && { color: dto.color }),
+      ...(dto.attributes !== undefined && { attributes: (dto.attributes as any) ?? Prisma.JsonNull }),
+      ...(dto.pricePaise !== undefined && { pricePaise: dto.pricePaise }),
+      ...(dto.compareAtPaise !== undefined && { compareAtPaise: dto.compareAtPaise }),
+      ...(dto.active !== undefined && { active: dto.active }),
+    };
+    const { before, after } = changedFields(variant as any, wanted);
+    if (Object.keys(after).length === 0) {
+      return this.prisma.productVariant.findUniqueOrThrow({ where: { id: variantId }, include: { inventory: true } });
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.productVariant.update({ where: { id: variantId }, data: after as any, include: { inventory: true } });
+      await tx.auditEvent.create({
+        data: {
+          action: 'variant.updated',
+          entityType: 'product_variant',
+          entityId: variantId,
+          actorType: 'admin',
+          actorId: adminId,
+          beforeState: before as any,
+          afterState: after as any,
+          metadata: { productId, sku: variant.sku } as any,
+        },
+      });
+      return updated;
     });
   }
 }
@@ -635,4 +690,20 @@ function distinctSorted(values: (string | null)[]): string[] {
     if (trimmed && !seen.has(trimmed.toLowerCase())) seen.set(trimmed.toLowerCase(), trimmed);
   }
   return [...seen.values()].sort((a, b) => a.localeCompare(b, 'en', { sensitivity: 'base' }));
+}
+
+/**
+ * Of the fields that were asked for, the ones whose value really differs from the stored row, as the
+ * old values and the new values. Compared as JSON so arrays and JSON fields compare by content.
+ */
+function changedFields(stored: Record<string, unknown>, wanted: Record<string, unknown>) {
+  const before: Record<string, unknown> = {};
+  const after: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(wanted)) {
+    if (JSON.stringify(stored[key] ?? null) !== JSON.stringify(value ?? null)) {
+      before[key] = stored[key] ?? null;
+      after[key] = value;
+    }
+  }
+  return { before, after };
 }

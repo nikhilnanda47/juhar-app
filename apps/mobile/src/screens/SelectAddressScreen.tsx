@@ -90,7 +90,11 @@ export default function SelectAddressScreen({ navigation }: Props) {
                       <Text style={styles.phoneText}>{addr.recipientPhone}</Text>
                     </View>
                   </View>
-                  <TouchableOpacity style={styles.editBtn}>
+                  <TouchableOpacity
+                    style={styles.editBtn}
+                    onPress={() => navigation.push('AddAddress', { address: addr })}
+                    accessibilityLabel={`Edit address for ${addr.recipientName}`}
+                  >
                     <Pencil size={16} color={colors.textTertiary} strokeWidth={1.5} />
                   </TouchableOpacity>
                 </View>
@@ -109,7 +113,7 @@ export default function SelectAddressScreen({ navigation }: Props) {
 
         <TouchableOpacity
           style={styles.addBtn}
-          onPress={() => navigation.navigate('AddAddress')}
+          onPress={() => navigation.push('AddAddress')}
         >
           <Plus size={20} color={colors.primary} strokeWidth={2} />
           <Text style={styles.addBtnText}>Add New Address</Text>

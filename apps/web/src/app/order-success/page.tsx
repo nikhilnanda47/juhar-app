@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Check, Truck, ShieldCheck, ArrowRight } from 'lucide-react';
-import { loadToken, getOrder, formatPaise } from '@/lib/api';
+import { loadToken, getOrder } from '@/lib/api';
 
 function OrderSuccessContent() {
   const router = useRouter();

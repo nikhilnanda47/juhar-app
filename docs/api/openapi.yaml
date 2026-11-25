@@ -9,8 +9,8 @@ info:
     ## Implementation status
     Operations marked `x-status: planned` are part of the target design but are **not implemented yet**
     (Phase 4: payments, webhooks, returns, refunds; Phase 5: media uploads, reports, admin users,
-    admin order detail, admin inventory list). This spec lists **35 implemented** and
-    **14 planned** operations (49 in total). Unmarked operations match the code in `apps/api`.
+    admin inventory list). This spec lists **38 implemented** and
+    **13 planned** operations (51 in total). Unmarked operations match the code in `apps/api`.
 
     ## Conventions
     - All monetary values are in **integer paise** (1 INR = 100 paise)
@@ -1288,21 +1288,66 @@ components:
 
     AdjustStockBody:
       type: object
-      required: [variantId, adjustment, reason]
+      description: |
+        Give exactly ONE of `adjustment` (how many to add or remove) or `setTo` (the new on-hand
+        count, for when someone counted the shelf). Both or neither is a 400.
+      required: [variantId, reason]
       properties:
         variantId:
           type: string
           format: uuid
         adjustment:
           type: integer
-          description: Positive to add, negative to remove
+          description: Positive to add, negative to remove. Between -10000 and 10000, not 0.
+          minimum: -10000
+          maximum: 10000
           example: 5
+        setTo:
+          type: integer
+          description: The new on-hand count (0 to 100000). Worked out against the stock at the moment of the change, so it always ends at this number.
+          minimum: 0
+          maximum: 100000
+          example: 7
         reason:
           type: string
           enum: [received, damaged, correction, return_restocked, other]
         notes:
           type: string
-          maxLength: 500
+          maxLength: 255
+
+    StockChange:
+      type: object
+      properties:
+        at:
+          type: string
+          format: date-time
+        adjustment:
+          type: integer
+          nullable: true
+          description: The change that was made (positive or negative)
+        onHandBefore:
+          type: integer
+          nullable: true
+        onHandAfter:
+          type: integer
+          nullable: true
+        reason:
+          type: string
+          nullable: true
+          enum: [received, damaged, correction, return_restocked, other]
+        notes:
+          type: string
+          nullable: true
+        by:
+          type: object
+          nullable: true
+          description: Who made the change (null when unknown)
+          properties:
+            name:
+              type: string
+            role:
+              type: string
+              description: Empty when the person is no longer an admin
 
     # ── Admin Order ──
     UpdateOrderStatusBody:
@@ -1831,6 +1876,9 @@ paths:
     patch:
       tags: [Addresses]
       summary: Update address
+      description: |
+        Changes only the fields that are sent. Sending `isDefault: true` makes this the default and clears it on the others.
+        A customer who has addresses always has exactly one default, so `isDefault: false` on the address that is the default is ignored.
       operationId: updateAddress
       security:
         - BearerAuth: []
@@ -1862,6 +1910,10 @@ paths:
     delete:
       tags: [Addresses]
       summary: Delete address
+      description: |
+        Past orders keep their own copy of the address, so deleting never changes an order.
+        If the default address is deleted, the most recently added remaining address becomes the default.
+        Deleting an address that is already gone (for example two requests at once) returns 404.
       operationId: deleteAddress
       security:
         - BearerAuth: []
@@ -2852,9 +2904,43 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 
   /api/v1/admin/products/{id}:
+    get:
+      tags: ["Admin: Catalog"]
+      summary: Get one product for editing
+      description: |
+        Every field, the category, and ALL colours (also the ones hidden from the shop) with their stock
+        (`inventory`: onHand, reserved, unavailable). Any admin role. `404` when the product does not exist.
+      operationId: adminGetProduct
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        "200":
+          description: The product
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/ProductDetail'
+        "404":
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     patch:
       tags: ["Admin: Catalog"]
       summary: Update product
+      description: |
+        Only the fields that are sent and really differ are written (nothing differs: nothing is written), and the
+        change is recorded in the audit trail (`product.updated`, before and after). Text limits follow the database
+        (for example fabric 100, origin 200, length/width/weight 50). **The shop address (`slug`) follows the title only
+        while the product is a draft**; once published it stays the same, so shared links keep working.
+        Roles: `owner`, `catalog_editor`.
       operationId: adminUpdateProduct
       security:
         - BearerAuth: []
@@ -2909,6 +2995,10 @@ paths:
     patch:
       tags: ["Admin: Catalog"]
       summary: Update variant
+      description: |
+        Name, colour, price, compare-at price (send `null` to remove it) and `active` (false hides the colour from the
+        shop). Only fields that really differ are written, and the change is audited (`variant.updated`, with the old and
+        new price). The SKU cannot be changed. Roles: `owner`, `catalog_editor`.
       operationId: adminUpdateVariant
       security:
         - BearerAuth: []
@@ -3074,8 +3164,11 @@ paths:
       tags: ["Admin: Inventory"]
       summary: Adjust stock
       description: |
-        Add or remove stock with an audited reason. Creates an audit_events record
-        with before/after state. Roles: `owner`, `catalog_editor`.
+        Add or remove stock, or set the counted number, with an audited reason. Roles: `owner`, `catalog_editor`.
+        Runs in one transaction with the inventory row locked (the same lock orders take), so two changes at
+        the same moment both count and the audit entry is written together with the change.
+        Stock cannot go below what is reserved for orders plus what is unavailable (`STOCK_WOULD_GO_NEGATIVE`),
+        and a change that changes nothing is refused (`STOCK_NO_CHANGE`).
       operationId: adminAdjustStock
       security:
         - BearerAuth: []
@@ -3102,6 +3195,35 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/admin/inventory/{variantId}/history:
+    get:
+      tags: ["Admin: Inventory"]
+      summary: Recent manual stock changes of one variant
+      description: The last 20 changes, newest first: when, how much, before and after, reason, note, and who made them. Any admin role.
+      operationId: adminStockHistory
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: variantId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: The changes
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/StockChange'
 
   /api/v1/admin/inventory/{variantId}:
     get:
@@ -3262,11 +3384,14 @@ paths:
     get:
       tags: ["Admin: Orders"]
       summary: Get order detail (admin view)
-      x-status: planned
       description: |
-        **Planned (Phase 5)** — not implemented yet.
-
-        Includes customer info, full payment history, and audit trail.
+        Everything needed to pack and ship one order: the items (with colour and SKU), the delivery
+        address as frozen at checkout (`address`), the customer (id, phone, name), totals, payments,
+        shipments (courier and tracking ID), and `history`: placed, then each step with its time and,
+        when an admin did it, who (`by: { name, role }`; `null` when it was the customer). Times come
+        from the order itself, so orders without audit rows still show their steps.
+        Also carries `waitingMinutes` and `overdue` like the list. Any admin role may read it.
+        `404` when the order does not exist.
       operationId: adminGetOrder
       security:
         - BearerAuth: []
@@ -3283,6 +3408,12 @@ paths:
                   - properties:
                       data:
                         $ref: '#/components/schemas/Order'
+        "404":
+          description: Order not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /api/v1/admin/orders/{id}/status:
     patch:
