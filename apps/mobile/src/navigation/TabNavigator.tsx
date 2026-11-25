@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { AppState } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -21,12 +20,13 @@ import OrdersScreen from '../screens/OrdersScreen';
 import OrderDetailScreen from '../screens/OrderDetailScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import WishlistScreen from '../screens/WishlistScreen';
+import type { TabParams, ExploreStackParams, CartStackParams, OrdersStackParams, AccountStackParams } from './types';
 
-const Tab = createBottomTabNavigator();
-const ExploreStack = createNativeStackNavigator();
-const CartStack = createNativeStackNavigator();
-const OrdersStack = createNativeStackNavigator();
-const AccountStack = createNativeStackNavigator();
+const Tab = createBottomTabNavigator<TabParams>();
+const ExploreStack = createNativeStackNavigator<ExploreStackParams>();
+const CartStack = createNativeStackNavigator<CartStackParams>();
+const OrdersStack = createNativeStackNavigator<OrdersStackParams>();
+const AccountStack = createNativeStackNavigator<AccountStackParams>();
 
 function ExploreStackScreen() {
   const { colors } = useTheme();

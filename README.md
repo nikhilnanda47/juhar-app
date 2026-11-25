@@ -126,7 +126,7 @@ Open items as of 2026-11-22, grouped by urgency. The team tracker holds owners a
 ### Engineering hygiene
 - Test coverage is early: the order state machine, stock (reserve, release, commit, ship, adjust, expiry job), admin order status changes, checkout (quote, order placement, shipping and totals) and rate limiting have tests (`npm test -w apps/api`). The automatic token refresh in the admin, web and mobile API clients is also tested (`npm test -w apps/admin`, `npm test -w apps/web`, and `npm test` inside `apps/mobile`). Auth, cart, the orders service, products and the web and mobile screens are not covered yet. Most of these tests use a fake database, so they cannot prove real concurrent locking or real SQL. The one exception is the test of the database `CHECK` constraints (`apps/api/src/database/check-constraints.spec.ts`), which runs against a real migrated Postgres only when you set `DB_TESTS=1` (CI does): `cd apps/api && npx prisma migrate deploy && DB_TESTS=1 npm test -- check-constraints`.
 - No ESLint configuration, so the `lint` scripts do not run.
-- `apps/mobile/src/navigation/TabNavigator.tsx` has `@ts-nocheck`.
+- The mobile tab bar and its screens are type-checked (`apps/mobile/src/navigation/types.ts` lists every screen and what it needs, so a wrong screen name fails the build). One loose spot: the order passed to the success screen is typed `any` because `placeOrder` returns `any`.
 
 ## Tech Stack
 
@@ -154,7 +154,7 @@ juhar-app/
 │   │       ├── screens/     # 13 screens (Splash, Welcome, Home, Explore,
 │   │       │                #   ProductDetail, Cart, SelectAddress, AddAddress,
 │   │       │                #   OrderReview, OrderSuccess, Orders, OrderDetail, Profile)
-│   │       ├── navigation/  # Tab (5 tabs) + Stack navigators
+│   │       ├── navigation/  # Tab (5 tabs) + Stack navigators + types.ts (screen names and params)
 │   │       ├── services/    # API client, local guest cart
 │   │       ├── components/  # AnimatedUI, RefreshButton
 │   │       └── theme/       # Design tokens + dark mode (light/dark colors,
