@@ -973,7 +973,9 @@ Reusable refresh icon (`RefreshCw`) with spin animation on press. Used on Home, 
 
 ### 13.12 Cart / My Bag (Screen 12)
 
-**Purpose:** View bag, adjust quantities, coupon, checkout.
+**Purpose:** View bag, adjust quantities, checkout.
+
+> **Coupons are not in the pilot.** The bag used to show a coupon box that accepted any text and showed a made-up −₹100; the server prices the order and has no coupons, so the customer saw a different total at checkout. The box and the coupon lines are removed (the sketch below still shows them as the future design). Bring them back only together with a real coupon system on the API (validation, usage limits, the discount in the order total).
 
 ```
 ┌─────────────────────────────┐
@@ -1027,11 +1029,11 @@ Reusable refresh icon (`RefreshCw`) with spin animation on press. Used on Home, 
 - Qty stepper: minus disabled at 1, plus disabled at available stock
 - Qty change: number fade + scale animation (150ms)
 
-**Coupon states:**
+**Coupon states (future design; not built, see the note at the top):**
 - Input: uppercase forced, "Apply" ghost disabled until ≥ 3 chars
 - Applied: input replaced by `#E8F5E9` pill with code + ✕ remove + savings text
 - Only 1 coupon at a time
-- Coupon backend behind feature flag for pilot
+- Needs a coupon backend first; there is none yet
 
 ---
 
@@ -1163,7 +1165,6 @@ Reusable refresh icon (`RefreshCw`) with spin animation on press. Used on Home, 
 │                             │
 │  Price Details              │
 │  Subtotal (3 items)  ₹9,100│
-│  Coupon (FIRST100)    −₹100│  ← #3D8B63, only if applied
 │  Shipping              FREE│
 │  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  │
 │  Total              ₹9,000 │  ← 16px bold

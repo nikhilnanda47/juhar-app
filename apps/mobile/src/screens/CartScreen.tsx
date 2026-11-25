@@ -1,13 +1,13 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, RefreshControl, TextInput,
+  ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useWishlist } from '../contexts/WishlistContext';
 import {
   ShoppingBag, Trash2, Heart, Minus, Plus, Package,
-  ChevronLeft, Truck, ArrowRight, X, BadgeCheck, Leaf,
+  ChevronLeft, Truck, ArrowRight, Leaf,
 } from 'lucide-react-native';
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
 import RefreshButton from '../components/RefreshButton';
@@ -36,8 +36,6 @@ export default function CartScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [updating, setUpdating] = useState<string | null>(null);
   const [loggedIn, setLoggedIn] = useState(false);
-  const [couponCode, setCouponCode] = useState('');
-  const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
   const { rule, loaded: ruleLoaded } = useShippingRule();
 
   useFocusEffect(useCallback(() => { checkAndLoad(); }, []));
@@ -113,14 +111,13 @@ export default function CartScreen() {
 
   // null = the shipping rule could not be loaded; show "at checkout" instead of guessing
   const shippingPaise = rule ? shippingFor(cart.subtotalPaise, rule) : null;
-  const couponDiscount = appliedCoupon ? 10000 : 0; // ₹100 mock
-  const totalPaise = cart.subtotalPaise - couponDiscount + (shippingPaise ?? 0);
+  const totalPaise = cart.subtotalPaise + (shippingPaise ?? 0);
   const freeShippingMet = shippingPaise === 0;
   const shippingProgress = rule ? shippingProgressPercent(cart.subtotalPaise, rule) : 0;
   const totalSavings = cart.items.reduce((sum, item) => {
     const compare = item.variant.compareAtPaise || item.variant.pricePaise;
     return sum + (compare - item.variant.pricePaise) * item.quantity;
-  }, 0) + couponDiscount + (rule && shippingPaise === 0 ? rule.flatPaise : 0); // free shipping saves the flat charge
+  }, 0) + (rule && shippingPaise === 0 ? rule.flatPaise : 0); // free shipping saves the flat charge
 
   return (
     <View style={styles.container}>
@@ -170,48 +167,10 @@ export default function CartScreen() {
           />
         ))}
 
-        {/* Coupon Section */}
-        <View style={styles.couponSection}>
-          <View style={styles.couponHeader}>
-            <Text style={styles.couponTitle}>Offers & Coupons</Text>
-          </View>
-          {appliedCoupon && (
-            <View style={styles.appliedCoupon}>
-              <BadgeCheck size={20} color={colors.accent} strokeWidth={2} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.appliedCode}>{appliedCoupon} applied (−₹100)</Text>
-                <Text style={styles.appliedDesc}>First purchase discount</Text>
-              </View>
-              <TouchableOpacity onPress={() => setAppliedCoupon(null)}>
-                <X size={16} color={colors.textSecondary} strokeWidth={2} />
-              </TouchableOpacity>
-            </View>
-          )}
-          <View style={styles.couponInputRow}>
-            <TextInput
-              style={styles.couponInput}
-              value={couponCode}
-              onChangeText={(t) => setCouponCode(t.toUpperCase())}
-              placeholder="Enter coupon code"
-              placeholderTextColor={colors.textTertiary}
-              autoCapitalize="characters"
-            />
-            <TouchableOpacity
-              style={styles.couponApplyBtn}
-              onPress={() => { if (couponCode.length >= 3) { setAppliedCoupon(couponCode); setCouponCode(''); } }}
-            >
-              <Text style={styles.couponApplyText}>Apply</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
         {/* Price Details */}
         <View style={styles.priceCard}>
           <Text style={styles.priceCardTitle}>Price Details ({cart.itemCount} Items)</Text>
           <PriceRow label={`Subtotal (${cart.itemCount} items)`} value={formatPaise(cart.subtotalPaise)} colors={colors} />
-          {appliedCoupon && (
-            <PriceRow label={`Coupon (${appliedCoupon})`} value={`−${formatPaise(couponDiscount)}`} valueColor={colors.accent} colors={colors} />
-          )}
           <PriceRow
             label="Shipping"
             value={shippingPaise === null ? 'At checkout' : shippingPaise === 0 ? 'FREE' : formatPaise(shippingPaise)}
@@ -452,28 +411,6 @@ const createStyles = (colors: ColorPalette) => StyleSheet.create({
   wishlistLink: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 8, paddingVertical: 4 },
   wishlistText: { fontFamily: 'DMSans-Medium', fontSize: 13, color: colors.textTertiary, letterSpacing: 0.2 },
 
-  // Coupon
-  couponSection: { marginTop: spacing.md, marginBottom: spacing.md },
-  couponHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  couponTitle: { fontFamily: 'DMSans-SemiBold', fontSize: 16, color: colors.textPrimary, letterSpacing: -0.2 },
-  appliedCoupon: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: colors.accentBg, padding: 10, borderRadius: 8, marginBottom: 8,
-  },
-  appliedCode: { fontFamily: 'DMSans-SemiBold', fontSize: 13, color: colors.textPrimary, letterSpacing: 0.5 },
-  appliedDesc: { fontFamily: 'DMSans-Regular', fontSize: 11, color: colors.textSecondary },
-  couponInputRow: { flexDirection: 'row', gap: 8 },
-  couponInput: {
-    flex: 1, height: 48, backgroundColor: colors.surface, borderRadius: 6,
-    paddingHorizontal: 14, fontFamily: 'DMSans-Regular', fontSize: 14, color: colors.textPrimary,
-    letterSpacing: 1,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 2, elevation: 1,
-  },
-  couponApplyBtn: {
-    height: 48, paddingHorizontal: 20, backgroundColor: colors.surfaceMuted, borderRadius: 6,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  couponApplyText: { fontFamily: 'DMSans-Medium', fontSize: 13, color: colors.textPrimary },
 
   // Price Card
   priceCard: {
