@@ -179,6 +179,8 @@ export interface CartItemResponse {
   variant: {
     id: string; sku: string; name: string | null; color: string | null;
     pricePaise: number; compareAtPaise: number | null; available: number;
+    /** the saree this colour belongs to; carts saved before this existed (guest carts) may not have it */
+    productId?: string;
     productTitle: string; productSlug: string; imageUrl: string | null;
   };
   quantity: number; lineTotalPaise: number;

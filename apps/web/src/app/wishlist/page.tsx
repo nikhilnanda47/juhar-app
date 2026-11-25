@@ -3,19 +3,40 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Heart, ShoppingBag, Trash2, ArrowLeft } from 'lucide-react';
-import { isLoggedIn, addToCart, formatPaise, referenceOf } from '@/lib/api';
+import { isLoggedIn, addToCart, getCart, formatPaise, referenceOf } from '@/lib/api';
+import { CART_CHANGED_EVENT } from '@/lib/cart-events';
 import { useWishlist } from '@/lib/wishlist-context';
 import ErrorReference from '@/components/ErrorReference';
 
 export default function WishlistPage() {
   const { loaded, items, toggleVariant, total, refreshWishlist } = useWishlist();
   const [addingId, setAddingId] = useState<string | null>(null);
-  const [addedId, setAddedId] = useState<string | null>(null);
+  // Which of these are in the bag right now. It is read from the bag itself, so "Go to Bag" goes away
+  // when the bag is emptied somewhere else (another tab, the bag page) instead of staying until reload.
+  const [inBag, setInBag] = useState<Set<string>>(new Set());
   const [error, setError] = useState('');
   const [errorRef, setErrorRef] = useState(''); // the API's reference for the failed request
 
   // Opening the page always asks again, so it is never older than the last time the customer looked
   useEffect(() => { refreshWishlist(); }, [refreshWishlist]);
+
+  useEffect(() => {
+    let alive = true;
+    const readBag = () => {
+      if (!isLoggedIn()) return;
+      getCart().then((cart) => { if (alive) setInBag(new Set(cart.items.map((i) => i.variant.id))); }).catch(() => {});
+    };
+    readBag();
+    window.addEventListener(CART_CHANGED_EVENT, readBag); // the bag changed here (add, remove, order placed)
+    window.addEventListener('focus', readBag); // back from another tab or window
+    document.addEventListener('visibilitychange', readBag);
+    return () => {
+      alive = false;
+      window.removeEventListener(CART_CHANGED_EVENT, readBag);
+      window.removeEventListener('focus', readBag);
+      document.removeEventListener('visibilitychange', readBag);
+    };
+  }, []);
 
   // Wait for the answer instead of flashing "sign in" at someone who is already logged in
   if (!loaded) {
@@ -26,10 +47,10 @@ export default function WishlistPage() {
     return (
       <div className="page-container flex flex-col items-center justify-center min-h-[60vh] text-center">
         <Heart size={48} className="text-text-tertiary mb-4" strokeWidth={1.5} />
-        <h1 className="font-serif text-headline-md text-text-primary mb-2">Your Saved Items</h1>
+        <h1 className="font-serif text-headline-md text-text-primary mb-2">Your Wishlist</h1>
         <p className="font-sans text-body-md text-text-secondary mb-6">
           {total > 0
-            ? `You have ${total} saved on this device. Sign in to keep ${total === 1 ? 'it' : 'them'} in your account.`
+            ? `You have ${total} on your wishlist on this device. Sign in to keep ${total === 1 ? 'it' : 'them'} in your account.`
             : 'Sign in to save your favourite sarees.'}
         </p>
         <Link href="/account" className="btn-primary px-8 py-3 rounded-xl font-sans text-title-sm text-white bg-primary hover:bg-primary-dark transition-colors">
@@ -43,7 +64,7 @@ export default function WishlistPage() {
     return (
       <div className="page-container flex flex-col items-center justify-center min-h-[60vh] text-center">
         <Heart size={48} className="text-text-tertiary mb-4" strokeWidth={1.5} />
-        <h1 className="font-serif text-headline-md text-text-primary mb-2">No saved items yet</h1>
+        <h1 className="font-serif text-headline-md text-text-primary mb-2">Your wishlist is empty</h1>
         <p className="font-sans text-body-md text-text-secondary mb-6">Tap the heart on any saree to save it here.</p>
         <Link href="/shop" className="px-8 py-3 rounded-xl font-sans text-title-sm text-white bg-primary hover:bg-primary-dark transition-colors">
           Browse Sarees
@@ -53,11 +74,10 @@ export default function WishlistPage() {
   }
 
   const handleAddToCart = async (variantId: string) => {
-    setAddingId(variantId); setError(''); setErrorRef(''); setAddedId(null);
+    setAddingId(variantId); setError(''); setErrorRef('');
     try {
       await addToCart(variantId, 1);
-      setAddedId(variantId);
-      setTimeout(() => setAddedId((current) => (current === variantId ? null : current)), 2000);
+      setInBag((prev) => new Set(prev).add(variantId)); // the bag change event re-reads it too
     } catch (e: any) {
       // used to fail without a word
       setError(e?.message || 'Could not add this saree to your bag. Please try again.');
@@ -73,7 +93,7 @@ export default function WishlistPage() {
           <ArrowLeft size={18} className="text-text-primary" />
         </Link>
         <div>
-          <h1 className="font-serif text-headline-lg-mobile lg:text-headline-xl text-text-primary">Saved Items</h1>
+          <h1 className="font-serif text-headline-lg-mobile lg:text-headline-xl text-text-primary">Wishlist</h1>
           <p className="font-sans text-body-sm text-text-tertiary">{total} {total === 1 ? 'item' : 'items'}</p>
         </div>
       </div>
@@ -124,20 +144,30 @@ export default function WishlistPage() {
               {v.isListed ? <Link href={`/shop/${p.slug}`}>{card}</Link> : <div>{card}</div>}
               <div className="flex gap-2 mt-2">
                 {v.isAvailable && (
-                  <button
-                    onClick={() => handleAddToCart(v.id)}
-                    disabled={addingId === v.id}
-                    className="flex-1 h-9 rounded-lg bg-primary text-white font-sans text-label-md font-medium flex items-center justify-center gap-1.5 hover:bg-primary-dark transition-colors disabled:opacity-60"
-                  >
-                    <ShoppingBag size={14} strokeWidth={2} />
-                    {addingId === v.id ? 'Adding...' : addedId === v.id ? 'Added' : 'Add to Bag'}
-                  </button>
+                  inBag.has(v.id) ? (
+                    <Link
+                      href="/cart"
+                      className="flex-1 h-9 rounded-lg bg-accent text-white font-sans text-label-md font-medium flex items-center justify-center gap-1.5 hover:opacity-90 transition-opacity"
+                    >
+                      <ShoppingBag size={14} strokeWidth={2} />
+                      Go to Bag
+                    </Link>
+                  ) : (
+                    <button
+                      onClick={() => handleAddToCart(v.id)}
+                      disabled={addingId === v.id}
+                      className="flex-1 h-9 rounded-lg bg-primary text-white font-sans text-label-md font-medium flex items-center justify-center gap-1.5 hover:bg-primary-dark transition-colors disabled:opacity-60"
+                    >
+                      <ShoppingBag size={14} strokeWidth={2} />
+                      {addingId === v.id ? 'Adding...' : 'Add to Bag'}
+                    </button>
+                  )
                 )}
                 <button
                   onClick={() => toggleVariant(v.id, p.id)}
                   className="w-9 h-9 rounded-lg border border-border flex items-center justify-center hover:bg-error/10 hover:border-error transition-colors"
-                  title="Remove from saved items"
-                  aria-label={`Remove ${p.title} from saved items`}
+                  title="Remove from wishlist"
+                  aria-label={`Remove ${p.title} from wishlist`}
                 >
                   <Trash2 size={14} className="text-text-tertiary hover:text-error" strokeWidth={2} />
                 </button>

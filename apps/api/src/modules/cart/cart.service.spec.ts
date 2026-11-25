@@ -8,7 +8,7 @@ function line(id: string, quantity: number) {
     quantity,
     variant: {
       id, sku: `SKU-${id}`, name: null, color: null, pricePaise: 100000, compareAtPaise: null, active: true,
-      product: { title: `Saree ${id}`, slug: `saree-${id}`, publishStatus: 'published' },
+      product: { id: `product-${id}`, title: `Saree ${id}`, slug: `saree-${id}`, publishStatus: 'published' },
       inventory: { onHand: 50, reserved: 0, unavailable: 0 },
     },
   };
@@ -37,5 +37,13 @@ describe('CartService.getCart itemCount', () => {
     const out = line('d', 2);
     out.variant.inventory = { onHand: 0, reserved: 0, unavailable: 0 };
     expect((await serviceWith([line('a', 1), out]).getCart('u1')).itemCount).toBe(3);
+  });
+});
+
+// The wishlist heart on a shop card is per saree, so a line in the bag has to say which saree it is from.
+describe('CartService.getCart productId', () => {
+  it('tells which saree each line belongs to', async () => {
+    const cart = await serviceWith([line('a', 1), line('b', 2)]).getCart('u1');
+    expect(cart.items.map((i) => i.variant.productId)).toEqual(['product-a', 'product-b']);
   });
 });

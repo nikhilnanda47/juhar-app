@@ -70,7 +70,7 @@ export default function ProductDetailPage() {
         else {
           localCart.push({
             variantId: selectedVariant.id, quantity: 1,
-            productTitle: product.title, productSlug: product.slug,
+            productId: product.id, productTitle: product.title, productSlug: product.slug,
             variantName: selectedVariant.name, color: selectedVariant.color,
             sku: selectedVariant.sku, pricePaise: selectedVariant.pricePaise,
             compareAtPaise: selectedVariant.compareAtPaise, available: selectedVariant.available,

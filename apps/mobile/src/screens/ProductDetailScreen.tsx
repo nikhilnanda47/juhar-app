@@ -123,6 +123,7 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
         await addToLocalCart({
           variantId: selectedVariant.id,
           quantity: 1,
+          productId: product.id,
           productTitle: product.title,
           productSlug: product.slug,
           variantName: selectedVariant.name,

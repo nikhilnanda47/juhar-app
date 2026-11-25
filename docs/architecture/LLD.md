@@ -734,6 +734,7 @@ class CartItemResponse {
     color: string;
     pricePaise: number;
     available: number;
+    productId: string;              // the saree this colour belongs to (wishlist hearts are per saree)
     productTitle: string;
     productSlug: string;
     imageUrl: string;
