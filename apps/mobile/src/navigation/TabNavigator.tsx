@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AppState } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Home, Search, ShoppingBag, Package, User } from 'lucide-react-native';
-import { useTheme, type ColorPalette, spacing, elevation } from '../theme';
+import { useTheme } from '../theme';
 import { loadToken, getCart } from '../services/api';
 import { getLocalCart, localCartToResponse } from '../services/localCart';
 import { onCartChanged } from '../services/cartEvents';
@@ -139,7 +139,7 @@ export default function TabNavigator() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
-        tabBarIcon: ({ focused, size }) => {
+        tabBarIcon: ({ focused }) => {
           const color = focused ? colors.primary : colors.textTertiary;
           const iconSize = 22;
           const sw = focused ? 2.5 : 1.5;

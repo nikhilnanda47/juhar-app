@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Package, User, ArrowRight, ShieldCheck, Truck, Filter } from 'lucide-react';
+import { Package, User, ArrowRight, ShieldCheck } from 'lucide-react';
 import { loadToken, getOrders, formatPaise } from '@/lib/api';
 import { appendUnique } from '@/lib/paging';
 

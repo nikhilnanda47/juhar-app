@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
-import { Truck, Phone, ArrowRight, Package, BadgeCheck, Handshake } from 'lucide-react-native';
+import { Truck, Phone, ArrowRight, Package, Handshake } from 'lucide-react-native';
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
 import { getAddresses, getCart, placeOrder, formatPaise, referenceOf, type Address, type CartResponse } from '../services/api';
 import ErrorReference from '../components/ErrorReference';

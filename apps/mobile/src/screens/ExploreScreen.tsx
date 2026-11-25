@@ -4,7 +4,7 @@ import {
   ActivityIndicator, Dimensions, RefreshControl, TextInput, Modal,
 } from 'react-native';
 import { Search as SearchIcon, SlidersHorizontal, Heart, ChevronDown, Check, X } from 'lucide-react-native';
-import { useTheme, type ColorPalette, spacing, borderRadius, elevation } from '../theme';
+import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
 import {
   getCategories, getProducts, getProductFilters, formatPaise,
   type Category, type Product, type ProductFilterOptions,
@@ -16,7 +16,7 @@ import {
   NO_FILTERS, SORT_OPTIONS, activeFilterCount, effectiveSearch, filterChips, priceRangeError,
   removeFilter, shopQuery, sortLabel, type ShopFilters, type ShopSort,
 } from '../services/shopList';
-import { FadeInUp, ScalePress } from '../components/AnimatedUI';
+import { FadeInUp } from '../components/AnimatedUI';
 import RefreshButton from '../components/RefreshButton';
 
 const { width } = Dimensions.get('window');
@@ -27,7 +27,7 @@ interface Props {
   route?: any;
 }
 
-export default function ExploreScreen({ navigation, route }: Props) {
+export default function ExploreScreen({ navigation }: Props) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [categories, setCategories] = useState<Category[]>([]);

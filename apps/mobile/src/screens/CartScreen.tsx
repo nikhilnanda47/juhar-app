@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, RefreshControl, TextInput,
@@ -9,11 +9,17 @@ import {
   ShoppingBag, Trash2, Heart, Minus, Plus, Package,
   ChevronLeft, Truck, ArrowRight, X, BadgeCheck, Leaf,
 } from 'lucide-react-native';
-import { useTheme, type ColorPalette, spacing, borderRadius, elevation } from '../theme';
+import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
 import RefreshButton from '../components/RefreshButton';
 import {
-  isLoggedIn, loadToken, getCart, getProductBySlug, updateCartItem, removeCartItem, formatPaise,
-  type CartResponse, type CartItemResponse,
+  loadToken,
+  getCart,
+  getProductBySlug,
+  updateCartItem,
+  removeCartItem,
+  formatPaise,
+  type CartResponse,
+  type CartItemResponse,
 } from '../services/api';
 import {
   getLocalCart, updateLocalCartItem, removeLocalCartItem,

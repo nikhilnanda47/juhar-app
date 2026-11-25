@@ -279,7 +279,7 @@ export class OrdersService {
             data: { status: 'delivered', deliveredAt: new Date() },
           });
           break;
-        case OrderStatus.CANCELLED:
+        case OrderStatus.CANCELLED: {
           data.cancelledAt = new Date();
           data.cancellationReason = dto.reason?.trim();
           // Release reservations
@@ -290,6 +290,7 @@ export class OrdersService {
             await this.inventoryService.releaseReservation(tx, res.id);
           }
           break;
+        }
       }
 
       const updated = await tx.order.update({

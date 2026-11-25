@@ -7,8 +7,16 @@ import {
   LogOut, ChevronRight, FileText, Settings, ShieldCheck, Truck, Sun, Moon,
 } from 'lucide-react';
 import {
-  isLoggedIn, loadToken, requestOtp, verifyOtp, clearTokens,
-  getProfile, updateProfile, getAddresses, getOrders, referenceOf, type UserProfile,
+  loadToken,
+  requestOtp,
+  verifyOtp,
+  clearTokens,
+  getProfile,
+  updateProfile,
+  getAddresses,
+  getOrders,
+  referenceOf,
+  type UserProfile,
 } from '@/lib/api';
 import { useWishlist } from '@/lib/wishlist-context';
 import { readLocalCart, clearLocalCart } from '@/lib/cart-events';

@@ -4,8 +4,17 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  ChevronLeft, Heart, Share2, Check, CheckCircle, Zap, Package, RefreshCw,
-  Banknote, ShieldCheck, Truck, Star, MapPin,
+  ChevronLeft,
+  Heart,
+  Share2,
+  Check,
+  CheckCircle,
+  Zap,
+  Package,
+  RefreshCw,
+  Banknote,
+  ShieldCheck,
+  MapPin,
 } from 'lucide-react';
 import { getProductBySlug, getProducts, formatPaise, isLoggedIn, addToCart, referenceOf, type Product, type ProductVariant } from '@/lib/api';
 import ErrorReference from '@/components/ErrorReference';

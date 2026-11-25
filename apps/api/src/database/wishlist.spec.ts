@@ -16,7 +16,7 @@ describeDb('wishlist (real Postgres)', () => {
   let userA = '';
   let userB = '';
   let categoryId = '';
-  let productIds: string[] = [];
+  const productIds: string[] = [];
   const v: Record<string, string> = {};
   const unknownVariant = '11111111-1111-4111-8111-111111111111';
 

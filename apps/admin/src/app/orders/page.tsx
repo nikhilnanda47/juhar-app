@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import AdminLayout from '../../components/AdminLayout';
 import { api } from '../../services/api';
 import { appendUnique, loadAtLeast } from '../../services/paging';
@@ -38,7 +37,6 @@ function formatPaise(paise: number): string {
 }
 
 export default function OrdersPage() {
-  const router = useRouter();
   const [orders, setOrders] = useState<any[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);

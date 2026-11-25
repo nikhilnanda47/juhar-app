@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Logger, NotFoundException } from '@nestjs/common';
+import { ConflictException, Logger, NotFoundException } from '@nestjs/common';
 import { CheckoutService } from './checkout.service';
 
 const NOW = new Date('2026-11-22T10:00:00Z');

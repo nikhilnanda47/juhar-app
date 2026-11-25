@@ -1,11 +1,16 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Dimensions, RefreshControl, ImageBackground,
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Dimensions,
+  RefreshControl,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme, type ColorPalette } from '../theme';
-import { spacing, borderRadius, elevation } from '../theme';
+import { spacing, borderRadius } from '../theme';
 import { getProducts, getCategories, formatPaise, type Product } from '../services/api';
 import { FadeInUp, ScalePress } from '../components/AnimatedUI';
 import RefreshButton from '../components/RefreshButton';
