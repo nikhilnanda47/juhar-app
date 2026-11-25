@@ -1831,6 +1831,9 @@ paths:
     patch:
       tags: [Addresses]
       summary: Update address
+      description: |
+        Changes only the fields that are sent. Sending `isDefault: true` makes this the default and clears it on the others.
+        A customer who has addresses always has exactly one default, so `isDefault: false` on the address that is the default is ignored.
       operationId: updateAddress
       security:
         - BearerAuth: []
@@ -1862,6 +1865,10 @@ paths:
     delete:
       tags: [Addresses]
       summary: Delete address
+      description: |
+        Past orders keep their own copy of the address, so deleting never changes an order.
+        If the default address is deleted, the most recently added remaining address becomes the default.
+        Deleting an address that is already gone (for example two requests at once) returns 404.
       operationId: deleteAddress
       security:
         - BearerAuth: []

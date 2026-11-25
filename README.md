@@ -18,7 +18,7 @@ Juhar is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce pl
 
 > Status as of 2026-11-22. Open bugs and technical debt are listed under [Known Issues](#known-issues--technical-debt).
 
-### Customer App (Mobile) — 24 features working
+### Customer App (Mobile) — 25 features working
 
 | # | Feature | Status |
 |---|---------|--------|
@@ -46,8 +46,9 @@ Juhar is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce pl
 | 22 | Pull-to-refresh + refresh button on all screens | ✅ |
 | 23 | Fade-in animations across screens | ✅ |
 | 24 | Light / dark mode — Switch on Profile when logged in, Sun/Moon button on Account when logged out; choice is remembered | ✅ |
+| 25 | My Addresses — see, edit, delete and choose the default address (Account > Addresses, and the pencil on the checkout list) | ✅ |
 
-### Customer Website (Web) — 11 pages + dark mode
+### Customer Website (Web) — 13 pages + dark mode
 
 | # | Feature | Status |
 |---|---------|--------|
@@ -63,6 +64,7 @@ Juhar is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce pl
 | 10 | Orders — table layout (desktop), card layout (mobile), filter chips; order detail handles cancelled, return and refund states | ✅ |
 | 11 | Account — split-panel login, profile with sidebar (desktop) | ✅ |
 | 12 | Light / dark mode — toggle in the header (desktop and phone width, so logged-out visitors can switch) and the Account menu; choice is remembered, no flash on load | ✅ |
+| 13 | My Addresses (`/account/addresses`) — edit, delete, make default; the pencil on the checkout list opens the same edit page | ✅ |
 
 ### Admin Panel (Web) — 15 features working
 
@@ -150,9 +152,10 @@ juhar-app/
 ├── apps/
 │   ├── mobile/              # React Native + Expo (customer mobile app)
 │   │   └── src/
-│   │       ├── screens/     # 13 screens (Splash, Welcome, Home, Explore,
-│   │       │                #   ProductDetail, Cart, SelectAddress, AddAddress,
-│   │       │                #   OrderReview, OrderSuccess, Orders, OrderDetail, Profile)
+│   │       ├── screens/     # 15 screens (Splash, Welcome, Home, Explore,
+│   │       │                #   ProductDetail, Cart, SelectAddress, AddAddress (add or edit),
+│   │       │                #   ManageAddresses, OrderReview, OrderSuccess, Orders, OrderDetail,
+│   │       │                #   Profile, Wishlist)
 │   │       ├── navigation/  # Tab (5 tabs) + Stack navigators + types.ts (screen names and params)
 │   │       ├── services/    # API client, local guest cart
 │   │       ├── components/  # AnimatedUI, RefreshButton
@@ -160,8 +163,9 @@ juhar-app/
 │   │                        #   ThemeContext, typography, spacing)
 │   ├── web/                 # Next.js customer website (responsive)
 │   │   └── src/
-│   │       ├── app/         # 11 pages (/, /shop, /shop/[slug], /cart,
+│   │       ├── app/         # 13 pages (/, /shop, /shop/[slug], /cart,
 │   │       │                #   /checkout/address, /checkout/address/new,
+│   │       │                #   /account/addresses, /account/addresses/[id],
 │   │       │                #   /checkout/review, /order-success,
 │   │       │                #   /orders, /orders/[id], /account)
 │   │       ├── components/  # Header, BottomNav

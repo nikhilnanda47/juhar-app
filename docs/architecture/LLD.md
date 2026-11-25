@@ -257,8 +257,8 @@ class CreateAddressDto {
 |---|---|---|---|
 | `create(userId, dto)` | UUID, CreateAddressDto | Address | Max 10 addresses per user. If `isDefault=true` or first address, unset other defaults in same transaction. |
 | `findAll(userId)` | UUID | Address[] | Only own addresses, ordered default-first |
-| `update(userId, id, dto)` | UUID, UUID, UpdateDto | Address | Ownership check. If setting default, unset others. |
-| `delete(userId, id)` | UUID, UUID | void | Ownership check. Cannot delete if used in active order (warn only). |
+| `update(userId, id, dto)` | UUID, UUID, UpdateDto | Address | Ownership check. If setting default, unset others. `isDefault: false` on the current default is ignored (a customer with addresses always has exactly one default). |
+| `delete(userId, id)` | UUID, UUID | `{ message }` | Ownership check; runs in one transaction. Always allowed: an order keeps its own copy of the address (`order.addressSnapshot`), so no order depends on the row. If the default is deleted, the most recently added remaining address becomes the default. A second delete of the same address gets 404. |
 
 **Error Cases:**
 

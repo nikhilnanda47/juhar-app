@@ -1379,6 +1379,8 @@ When an API call fails, the error message in the web and mobile apps (sign-in, s
 
 **Purpose:** Manage saved addresses.
 
+> **Implementation status:** built on the website (`/account/addresses`, edit at `/account/addresses/[id]`) and in the app (Account > Addresses; the edit form is the Add Address screen opened with an address). Reached from the Account "Addresses" tile, and the pencil on the checkout address list opens the same edit form, then returns to checkout. Each card has **Edit**, **Make default** (not shown on the default) and **Delete** (asks first: the browser's confirm on the web, a native alert in the app). A customer with addresses always has exactly one default: the default's edit form shows a note instead of a switch, and deleting the default makes the most recently added remaining address the default. When 10 addresses are saved the Add button is disabled with a message. An address that was deleted elsewhere shows "This address is no longer saved" with a link back. Past orders are not affected by edits or deletes (they keep their own copy).
+
 ```
 ┌─────────────────────────────┐
 │  ←    My Addresses          │

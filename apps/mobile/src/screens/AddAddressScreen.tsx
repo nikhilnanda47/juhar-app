@@ -5,25 +5,31 @@ import {
 } from 'react-native';
 import { Truck, Check } from 'lucide-react-native';
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
-import { createAddress, referenceOf } from '../services/api';
+import { createAddress, updateAddress, referenceOf, type Address } from '../services/api';
 import ErrorReference from '../components/ErrorReference';
 
-interface Props { navigation: any; }
+interface Props {
+  navigation: any;
+  /** with `address` the screen edits that address; without it, it adds a new one */
+  route?: { params?: { address?: Address } };
+}
 
-export default function AddAddressScreen({ navigation }: Props) {
+export default function AddAddressScreen({ navigation, route }: Props) {
+  const address = route?.params?.address;
+  const editing = !!address;
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const [recipientName, setRecipientName] = useState('');
-  const [recipientPhone, setRecipientPhone] = useState('');
-  const [line1, setLine1] = useState('');
-  const [line2, setLine2] = useState('');
-  const [landmark, setLandmark] = useState('');
-  const [city, setCity] = useState('');
-  const [district, setDistrict] = useState('');
-  const [state, setState] = useState('Odisha');
-  const [pinCode, setPinCode] = useState('');
-  const [label, setLabel] = useState('Home');
-  const [isDefault, setIsDefault] = useState(false);
+  const [recipientName, setRecipientName] = useState(address?.recipientName ?? '');
+  const [recipientPhone, setRecipientPhone] = useState((address?.recipientPhone ?? '').replace(/^\+91/, ''));
+  const [line1, setLine1] = useState(address?.line1 ?? '');
+  const [line2, setLine2] = useState(address?.line2 ?? '');
+  const [landmark, setLandmark] = useState(address?.landmark ?? '');
+  const [city, setCity] = useState(address?.city ?? '');
+  const [district, setDistrict] = useState(address?.district ?? '');
+  const [state, setState] = useState(address?.state ?? 'Odisha');
+  const [pinCode, setPinCode] = useState(address?.pinCode ?? '');
+  const [label, setLabel] = useState(address?.label ?? 'Home');
+  const [isDefault, setIsDefault] = useState(address?.isDefault ?? false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [errorRef, setErrorRef] = useState(''); // the API's reference for the failed request
@@ -44,11 +50,19 @@ export default function AddAddressScreen({ navigation }: Props) {
     setSaving(true);
     setError(''); setErrorRef('');
     try {
-      await createAddress({
-        recipientName, recipientPhone: '+91' + recipientPhone, line1,
-        line2: line2 || undefined, landmark: landmark || undefined,
-        city, district, state, pinCode, label, isDefault,
-      });
+      if (address) {
+        // an edit sends the optional fields as they are, so a customer can clear one
+        await updateAddress(address.id, {
+          recipientName, recipientPhone: '+91' + recipientPhone, line1, line2, landmark,
+          city, district, state, pinCode, label, isDefault,
+        });
+      } else {
+        await createAddress({
+          recipientName, recipientPhone: '+91' + recipientPhone, line1,
+          line2: line2 || undefined, landmark: landmark || undefined,
+          city, district, state, pinCode, label, isDefault,
+        });
+      }
       navigation.goBack();
     } catch (err: any) {
       setError(err.message || 'Failed to save address');
@@ -122,12 +136,22 @@ export default function AddAddressScreen({ navigation }: Props) {
           </View>
         </View>
 
-        <TouchableOpacity style={styles.checkboxRow} onPress={() => setIsDefault(!isDefault)}>
-          <View style={[styles.checkbox, isDefault && styles.checkboxActive]}>
-            {isDefault && <Check size={14} color={colors.white} strokeWidth={3} />}
+        {address?.isDefault ? (
+          // the default address stays the default: to change it, make another address the default
+          <View style={styles.checkboxRow}>
+            <View style={[styles.checkbox, styles.checkboxActive]}>
+              <Check size={14} color={colors.white} strokeWidth={3} />
+            </View>
+            <Text style={styles.checkboxLabel}>This is your default address. To change it, make another address the default.</Text>
           </View>
-          <Text style={styles.checkboxLabel}>Set as default delivery address</Text>
-        </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={styles.checkboxRow} onPress={() => setIsDefault(!isDefault)}>
+            <View style={[styles.checkbox, isDefault && styles.checkboxActive]}>
+              {isDefault && <Check size={14} color={colors.white} strokeWidth={3} />}
+            </View>
+            <Text style={styles.checkboxLabel}>Set as default delivery address</Text>
+          </TouchableOpacity>
+        )}
 
         <View style={{ height: 110 }} />
       </ScrollView>
@@ -143,7 +167,7 @@ export default function AddAddressScreen({ navigation }: Props) {
           onPress={handleSave}
           disabled={!isValid || saving}
         >
-          <Text style={styles.saveBtnText}>{saving ? 'Saving...' : 'Save Address'}</Text>
+          <Text style={styles.saveBtnText}>{saving ? 'Saving...' : editing ? 'Save Changes' : 'Save Address'}</Text>
           <Check size={18} color={colors.white} strokeWidth={2} />
         </TouchableOpacity>
       </View>

@@ -58,10 +58,15 @@ export default function SelectAddressPage() {
               const isSelected = selected === addr.id;
               const LabelIcon = LABEL_ICONS[addr.label] || MapPin;
               return (
-                <button
+                // a div, not a button: the card holds the Edit button, and a button cannot sit inside a button
+                <div
                   key={addr.id}
+                  role="radio"
+                  aria-checked={isSelected}
+                  tabIndex={0}
                   onClick={() => setSelected(addr.id)}
-                  className={`card w-full text-left transition-all hover:shadow-md ${
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(addr.id); } }}
+                  className={`card w-full text-left cursor-pointer transition-all hover:shadow-md ${
                     isSelected ? 'ring-2 ring-primary !border-primary/30' : ''
                   }`}
                 >
@@ -83,7 +88,8 @@ export default function SelectAddressPage() {
                         <span className="px-2 py-0.5 rounded-full bg-success/10 text-success font-sans text-[10px] font-semibold uppercase tracking-wider">Default</span>
                       )}
                       <button className="w-7 h-7 rounded-full bg-surface-container-low flex items-center justify-center hover:bg-surface-container transition-colors"
-                        onClick={(e) => { e.stopPropagation(); }}>
+                        aria-label={`Edit address for ${addr.recipientName}`}
+                        onClick={(e) => { e.stopPropagation(); router.push(`/account/addresses/${addr.id}`); }}>
                         <Pencil size={12} className="text-text-tertiary" strokeWidth={1.5} />
                       </button>
                     </div>
@@ -113,7 +119,7 @@ export default function SelectAddressPage() {
                       <span className="font-sans text-body-sm text-accent font-medium">Estimated delivery in 5–7 days</span>
                     </div>
                   )}
-                </button>
+                </div>
               );
             })}
           </div>

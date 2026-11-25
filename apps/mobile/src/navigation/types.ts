@@ -2,6 +2,7 @@
 // With these written down, a wrong screen name or a missing detail is caught when the app is built,
 // not when a customer taps the button.
 import type { NavigatorScreenParams } from '@react-navigation/native';
+import type { Address } from '../services/api';
 
 export type ExploreStackParams = {
   ExploreList: undefined;
@@ -11,7 +12,7 @@ export type ExploreStackParams = {
 export type CartStackParams = {
   CartView: undefined;
   SelectAddress: undefined;
-  AddAddress: undefined;
+  AddAddress: { address?: Address } | undefined; // with an address it edits that one
   OrderReview: { addressId: string };
   OrderSuccess: { order: any }; // the order the API just returned; the screen only reads a few fields of it
 };
@@ -24,6 +25,8 @@ export type OrdersStackParams = {
 export type AccountStackParams = {
   Profile: undefined;
   Wishlist: undefined;
+  Addresses: undefined;
+  AddAddress: { address?: Address } | undefined;
 };
 
 export type TabParams = {

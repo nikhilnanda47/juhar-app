@@ -20,6 +20,7 @@ import OrdersScreen from '../screens/OrdersScreen';
 import OrderDetailScreen from '../screens/OrderDetailScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import WishlistScreen from '../screens/WishlistScreen';
+import ManageAddressesScreen from '../screens/ManageAddressesScreen';
 import type { TabParams, ExploreStackParams, CartStackParams, OrdersStackParams, AccountStackParams } from './types';
 
 const Tab = createBottomTabNavigator<TabParams>();
@@ -56,7 +57,7 @@ function CartStackScreen() {
     }}>
       <CartStack.Screen name="CartView" component={CartScreen} options={{ headerShown: false }} />
       <CartStack.Screen name="SelectAddress" component={SelectAddressScreen} options={{ headerTitle: 'Delivery Address' }} />
-      <CartStack.Screen name="AddAddress" component={AddAddressScreen} options={{ headerTitle: 'Add Address' }} />
+      <CartStack.Screen name="AddAddress" component={AddAddressScreen} options={({ route }) => ({ headerTitle: route.params?.address ? 'Edit Address' : 'Add Address' })} />
       <CartStack.Screen name="OrderReview" component={OrderReviewScreen} options={{ headerTitle: 'Order Review' }} />
       <CartStack.Screen name="OrderSuccess" component={OrderSuccessScreen} options={{ headerShown: false }} />
     </CartStack.Navigator>
@@ -91,6 +92,8 @@ function AccountStackScreen() {
     }}>
       <AccountStack.Screen name="Profile" component={ProfileScreen} options={{ headerShown: false }} />
       <AccountStack.Screen name="Wishlist" component={WishlistScreen} options={{ headerShown: false }} />
+      <AccountStack.Screen name="Addresses" component={ManageAddressesScreen} options={{ headerTitle: 'My Addresses' }} />
+      <AccountStack.Screen name="AddAddress" component={AddAddressScreen} options={({ route }) => ({ headerTitle: route.params?.address ? 'Edit Address' : 'Add Address' })} />
     </AccountStack.Navigator>
   );
 }

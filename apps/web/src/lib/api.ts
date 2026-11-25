@@ -313,6 +313,16 @@ export async function createAddress(data: Omit<Address, 'id'>): Promise<Address>
   });
 }
 
+export async function updateAddress(id: string, data: Partial<Omit<Address, 'id'>>): Promise<Address> {
+  return request<Address>(`/api/v1/me/addresses/${id}`, {
+    method: 'PATCH', body: JSON.stringify(data),
+  });
+}
+
+export async function deleteAddress(id: string): Promise<void> {
+  await request(`/api/v1/me/addresses/${id}`, { method: 'DELETE' });
+}
+
 // ── Orders ──
 // Order payloads are still loosely typed (screens treat them as `any`).
 
