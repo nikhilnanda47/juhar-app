@@ -563,3 +563,34 @@
   border-color: var(--maroon);
   color: var(--maroon-text);
 }
+
+/* Order number as a link to the order page */
+.orderLink {
+  color: var(--maroon-text);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.orderLink:hover {
+  text-decoration: underline;
+}
+
+/* What is in the order (list) */
+.itemLine {
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.itemQty {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.itemMore {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}

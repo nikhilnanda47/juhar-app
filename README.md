@@ -66,7 +66,7 @@ Juhar is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce pl
 | 12 | Light / dark mode — toggle in the header (desktop and phone width, so logged-out visitors can switch) and the Account menu; choice is remembered, no flash on load | ✅ |
 | 13 | My Addresses (`/account/addresses`) — edit, delete, make default; the pencil on the checkout list opens the same edit page | ✅ |
 
-### Admin Panel (Web) — 15 features working
+### Admin Panel (Web) — 16 features working
 
 | # | Feature | Status |
 |---|---------|--------|
@@ -85,6 +85,7 @@ Juhar is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce pl
 | 13 | Ship with tracking ID and courier name | ✅ |
 | 14 | Logout | ✅ |
 | 15 | Cancel a placed or confirmed order with a required reason (releases the reserved stock) | ✅ |
+| 16 | Order page (`/orders/[id]`): items to pack with SKU, delivery address and phone (copy buttons), customer, cash to collect, payment, shipment and tracking, history with who did each step; the same Confirm / Pack / Ship / Deliver / Cancel buttons; the orders list links to it and shows what is in each order | ✅ |
 
 ### Not Yet Built
 
@@ -97,7 +98,6 @@ Juhar is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce pl
 | Text search | Phase 5 |
 | Product edit page (admin) | Phase 5 |
 | Manual stock adjustment UI (admin) | Phase 5 |
-| Admin order detail page | Phase 5 |
 | Customer lookup (admin) | Phase 5 |
 | Reports (GMV, top products, stock) | Phase 5 |
 | Admin user management / roles | Phase 5 |

@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import AdminLayout from '../../components/AdminLayout';
+import OrderActions from '../../components/OrderActions';
 import { api } from '../../services/api';
 import { appendUnique, loadAtLeast } from '../../services/paging';
 import styles from './orders.module.css';
@@ -15,22 +17,6 @@ function formatWaiting(minutes: number): string {
   const days = Math.floor(minutes / (24 * 60));
   return `${days} ${days === 1 ? 'day' : 'days'}`;
 }
-
-const NEXT_STATUS: Record<string, string> = {
-  placed: 'confirmed',
-  confirmed: 'packed',
-  packed: 'shipped',
-  shipped: 'delivered',
-};
-
-const CANCELLABLE = ['placed', 'confirmed'];
-
-const STATUS_LABELS: Record<string, string> = {
-  placed: 'Confirm',
-  confirmed: 'Pack',
-  packed: 'Ship',
-  shipped: 'Deliver',
-};
 
 function formatPaise(paise: number): string {
   return '₹' + (paise / 100).toLocaleString('en-IN');
@@ -49,14 +35,6 @@ export default function OrdersPage() {
   const [filterReady, setFilterReady] = useState(false);
   const [counts, setCounts] = useState({ placed: 0, overdue: 0 });
   const [search, setSearch] = useState('');
-  const [updating, setUpdating] = useState<string | null>(null);
-  const [shipModal, setShipModal] = useState<string | null>(null);
-  const [trackingId, setTrackingId] = useState('');
-  const [courierName, setCourierName] = useState('');
-  const [cancelModal, setCancelModal] = useState<{ id: string; publicNumber: string } | null>(null);
-  const [cancelReason, setCancelReason] = useState('');
-  const [cancelError, setCancelError] = useState('');
-  const [cancelling, setCancelling] = useState(false);
   const [copiedUser, setCopiedUser] = useState<string | null>(null); // the user id just copied (shows "Copied")
 
   // The dashboard links here with ?filter=overdue; read it once before the first load
@@ -137,41 +115,6 @@ export default function OrdersPage() {
     loadOrders();
   }, [filter, filterReady]);
 
-  const handleStatusUpdate = async (orderId: string, status: string) => {
-    if (status === 'shipped') {
-      setShipModal(orderId);
-      return;
-    }
-
-    setUpdating(orderId);
-    try {
-      await api.updateOrderStatus(orderId, { status });
-      await refreshOrders();
-    } catch (err: any) {
-      alert(err.message);
-    }
-    setUpdating(null);
-  };
-
-  const handleShip = async () => {
-    if (!shipModal || !trackingId) return;
-    setUpdating(shipModal);
-    try {
-      await api.updateOrderStatus(shipModal, {
-        status: 'shipped',
-        trackingId,
-        courierName: courierName || 'Manual',
-      });
-      setShipModal(null);
-      setTrackingId('');
-      setCourierName('');
-      await refreshOrders();
-    } catch (err: any) {
-      alert(err.message);
-    }
-    setUpdating(null);
-  };
-
   // Copy a customer's user id, the same "user=<id>" that the API logs show
   const copyUserId = async (id: string) => {
     try {
@@ -187,26 +130,6 @@ export default function OrdersPage() {
     }
     setCopiedUser(id);
     setTimeout(() => setCopiedUser((current) => (current === id ? null : current)), 1500);
-  };
-
-  const closeCancelModal = () => {
-    setCancelModal(null);
-    setCancelReason('');
-    setCancelError('');
-  };
-
-  const handleCancel = async () => {
-    if (!cancelModal || !cancelReason.trim()) return;
-    setCancelling(true);
-    setCancelError('');
-    try {
-      await api.updateOrderStatus(cancelModal.id, { status: 'cancelled', reason: cancelReason.trim() });
-      closeCancelModal();
-      await refreshOrders();
-    } catch (err: any) {
-      setCancelError(err.message || 'Could not cancel the order');
-    }
-    setCancelling(false);
   };
 
   const searchInput = (
@@ -269,7 +192,11 @@ export default function OrdersPage() {
             <tbody>
               {orders.map((order) => (
                 <tr key={order.id}>
-                  <td className={styles.mono}>{order.publicNumber}</td>
+                  <td className={styles.mono}>
+                    <Link href={`/orders/${order.id}`} className={styles.orderLink} title="Open this order">
+                      {order.publicNumber}
+                    </Link>
+                  </td>
                   <td>
                     <div className={styles.customerName}>{order.customer?.name || '—'}</div>
                     <div className={styles.phone}>{order.customer?.phone}</div>
@@ -294,7 +221,15 @@ export default function OrdersPage() {
                       </div>
                     )}
                   </td>
-                  <td>{order.itemCount}</td>
+                  <td>
+                    {/* what is in the order, at a glance; the order page has the rest */}
+                    {(order.items || []).slice(0, 2).map((i: any, n: number) => (
+                      <div key={n} className={styles.itemLine}>
+                        {i.productTitle}{i.variantName ? ` (${i.variantName})` : ''} <span className={styles.itemQty}>×{i.qty}</span>
+                      </div>
+                    ))}
+                    {order.itemCount > 2 && <div className={styles.itemMore}>+{order.itemCount - 2} more</div>}
+                  </td>
                   <td className={styles.price}>{formatPaise(order.totalPaise)}</td>
                   <td>
                     <span className={styles.payBadge}>
@@ -315,26 +250,7 @@ export default function OrdersPage() {
                     )}
                   </td>
                   <td>
-                    <div className={styles.actions}>
-                      {NEXT_STATUS[order.status] && (
-                        <button
-                          className={styles.actionBtn}
-                          onClick={() => handleStatusUpdate(order.id, NEXT_STATUS[order.status])}
-                          disabled={updating === order.id}
-                        >
-                          {updating === order.id ? '...' : STATUS_LABELS[order.status]}
-                        </button>
-                      )}
-                      {CANCELLABLE.includes(order.status) && (
-                        <button
-                          className={styles.cancelOrderBtn}
-                          onClick={() => setCancelModal({ id: order.id, publicNumber: order.publicNumber })}
-                          disabled={updating === order.id}
-                        >
-                          Cancel
-                        </button>
-                      )}
-                    </div>
+                    <OrderActions order={order} onChanged={refreshOrders} />
                   </td>
                 </tr>
               ))}
@@ -365,56 +281,6 @@ export default function OrdersPage() {
         </div>
       )}
 
-      {/* Ship Modal */}
-      {shipModal && (
-        <div className={styles.modalOverlay} onClick={() => { setShipModal(null); setTrackingId(''); setCourierName(''); }}>
-          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-            <h3>Ship Order</h3>
-            <p className={styles.modalSubtext}>Enter tracking details to mark this order as shipped.</p>
-            <div className={styles.modalField}>
-              <label>Tracking ID *</label>
-              <input value={trackingId} onChange={(e) => setTrackingId(e.target.value)} placeholder="e.g. DTDC123456" />
-            </div>
-            <div className={styles.modalField}>
-              <label>Courier Name</label>
-              <input value={courierName} onChange={(e) => setCourierName(e.target.value)} placeholder="e.g. DTDC, India Post" />
-            </div>
-            <div className={styles.modalActions}>
-              <button className={styles.cancelModalBtn} onClick={() => { setShipModal(null); setTrackingId(''); setCourierName(''); }}>Cancel</button>
-              <button className={styles.confirmBtn} onClick={handleShip} disabled={!trackingId}>Ship Order</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Cancel Modal */}
-      {cancelModal && (
-        <div className={styles.modalOverlay} onClick={closeCancelModal}>
-          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-            <h3>Cancel order {cancelModal.publicNumber}?</h3>
-            <p className={styles.modalSubtext}>
-              The reserved stock is released and this cannot be undone. A reason is required.
-            </p>
-            <div className={styles.modalField}>
-              <label>Reason *</label>
-              <input
-                value={cancelReason}
-                onChange={(e) => setCancelReason(e.target.value)}
-                placeholder="e.g. Customer unreachable"
-                maxLength={255}
-                autoFocus
-              />
-            </div>
-            {cancelError && <p className={styles.modalError}>{cancelError}</p>}
-            <div className={styles.modalActions}>
-              <button className={styles.cancelModalBtn} onClick={closeCancelModal} disabled={cancelling}>Keep order</button>
-              <button className={styles.dangerBtn} onClick={handleCancel} disabled={!cancelReason.trim() || cancelling}>
-                {cancelling ? 'Cancelling...' : 'Cancel order'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </AdminLayout>
   );
 }

@@ -9,8 +9,8 @@ info:
     ## Implementation status
     Operations marked `x-status: planned` are part of the target design but are **not implemented yet**
     (Phase 4: payments, webhooks, returns, refunds; Phase 5: media uploads, reports, admin users,
-    admin order detail, admin inventory list). This spec lists **35 implemented** and
-    **14 planned** operations (49 in total). Unmarked operations match the code in `apps/api`.
+    admin inventory list). This spec lists **36 implemented** and
+    **13 planned** operations (49 in total). Unmarked operations match the code in `apps/api`.
 
     ## Conventions
     - All monetary values are in **integer paise** (1 INR = 100 paise)
@@ -3269,11 +3269,14 @@ paths:
     get:
       tags: ["Admin: Orders"]
       summary: Get order detail (admin view)
-      x-status: planned
       description: |
-        **Planned (Phase 5)** — not implemented yet.
-
-        Includes customer info, full payment history, and audit trail.
+        Everything needed to pack and ship one order: the items (with colour and SKU), the delivery
+        address as frozen at checkout (`address`), the customer (id, phone, name), totals, payments,
+        shipments (courier and tracking ID), and `history`: placed, then each step with its time and,
+        when an admin did it, who (`by: { name, role }`; `null` when it was the customer). Times come
+        from the order itself, so orders without audit rows still show their steps.
+        Also carries `waitingMinutes` and `overdue` like the list. Any admin role may read it.
+        `404` when the order does not exist.
       operationId: adminGetOrder
       security:
         - BearerAuth: []
@@ -3290,6 +3293,12 @@ paths:
                   - properties:
                       data:
                         $ref: '#/components/schemas/Order'
+        "404":
+          description: Order not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /api/v1/admin/orders/{id}/status:
     patch:

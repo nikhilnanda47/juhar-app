@@ -8,6 +8,19 @@ import { InventoryService } from '../inventory/inventory.service';
 import { OrderQueryDto, AdminOrderQueryDto, UpdateOrderStatusDto, CancelOrderDto } from './dto';
 import { canTransitionOrder, INVENTORY, OrderStatus, PAGINATION } from '@juhar/shared';
 
+/** The delivery address as the checkout froze it on the order. */
+export interface AddressSnapshot {
+  recipientName: string;
+  recipientPhone: string;
+  line1: string;
+  line2?: string | null;
+  landmark?: string | null;
+  city: string;
+  district: string;
+  state: string;
+  pinCode: string;
+}
+
 @Injectable()
 export class OrdersService {
   private readonly logger = new Logger(OrdersService.name);
@@ -203,6 +216,123 @@ export class OrdersService {
         },
       },
     };
+  }
+
+  /**
+   * Admin: one order with everything needed to pack and ship it: what to pack, where it goes, who the
+   * customer is, what to collect, and who did what when.
+   */
+  async findOneAdmin(orderId: string, now: Date = new Date()) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        items: { include: { variant: { select: { color: true } } }, orderBy: { createdAt: 'asc' } },
+        shipments: { orderBy: { createdAt: 'asc' } },
+        payments: { orderBy: { createdAt: 'asc' } },
+        user: { select: { id: true, phone: true, name: true } },
+      },
+    });
+    if (!order) throw new NotFoundException('Order not found');
+
+    // who changed the status: the audit trail holds the acting person's USER id (the login id, the same
+    // "user=<id>" the logs show), not the admin_users row id. The admin record is matched by phone number.
+    const audit = await this.prisma.auditEvent.findMany({
+      where: { entityType: 'order', entityId: orderId, action: 'order.status_changed' },
+      orderBy: { createdAt: 'asc' },
+    });
+    const actorIds = [...new Set(audit.map((a: any) => a.actorId).filter(Boolean))] as string[];
+    const actors = actorIds.length
+      ? await this.prisma.user.findMany({ where: { id: { in: actorIds } }, select: { id: true, phone: true, name: true } })
+      : [];
+    const adminRecords = actors.length
+      ? await this.prisma.adminUser.findMany({
+          where: { phone: { in: actors.map((u: any) => u.phone) } },
+          select: { phone: true, name: true, role: true },
+        })
+      : [];
+    const admins = actors.map((u: any) => {
+      const admin = adminRecords.find((a: any) => a.phone === u.phone);
+      // a person who is no longer an admin is still named, from their login
+      return { id: u.id as string, name: (admin?.name || u.name || u.phone) as string, role: (admin?.role || '') as string };
+    });
+
+    return {
+      id: order.id,
+      publicNumber: order.publicNumber,
+      status: order.status,
+      paymentMode: order.paymentMode,
+      paymentStatus: order.paymentStatus,
+      subtotalPaise: order.subtotalPaise,
+      shippingPaise: order.shippingPaise,
+      taxPaise: order.taxPaise,
+      discountPaise: order.discountPaise,
+      totalPaise: order.totalPaise,
+      notes: order.notes,
+      createdAt: order.createdAt,
+      cancellationReason: order.cancellationReason,
+      // the address the customer chose at checkout, frozen on the order (editing a saved address does not change it)
+      address: order.addressSnapshot as unknown as AddressSnapshot,
+      customer: order.user ? { id: order.user.id, phone: order.user.phone, name: order.user.name } : null,
+      items: order.items.map((i: any) => ({
+        id: i.id,
+        productTitle: i.productTitle,
+        variantName: i.variantName,
+        color: i.variant?.color ?? null,
+        sku: i.sku,
+        qty: i.qty,
+        unitPricePaise: i.unitPricePaise,
+        totalPaise: i.totalPaise,
+      })),
+      shipments: order.shipments.map((s: any) => ({
+        id: s.id,
+        carrier: s.carrier,
+        trackingId: s.trackingId,
+        status: s.status,
+        dispatchedAt: s.dispatchedAt,
+        deliveredAt: s.deliveredAt,
+      })),
+      payments: order.payments.map((p: any) => ({
+        id: p.id,
+        gateway: p.gateway,
+        method: p.method,
+        status: p.status,
+        amountPaise: p.amountPaise,
+        paidAt: p.paidAt,
+      })),
+      history: this.orderHistory(order, audit, admins),
+      ...this.waitingInfo(order, now),
+    };
+  }
+
+  /**
+   * The order's story, oldest first: placed, then each step with its time and, when it was an admin,
+   * who did it. Times come from the order itself (so old orders without audit rows still show);
+   * the audit trail only adds the name. A status the customer reached on their own has no admin.
+   */
+  private orderHistory(order: any, audit: any[], admins: { id: string; name: string; role: string }[]) {
+    const steps: { status: string; at: Date | null }[] = [
+      { status: 'confirmed', at: order.confirmedAt },
+      { status: 'packed', at: order.packedAt },
+      { status: 'shipped', at: order.shippedAt },
+      { status: 'delivered', at: order.deliveredAt },
+      { status: 'cancelled', at: order.cancelledAt },
+    ];
+    const history = [
+      { status: 'placed', at: order.createdAt, by: null as { name: string; role: string } | null, reason: null as string | null },
+      ...steps
+        .filter((s) => s.at)
+        .map((s) => {
+          const event = [...audit].reverse().find((a) => a.afterState?.status === s.status);
+          const admin = event?.actorId ? admins.find((a) => a.id === event.actorId) : undefined;
+          return {
+            status: s.status,
+            at: s.at as Date,
+            by: admin ? { name: admin.name, role: admin.role } : null,
+            reason: s.status === 'cancelled' ? order.cancellationReason ?? null : null,
+          };
+        }),
+    ];
+    return history.sort((a, b) => new Date(a.at as any).getTime() - new Date(b.at as any).getTime());
   }
 
   /**

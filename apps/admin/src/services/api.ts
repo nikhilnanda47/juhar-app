@@ -197,6 +197,11 @@ export class ApiClient {
     );
   }
 
+  /** One order in full: items, delivery address, customer, payment, shipments and history. */
+  async getOrder(id: string) {
+    return this.request<AdminOrderDetail>(`/api/v1/admin/orders/${id}`);
+  }
+
   async updateOrderStatus(id: string, data: { status: string; trackingId?: string; courierName?: string; reason?: string }) {
     return this.request(`/api/v1/admin/orders/${id}/status`, {
       method: 'PATCH',
@@ -230,3 +235,36 @@ export class ApiError extends Error {
 }
 
 export const api = new ApiClient();
+
+export interface AdminOrderDetail {
+  id: string;
+  publicNumber: string;
+  status: string;
+  paymentMode: string;
+  paymentStatus: string;
+  subtotalPaise: number;
+  shippingPaise: number;
+  taxPaise: number;
+  discountPaise: number;
+  totalPaise: number;
+  notes: string | null;
+  createdAt: string;
+  cancellationReason: string | null;
+  /** the delivery address as it was when the order was placed */
+  address: {
+    recipientName: string; recipientPhone: string;
+    line1: string; line2?: string | null; landmark?: string | null;
+    city: string; district: string; state: string; pinCode: string;
+  };
+  customer: { id: string; phone: string; name: string | null } | null;
+  items: {
+    id: string; productTitle: string; variantName: string | null; color: string | null; sku: string;
+    qty: number; unitPricePaise: number; totalPaise: number;
+  }[];
+  shipments: { id: string; carrier: string | null; trackingId: string | null; status: string; dispatchedAt: string | null; deliveredAt: string | null }[];
+  payments: { id: string; gateway: string; method: string | null; status: string; amountPaise: number; paidAt: string | null }[];
+  /** oldest first; `by` is the admin who did the step, null when it was the customer */
+  history: { status: string; at: string; by: { name: string; role: string } | null; reason: string | null }[];
+  waitingMinutes: number | null;
+  overdue: boolean;
+}

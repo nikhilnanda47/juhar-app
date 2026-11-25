@@ -102,7 +102,7 @@ Tight palette — 3 brand colors + neutrals. No rainbow.
 
 ## 3a. Theming & Dark Mode
 
-> **Implementation status (2026-11-22):** Implemented in the mobile app and the customer website. The admin panel is light-only. The default is always light; the OS appearance setting is not followed yet.
+> **Implementation status (2026-11-22):** Implemented in the mobile app, the customer website and the admin panel (which has its own switch, see below). The default is always light; the OS appearance setting is not followed yet.
 
 Every colour is a **semantic token** with a light value and a dark value. Screens ask for the token (`surface`, `text-primary`, `border`, ...) and never for a literal colour, so a theme switch changes every screen at once. The brand colours and the functional colours (success, warning, error) are identical in both themes.
 
