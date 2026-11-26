@@ -2,6 +2,8 @@ import {
   Injectable, BadRequestException, Logger, NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { Order, OrderItem } from '@prisma/client';
+import { asJson } from '../../common/audit/json';
 import { InventoryService } from '../inventory/inventory.service';
 import { CheckoutQuoteDto, PlaceOrderDto } from './dto';
 import { calculateShippingPaise, checkDelivery, generateOrderNumber, PaymentMode } from '@juhar/shared';
@@ -184,7 +186,7 @@ export class CheckoutService {
           shippingPaise,
           taxPaise,
           totalPaise,
-          addressSnapshot: {
+          addressSnapshot: asJson({
             recipientName: address.recipientName,
             recipientPhone: address.recipientPhone,
             line1: address.line1,
@@ -194,7 +196,7 @@ export class CheckoutService {
             district: address.district,
             state: address.state,
             pinCode: address.pinCode,
-          } as any,
+          }),
           idempotencyKey: dto.idempotencyKey,
           notes: dto.notes,
         },
@@ -244,7 +246,7 @@ export class CheckoutService {
     return order;
   }
 
-  private formatOrderResponse(order: any) {
+  private formatOrderResponse(order: Order & { items?: OrderItem[] }) {
     return {
       id: order.id,
       publicNumber: order.publicNumber,
@@ -259,7 +261,7 @@ export class CheckoutService {
       addressSnapshot: order.addressSnapshot,
       notes: order.notes,
       estimatedDelivery: '5–7 business days',
-      items: order.items?.map((item: any) => ({
+      items: order.items?.map((item) => ({
         id: item.id,
         productTitle: item.productTitle,
         variantName: item.variantName,

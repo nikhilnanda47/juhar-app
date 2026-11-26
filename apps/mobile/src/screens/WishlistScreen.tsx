@@ -5,13 +5,15 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { Heart, Trash2, ShoppingBag, ChevronLeft } from 'lucide-react-native';
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
-import { addToCart, getCart, formatPaise, isLoggedIn, referenceOf } from '../services/api';
+import { addToCart, getCart, formatPaise, isLoggedIn, referenceOf, messageOf } from '../services/api';
 import { onCartChanged } from '../services/cartEvents';
 import { useWishlist } from '../contexts/WishlistContext';
 import { showAlert } from '../utils/showAlert';
+import ProductImage from '../components/ProductImage';
+import type { ScreenNavigation } from '../navigation/types';
 
 interface Props {
-  navigation: any;
+  navigation: ScreenNavigation;
 }
 
 export default function WishlistScreen({ navigation }: Props) {
@@ -58,10 +60,10 @@ export default function WishlistScreen({ navigation }: Props) {
     try {
       await addToCart(variantId, 1);
       setInBag((prev) => new Set(prev).add(variantId)); // the bag change event re-reads it too
-    } catch (err: any) {
+    } catch (err) {
       // used to fail without a word
       const reference = referenceOf(err);
-      showAlert('Could not add to bag', `${err?.message || 'Please try again.'}${reference ? `\n\nReference: ${reference}` : ''}`);
+      showAlert('Could not add to bag', `${messageOf(err, 'Please try again.')}${reference ? `\n\nReference: ${reference}` : ''}`);
     }
     setAddingId(null);
   };
@@ -101,7 +103,9 @@ export default function WishlistScreen({ navigation }: Props) {
                 activeOpacity={v.isListed ? 0.8 : 1}
                 onPress={() => v.isListed && navigation.navigate('Shop', { screen: 'ProductDetail', params: { slug: p.slug } })}
               >
-                <View style={styles.rowImage} />
+                <View style={styles.rowImage}>
+                  <ProductImage uri={v.imageUrl} alt={p.title} />
+                </View>
                 <View style={styles.rowInfo}>
                   <Text style={styles.rowTitle} numberOfLines={2}>{p.title}</Text>
                   <Text style={styles.rowSub}>{v.color || v.name || p.origin || ''}</Text>
@@ -192,7 +196,7 @@ function createStyles(colors: ColorPalette) {
       padding: 12, borderWidth: 1, borderColor: colors.border,
     },
     rowImage: {
-      width: 80, aspectRatio: 0.75, borderRadius: borderRadius.md,
+      width: 80, aspectRatio: 0.75, borderRadius: borderRadius.md, overflow: 'hidden',
       backgroundColor: colors.surfaceMuted,
     },
     rowInfo: { flex: 1 },

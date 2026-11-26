@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import ProductImage from '@/components/ProductImage';
 import { Heart, ShoppingBag, Trash2, ArrowLeft } from 'lucide-react';
-import { isLoggedIn, addToCart, getCart, formatPaise, referenceOf } from '@/lib/api';
+import { isLoggedIn, addToCart, getCart, formatPaise, referenceOf, messageOf } from '@/lib/api';
 import { CART_CHANGED_EVENT } from '@/lib/cart-events';
 import { useWishlist } from '@/lib/wishlist-context';
 import ErrorReference from '@/components/ErrorReference';
@@ -78,9 +79,9 @@ export default function WishlistPage() {
     try {
       await addToCart(variantId, 1);
       setInBag((prev) => new Set(prev).add(variantId)); // the bag change event re-reads it too
-    } catch (e: any) {
+    } catch (e) {
       // used to fail without a word
-      setError(e?.message || 'Could not add this saree to your bag. Please try again.');
+      setError(messageOf(e, 'Could not add this saree to your bag. Please try again.'));
       setErrorRef(referenceOf(e));
     }
     setAddingId(null);
@@ -115,6 +116,7 @@ export default function WishlistPage() {
           const card = (
             <>
               <div className="relative aspect-[3/4] rounded-xl bg-surface-container-low overflow-hidden mb-2 group-hover:shadow-md transition-shadow">
+                <ProductImage src={v.imageUrl} alt={v.product.title} />
                 {discount && v.isListed && (
                   <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-primary text-white font-sans text-label-sm font-semibold">
                     {discount}% off

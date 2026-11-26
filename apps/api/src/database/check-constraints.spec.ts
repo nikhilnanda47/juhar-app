@@ -65,7 +65,8 @@ describeDb('database CHECK constraints (real Postgres)', () => {
     const payment = await tx.payment.create({
       data: { orderId: order.id, gateway: 'test', amountPaise: 100000 },
     });
-    const admin = await tx.adminUser.create({ data: { phone: `+8${id}`, name: 'Test admin', role: 'owner' } });
+    const adminLogin = await tx.user.create({ data: { phone: `+8${id}`, name: 'Test admin' } });
+    const admin = await tx.adminUser.create({ data: { userId: adminLogin.id, phone: `+8${id}`, name: 'Test admin', role: 'owner' } });
     return {
       variantId: variant.id,
       userId: user.id,

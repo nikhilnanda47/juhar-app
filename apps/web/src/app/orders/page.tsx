@@ -1,11 +1,13 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Package, User, ArrowRight, ShieldCheck } from 'lucide-react';
-import { loadToken, getOrders, formatPaise } from '@/lib/api';
+import { loadToken, getOrders, formatPaise, type OrderSummary } from '@/lib/api';
 import { appendUnique } from '@/lib/paging';
+import ProductImage from '@/components/ProductImage';
+import { useOnMount } from '@/lib/hooks';
 
 const STATUS_STYLES: Record<string, { bgClass: string; textClass: string; label: string }> = {
   placed: { bgClass: 'bg-surface-container-high', textClass: 'text-primary', label: 'Placed' },
@@ -26,7 +28,7 @@ const FILTERS = ['All', 'Placed', 'Confirmed', 'Shipped', 'Delivered', 'Cancelle
 
 export default function OrdersPage() {
   const router = useRouter();
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -80,12 +82,13 @@ export default function OrdersPage() {
     }
   };
 
-  useEffect(() => {
+  // the first page of orders, once, when the page opens
+  useOnMount(() => {
     const hasToken = loadToken();
     setLoggedIn(hasToken);
     if (hasToken) loadFirstPage('All');
     else setLoading(false);
-  }, []);
+  });
 
   const changeFilter = (filter: string) => {
     setActiveFilter(filter);
@@ -178,7 +181,7 @@ export default function OrdersPage() {
 
         {/* Table rows */}
         <div className="border border-border rounded-b-xl overflow-hidden divide-y divide-border">
-          {filteredOrders.map((order: any) => {
+          {filteredOrders.map((order) => {
             const sc = STATUS_STYLES[order.status] || STATUS_STYLES.placed;
             const firstItem = order.items?.[0];
             const moreCount = (order.itemCount || order.items?.length || 0) - 1;
@@ -198,7 +201,9 @@ export default function OrdersPage() {
 
                 {/* Items preview */}
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-14 rounded-lg bg-surface-container-low shrink-0" />
+                  <div className="relative w-10 h-14 rounded-lg bg-surface-container-low overflow-hidden shrink-0">
+                    <ProductImage src={firstItem?.imageUrl} alt={firstItem?.productTitle || 'Handloom saree'} />
+                  </div>
                   <div className="min-w-0">
                     <p className="font-sans text-body-sm text-text-primary truncate">{firstItem?.productTitle || 'Handloom Saree'}</p>
                     {moreCount > 0 && <p className="font-sans text-label-sm text-primary">+{moreCount} more</p>}
@@ -236,7 +241,7 @@ export default function OrdersPage() {
 
       {/* Mobile/Tablet: card layout */}
       <div className="lg:hidden grid gap-3 md:grid-cols-2">
-        {orders.map((order: any) => {
+        {orders.map((order) => {
           const sc = STATUS_STYLES[order.status] || STATUS_STYLES.placed;
           const firstItem = order.items?.[0];
           const moreCount = (order.itemCount || order.items?.length || 0) - 1;
@@ -254,7 +259,9 @@ export default function OrdersPage() {
                 </span>
               </div>
               <div className="flex items-center gap-3 bg-surface-container-low/50 p-1.5 rounded-lg mt-3">
-                <div className="w-12 h-16 rounded-lg bg-surface-container-high shrink-0" />
+                <div className="relative w-12 h-16 rounded-lg bg-surface-container-high overflow-hidden shrink-0">
+                  <ProductImage src={firstItem?.imageUrl} alt={firstItem?.productTitle || 'Handloom saree'} />
+                </div>
                 <div className="min-w-0">
                   <p className="font-sans text-body-md text-text-primary font-medium truncate">{firstItem?.productTitle || 'Handloom Saree'}</p>
                   {moreCount > 0 && <p className="font-sans text-label-sm text-primary mt-0.5">+{moreCount} more</p>}

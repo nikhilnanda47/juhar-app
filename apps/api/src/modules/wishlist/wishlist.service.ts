@@ -4,6 +4,7 @@ import {
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AddToWishlistDto } from './dto';
+import { MediaService } from '../media/media.service';
 
 /** True when the database refused a row because the (user, variant) pair is already saved. */
 function isAlreadySaved(error: unknown): boolean {
@@ -12,7 +13,10 @@ function isAlreadySaved(error: unknown): boolean {
 
 @Injectable()
 export class WishlistService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly media: MediaService,
+  ) {}
 
   /**
    * A customer can only save what the shop sells: an active variant of a published product.
@@ -71,6 +75,7 @@ export class WishlistService {
       orderBy: [{ addedAt: 'desc' }, { id: 'desc' }],
     });
 
+    const photos = await this.media.thumbnailsForVariants(items.map((item) => item.variant.id));
     const wishlistItems = items.map((item) => {
       const v = item.variant;
       const inv = v.inventory;
@@ -93,6 +98,7 @@ export class WishlistService {
           available,
           isListed,
           isAvailable: isListed && available > 0,
+          imageUrl: photos.get(v.id) ?? null,
           product,
         },
       };

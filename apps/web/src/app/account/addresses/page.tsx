@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { MapPin, Plus, Phone, Pencil, Trash2, Home, Briefcase, ArrowLeft } from 'lucide-react';
-import { loadToken, getAddresses, updateAddress, deleteAddress, referenceOf, type Address } from '@/lib/api';
+import { loadToken, getAddresses, updateAddress, deleteAddress, referenceOf, type Address, messageOf } from '@/lib/api';
 import ErrorReference from '@/components/ErrorReference';
 
 const LABEL_ICONS: Record<string, typeof Home> = { Home, Office: Briefcase };
@@ -20,7 +20,7 @@ export default function MyAddressesPage() {
 
   const reload = async () => {
     try { setAddresses(await getAddresses()); }
-    catch (e: any) { setError(e?.message || 'Could not load your addresses. Please try again.'); setErrorRef(referenceOf(e)); }
+    catch (e) { setError(messageOf(e, 'Could not load your addresses. Please try again.')); setErrorRef(referenceOf(e)); }
     finally { setLoading(false); }
   };
 
@@ -36,7 +36,7 @@ export default function MyAddressesPage() {
     if (busyId) return;
     setBusyId(id); setError(''); setErrorRef('');
     try { await work(); await reload(); }
-    catch (e: any) { setError(e?.message || 'Something went wrong. Please try again.'); setErrorRef(referenceOf(e)); }
+    catch (e) { setError(messageOf(e, 'Something went wrong. Please try again.')); setErrorRef(referenceOf(e)); }
     finally { setBusyId(null); }
   };
 

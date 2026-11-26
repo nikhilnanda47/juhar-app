@@ -19,7 +19,7 @@ import {
   addToCart,
   checkDelivery,
   isLoggedIn,
-  referenceOf,
+  referenceOf, messageOf,
   type DeliveryCheck,
   type Product,
   type ProductVariant,
@@ -29,14 +29,21 @@ import { showAlert } from '../utils/showAlert';
 import * as Clipboard from 'expo-clipboard';
 import { shareProduct, resolveWebBase } from '../services/share';
 import LoadFailed from '../components/LoadFailed';
+import ProductImage from '../components/ProductImage';
+import { firstPhotoIndexOfVariant, thumbnailForVariant } from '../services/photos';
 import { describeLoadFailure, type LoadFailure } from '../services/loadFailure';
 import ErrorReference from '../components/ErrorReference';
+import { useLatest } from '../utils/hooks';
+import type { ScreenNavigation } from '../navigation/types';
 
 
 interface Props {
   route: { params: { slug: string } };
-  navigation: any;
+  navigation: ScreenNavigation;
 }
+
+// what a ScrollView's ref gives back (scrollTo and friends)
+type ScrollViewHandle = React.ComponentProps<typeof ScrollView> extends { ref?: React.Ref<infer T> } ? T : never;
 
 export default function ProductDetailScreen({ route, navigation }: Props) {
   const { slug } = route.params;
@@ -60,7 +67,12 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
   const [pinError, setPinError] = useState('');
   const [pinErrorRef, setPinErrorRef] = useState('');
   const pinRequest = useRef(0); // only the newest question may show its answer
-  const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
+  const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
+  // The photo gallery: a row of full-width photos you swipe through, with dots underneath
+  const [photoIndex, setPhotoIndex] = useState(0);
+  const [heroWidth, setHeroWidth] = useState(0);
+  const heroScroll = useRef<ScrollViewHandle>(null);
+  const jumpedFor = useRef<string | null>(null); // the colour the gallery last jumped to
   const [toastVisible, setToastVisible] = useState(false);
   const toastAnim = useRef(new RNAnimated.Value(0)).current;
 
@@ -73,7 +85,21 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
     ]).start(() => setToastVisible(false));
   };
 
-  useEffect(() => { loadProduct(); }, [slug]);
+  const photos = (product?.media ?? []).filter((m) => (m.type ?? 'image') === 'image');
+  const goToPhoto = useCallback((index: number) => {
+    setPhotoIndex(index);
+    heroScroll.current?.scrollTo({ x: index * heroWidth, animated: true });
+  }, [heroWidth]);
+  // A new saree opens on its first photo
+  useEffect(() => { setPhotoIndex(0); jumpedFor.current = null; heroScroll.current?.scrollTo({ x: 0, animated: false }); }, [slug]);
+  // Picking a colour that has its own photo shows that photo (once per pick, so swiping afterwards is left alone)
+  useEffect(() => {
+    if (!selectedVariant || heroWidth === 0 || jumpedFor.current === selectedVariant.id) return;
+    jumpedFor.current = selectedVariant.id;
+    const own = firstPhotoIndexOfVariant(photos, selectedVariant.id);
+    if (own >= 0) goToPhoto(own);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- photos only changes with the product, which the colour follows
+  }, [selectedVariant?.id, heroWidth, goToPhoto]);
 
   useFocusEffect(
     useCallback(() => {
@@ -99,16 +125,21 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
       if (data.variants.length > 0) setSelectedVariant(data.variants[0]);
       try {
         const related = await getProducts({ limit: '6' });
-        setRelatedProducts((related.items || []).filter((p: any) => p.slug !== slug).slice(0, 6));
+        setRelatedProducts((related.items || []).filter((p) => p.slug !== slug).slice(0, 6));
       } catch {}
-    } catch (err: any) {
-      setError(err.message || 'Product not found');
+    } catch (err) {
+      setError(messageOf(err, 'Product not found'));
       setErrorRef(referenceOf(err));
       setFailure(describeLoadFailure(err));
     } finally {
       setLoading(false);
     }
   };
+
+  // the saree is read when the screen opens, and again if it is opened for another one. (loadProduct is read through a box
+  // that always holds the newest one: it should reload when the SAREE changes, not whenever the function is recreated.)
+  const reloadProduct = useLatest(loadProduct);
+  useEffect(() => { reloadProduct.current(); }, [slug, reloadProduct]);
 
   if (loading) {
     return <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>;
@@ -166,9 +197,9 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
     try {
       const answer = await checkDelivery(pinCode);
       if (mine === pinRequest.current) setDelivery(answer);
-    } catch (err: any) {
+    } catch (err) {
       if (mine === pinRequest.current) {
-        setPinError(err?.message || 'Could not check this PIN code right now. Please try again.');
+        setPinError(messageOf(err, 'Could not check this PIN code right now. Please try again.'));
         setPinErrorRef(referenceOf(err));
       }
     } finally {
@@ -195,13 +226,14 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
           pricePaise: selectedVariant.pricePaise,
           compareAtPaise: selectedVariant.compareAtPaise,
           available: selectedVariant.available,
+          imageUrl: thumbnailForVariant(photos, selectedVariant.id), // so the bag shows the photo without asking again
         });
       }
       setAddedToCart(true);
       showToast();
-    } catch (err: any) {
+    } catch (err) {
       const reference = referenceOf(err);
-      showAlert('Error', `${err.message || 'Failed to add to cart'}${reference ? `\n\nReference: ${reference}` : ''}`);
+      showAlert('Error', `${messageOf(err, 'Failed to add to cart')}${reference ? `\n\nReference: ${reference}` : ''}`);
     } finally {
       setAddingToCart(false);
     }
@@ -241,19 +273,44 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
 
         {/* Hero Image */}
         <View style={styles.heroWrap}>
-          <View style={styles.heroImage}>
+          <View style={styles.heroImage} onLayout={(e) => setHeroWidth(e.nativeEvent.layout.width)}>
             <View style={styles.heroPlaceholder} />
+            {photos.length > 0 && heroWidth > 0 && (
+              <ScrollView
+                ref={heroScroll}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                style={StyleSheet.absoluteFill}
+                onMomentumScrollEnd={(e) => setPhotoIndex(Math.round(e.nativeEvent.contentOffset.x / heroWidth))}
+              >
+                {photos.map((m, i) => (
+                  <View key={m.id} style={{ width: heroWidth, height: '100%', overflow: 'hidden' }}>
+                    <ProductImage uri={m.url} alt={m.altText || `${product?.title ?? 'Saree'}, photo ${i + 1} of ${photos.length}`} />
+                  </View>
+                ))}
+              </ScrollView>
+            )}
             <View style={styles.giBadge}>
               <View style={styles.giDot} />
               <Text style={styles.giText}>GI CERTIFIED LOOM</Text>
             </View>
           </View>
-          <View style={styles.dotRow}>
-            <View style={[styles.dot, styles.dotActive]} />
-            <View style={styles.dot} />
-            <View style={styles.dot} />
-            <View style={styles.dot} />
-          </View>
+          {photos.length > 1 && (
+            <View style={styles.dotRow}>
+              {photos.map((m, i) => (
+                <TouchableOpacity
+                  key={m.id}
+                  onPress={() => goToPhoto(i)}
+                  accessibilityLabel={`Photo ${i + 1} of ${photos.length}`}
+                  accessibilityState={{ selected: i === photoIndex }}
+                  hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                >
+                  <View style={[styles.dot, i === photoIndex && styles.dotActive]} />
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
         </View>
 
         {/* Title & Price */}
@@ -311,6 +368,8 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
                       key={v.id}
                       style={[styles.swatch, isSelected && styles.swatchActive]}
                       onPress={() => { pickedVariant.current = true; setSelectedVariant(v); }}
+                      accessibilityLabel={`Colour ${v.color || v.name || v.sku}`}
+                      accessibilityState={{ selected: isSelected }}
                     >
                       <View style={[styles.swatchInner, { backgroundColor: getColorHex(v.color || '') }]} />
                       {isSelected && (
@@ -407,14 +466,16 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
               <Text style={styles.relatedMetaLabel}>RELATED WEAVES</Text>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.relatedScroll}>
-              {relatedProducts.map((p: any) => (
+              {relatedProducts.map((p) => (
                 <TouchableOpacity
                   key={p.id}
                   style={styles.relatedCard}
                   activeOpacity={0.85}
                   onPress={() => navigation.push('ProductDetail', { slug: p.slug })}
                 >
-                  <View style={styles.relatedImage} />
+                  <View style={styles.relatedImage}>
+                    <ProductImage uri={p.primaryImage?.url} alt={p.primaryImage?.alt || p.title} />
+                  </View>
                   <View style={styles.relatedMeta2}>
                     <Text style={styles.relatedOrigin}>
                       {(p.origin || 'Odisha').split(',')[0].toUpperCase()}
@@ -659,7 +720,7 @@ const createStyles = (colors: ColorPalette) => StyleSheet.create({
     overflow: 'hidden',
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 1,
   },
-  relatedImage: { width: '100%', aspectRatio: 3 / 4, backgroundColor: colors.placeholder },
+  relatedImage: { width: '100%', aspectRatio: 3 / 4, overflow: 'hidden', backgroundColor: colors.placeholder },
   relatedMeta2: { padding: 10 },
   relatedOrigin: {
     fontFamily: 'DMSans-SemiBold', fontSize: 10, color: colors.textSecondary,

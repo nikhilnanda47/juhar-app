@@ -1,8 +1,10 @@
 import {
   Injectable, BadRequestException, Logger, NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Order, Prisma } from '@prisma/client';
+import { asJson } from '../../common/audit/json';
 import { PrismaService } from '../../prisma/prisma.service';
+import { MediaService } from '../media/media.service';
 import { indiaDayBounds } from '../../common/time/india-day';
 import { resolveActors, type ActorName } from '../../common/audit/actor-names';
 import { InventoryService } from '../inventory/inventory.service';
@@ -22,6 +24,53 @@ export interface AddressSnapshot {
   pinCode: string;
 }
 
+// What the reply formatters need from an order. They are used for orders read in several ways (the customer's list,
+// the admin's list, an order with or without its shipments), so every part that is not always read is optional.
+interface SummaryItem {
+  productTitle: string;
+  variantName?: string | null;
+  variantId?: string;
+  qty: number;
+  totalPaise: number;
+}
+type OrderForSummary = Pick<Order, 'id' | 'publicNumber' | 'status' | 'paymentMode' | 'paymentStatus' | 'totalPaise' | 'createdAt'> & {
+  items?: SummaryItem[];
+};
+interface DetailItem {
+  id: string;
+  productTitle: string;
+  variantName: string | null;
+  sku: string;
+  qty: number;
+  unitPricePaise: number;
+  totalPaise: number;
+}
+interface DetailShipment {
+  id: string;
+  carrier: string | null;
+  trackingId: string | null;
+  status: string;
+  dispatchedAt: Date | null;
+  deliveredAt: Date | null;
+}
+type OrderForDetail = Order & { items?: DetailItem[]; shipments?: DetailShipment[] };
+type OrderTimes = Pick<Order, 'createdAt' | 'confirmedAt' | 'packedAt' | 'shippedAt' | 'deliveredAt' | 'cancelledAt' | 'cancellationReason'>;
+/** The part of an audit entry the order history reads */
+interface StatusAudit {
+  actorId: string | null;
+  afterState: Prisma.JsonValue;
+}
+
+/** The status an audit entry says the order reached (its afterState is JSON, so this checks before reading) */
+function statusAfter(entry: StatusAudit): string | undefined {
+  const state = entry.afterState;
+  if (state && typeof state === 'object' && !Array.isArray(state)) {
+    const status = (state as Prisma.JsonObject).status;
+    return typeof status === 'string' ? status : undefined;
+  }
+  return undefined;
+}
+
 @Injectable()
 export class OrdersService {
   private readonly logger = new Logger(OrdersService.name);
@@ -29,6 +78,7 @@ export class OrdersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly inventoryService: InventoryService,
+    private readonly media: MediaService,
   ) {}
 
   // ─────────────────────────────────────────
@@ -44,7 +94,7 @@ export class OrdersService {
     const where: Prisma.OrderWhereInput = { userId };
     if (query.status) where.status = query.status;
 
-    const findArgs: Prisma.OrderFindManyArgs = {
+    const findArgs = {
       where,
       // id breaks ties, so orders created in the same instant keep one fixed order across pages
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
@@ -52,17 +102,13 @@ export class OrdersService {
       include: {
         items: {
           select: {
-            id: true, productTitle: true, variantName: true, sku: true,
+            id: true, variantId: true, productTitle: true, variantName: true, sku: true,
             qty: true, unitPricePaise: true, totalPaise: true,
           },
         },
       },
-    };
-
-    if (query.cursor) {
-      findArgs.cursor = { id: query.cursor };
-      findArgs.skip = 1;
-    }
+      ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
+    } satisfies Prisma.OrderFindManyArgs;
 
     // `total` is every order of this customer that matches the status filter (if any), whatever the
     // page; `counts` is how many orders they have in each status (filter ignored), so the apps can
@@ -75,8 +121,10 @@ export class OrdersService {
     const hasMore = orders.length > limit;
     const items = hasMore ? orders.slice(0, limit) : orders;
 
+    // a small photo for each saree in the list
+    const photos = await this.media.thumbnailsForVariants(items.flatMap((o) => o.items.map((i) => i.variantId)));
     return {
-      items: items.map((o) => this.toOrderSummary(o)),
+      items: items.map((o) => this.toOrderSummary(o, photos)),
       cursor: hasMore ? items[items.length - 1].id : null,
       hasMore,
       total,
@@ -96,7 +144,10 @@ export class OrdersService {
       },
     });
     if (!order) throw new NotFoundException('Order not found');
-    return this.toOrderDetail(order);
+    const detail = this.toOrderDetail(order);
+    // a small photo next to each saree (the colour's own photo when there is one)
+    const photos = await this.media.thumbnailsForVariants(order.items.map((i) => i.variantId));
+    return { ...detail, items: detail.items.map((item, n) => ({ ...item, imageUrl: photos.get(order.items[n].variantId) ?? null })) };
   }
 
   /**
@@ -161,7 +212,7 @@ export class OrdersService {
     }
     if (query.overdue) where.AND = [overdueWhere];
 
-    const findArgs: Prisma.OrderFindManyArgs = {
+    const findArgs = {
       where,
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: limit + 1,
@@ -171,12 +222,8 @@ export class OrdersService {
         },
         user: { select: { id: true, phone: true, name: true } },
       },
-    };
-
-    if (query.cursor) {
-      findArgs.cursor = { id: query.cursor };
-      findArgs.skip = 1;
-    }
+      ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
+    } satisfies Prisma.OrderFindManyArgs;
 
     // The counts cover all orders (not just this page or this filter) so the dashboard
     // and the filter button always show the real numbers.
@@ -199,7 +246,7 @@ export class OrdersService {
     const items = hasMore ? orders.slice(0, limit) : orders;
 
     return {
-      items: items.map((o: any) => ({
+      items: items.map((o) => ({
         ...this.toOrderSummary(o),
         // id is the same "user=<id>" that the logs show, so a log line can be matched to a customer
         customer: o.user ? { id: o.user.id, phone: o.user.phone, name: o.user.name } : null,
@@ -240,7 +287,8 @@ export class OrdersService {
       where: { entityType: 'order', entityId: orderId, action: 'order.status_changed' },
       orderBy: { createdAt: 'asc' },
     });
-    const actors = await resolveActors(this.prisma, audit.map((a: any) => a.actorId));
+    const actors = await resolveActors(this.prisma, audit.map((a) => a.actorId));
+    const photos = await this.media.thumbnailsForVariants(order.items.map((i) => i.variantId));
     return {
       id: order.id,
       publicNumber: order.publicNumber,
@@ -258,17 +306,18 @@ export class OrdersService {
       // the address the customer chose at checkout, frozen on the order (editing a saved address does not change it)
       address: order.addressSnapshot as unknown as AddressSnapshot,
       customer: order.user ? { id: order.user.id, phone: order.user.phone, name: order.user.name } : null,
-      items: order.items.map((i: any) => ({
+      items: order.items.map((i) => ({
         id: i.id,
         productTitle: i.productTitle,
         variantName: i.variantName,
         color: i.variant?.color ?? null,
+        imageUrl: photos.get(i.variantId) ?? null,
         sku: i.sku,
         qty: i.qty,
         unitPricePaise: i.unitPricePaise,
         totalPaise: i.totalPaise,
       })),
-      shipments: order.shipments.map((s: any) => ({
+      shipments: order.shipments.map((s) => ({
         id: s.id,
         carrier: s.carrier,
         trackingId: s.trackingId,
@@ -276,7 +325,7 @@ export class OrdersService {
         dispatchedAt: s.dispatchedAt,
         deliveredAt: s.deliveredAt,
       })),
-      payments: order.payments.map((p: any) => ({
+      payments: order.payments.map((p) => ({
         id: p.id,
         gateway: p.gateway,
         method: p.method,
@@ -294,7 +343,7 @@ export class OrdersService {
    * who did it. Times come from the order itself (so old orders without audit rows still show);
    * the audit trail only adds the name. A status the customer reached on their own has no admin.
    */
-  private orderHistory(order: any, audit: any[], actors: Map<string, ActorName>) {
+  private orderHistory(order: OrderTimes, audit: StatusAudit[], actors: Map<string, ActorName>) {
     const steps: { status: string; at: Date | null }[] = [
       { status: 'confirmed', at: order.confirmedAt },
       { status: 'packed', at: order.packedAt },
@@ -307,7 +356,7 @@ export class OrdersService {
       ...steps
         .filter((s) => s.at)
         .map((s) => {
-          const event = [...audit].reverse().find((a) => a.afterState?.status === s.status);
+          const event = [...audit].reverse().find((a) => statusAfter(a) === s.status);
           const actor = event?.actorId ? actors.get(event.actorId) : undefined;
           return {
             status: s.status,
@@ -317,7 +366,7 @@ export class OrdersService {
           };
         }),
     ];
-    return history.sort((a, b) => new Date(a.at as any).getTime() - new Date(b.at as any).getTime());
+    return history.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
   }
 
   /**
@@ -331,7 +380,7 @@ export class OrdersService {
   }
 
   /** How long a "placed" order has waited for an admin, and whether that is overdue. */
-  private waitingInfo(order: any, now: Date): { waitingMinutes: number | null; overdue: boolean } {
+  private waitingInfo(order: Pick<Order, 'status' | 'createdAt' | 'paymentMode'>, now: Date): { waitingMinutes: number | null; overdue: boolean } {
     if (order.status !== OrderStatus.PLACED) return { waitingMinutes: null, overdue: false };
     const waitedMs = now.getTime() - new Date(order.createdAt).getTime();
     return {
@@ -422,11 +471,11 @@ export class OrdersService {
           entityId: orderId,
           actorType: 'admin',
           actorId: adminId,
-          beforeState: { status: order.status } as any,
-          afterState: {
+          beforeState: asJson({ status: order.status }),
+          afterState: asJson({
             status: dto.status,
             ...(dto.status === OrderStatus.CANCELLED ? { reason: dto.reason?.trim() } : {}),
-          } as any,
+          }),
         },
       });
 
@@ -444,7 +493,7 @@ export class OrdersService {
   // RESPONSE FORMATTERS
   // ─────────────────────────────────────────
 
-  private toOrderSummary(order: any) {
+  private toOrderSummary(order: OrderForSummary, photos: Map<string, string> = new Map()) {
     return {
       id: order.id,
       publicNumber: order.publicNumber,
@@ -453,17 +502,18 @@ export class OrdersService {
       paymentStatus: order.paymentStatus,
       totalPaise: order.totalPaise,
       itemCount: order.items?.length ?? 0,
-      items: order.items?.map((i: any) => ({
+      items: order.items?.map((i) => ({
         productTitle: i.productTitle,
         variantName: i.variantName,
         qty: i.qty,
         totalPaise: i.totalPaise,
+        imageUrl: (i.variantId && photos.get(i.variantId)) || null,
       })) || [],
       createdAt: order.createdAt,
     };
   }
 
-  private toOrderDetail(order: any) {
+  private toOrderDetail(order: OrderForDetail) {
     return {
       id: order.id,
       publicNumber: order.publicNumber,
@@ -478,7 +528,7 @@ export class OrdersService {
       addressSnapshot: order.addressSnapshot,
       notes: order.notes,
       estimatedDelivery: '5–7 business days',
-      items: order.items?.map((i: any) => ({
+      items: order.items?.map((i) => ({
         id: i.id,
         productTitle: i.productTitle,
         variantName: i.variantName,
@@ -487,7 +537,7 @@ export class OrdersService {
         unitPricePaise: i.unitPricePaise,
         totalPaise: i.totalPaise,
       })) || [],
-      shipments: order.shipments?.map((s: any) => ({
+      shipments: order.shipments?.map((s) => ({
         id: s.id,
         carrier: s.carrier,
         trackingId: s.trackingId,

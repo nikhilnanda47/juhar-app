@@ -4,9 +4,10 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import AdminLayout from '../../components/AdminLayout';
 import OrderActions from '../../components/OrderActions';
-import { api } from '../../services/api';
+import { api, messageOf, type AdminOrderListItem } from '../../services/api';
 import { appendUnique, loadAtLeast } from '../../services/paging';
 import styles from './orders.module.css';
+import { useLatest } from '../../lib/hooks';
 
 const STATUS_OPTIONS = ['all', 'placed', 'confirmed', 'packed', 'shipped', 'delivered', 'cancelled'];
 
@@ -23,7 +24,7 @@ function formatPaise(paise: number): string {
 }
 
 export default function OrdersPage() {
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<AdminOrderListItem[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -102,18 +103,21 @@ export default function OrdersPage() {
       setCursor(data.cursor);
       setHasMore(data.hasMore);
       if (data.counts) setCounts(data.counts);
-    } catch (err: any) {
-      setLoadError(err?.message || 'Could not load more orders');
+    } catch (err) {
+      setLoadError(messageOf(err, 'Could not load more orders'));
     } finally {
       setLoadingMore(false);
     }
   };
 
+  // Start again from the top when the filter changes. (loadOrders is read through a box that always holds the newest
+  // one: the list should reload when the FILTER changes, not every time the function is recreated.)
+  const reloadOrders = useLatest(loadOrders);
   useEffect(() => {
     if (!filterReady) return;
     setLoading(true);
-    loadOrders();
-  }, [filter, filterReady]);
+    reloadOrders.current();
+  }, [filter, filterReady, reloadOrders]);
 
   // Copy a customer's user id, the same "user=<id>" that the API logs show
   const copyUserId = async (id: string) => {
@@ -205,7 +209,7 @@ export default function OrdersPage() {
                         <span className={styles.userId}>ID {order.customer.id.slice(0, 8)}</span>
                         <button
                           className={styles.copyBtn}
-                          onClick={() => copyUserId(order.customer.id)}
+                          onClick={() => order.customer && copyUserId(order.customer.id)}
                           aria-label={`Copy user ID ${order.customer.id}`}
                         >
                           {copiedUser === order.customer.id ? 'Copied' : 'Copy'}
@@ -223,7 +227,7 @@ export default function OrdersPage() {
                   </td>
                   <td>
                     {/* what is in the order, at a glance; the order page has the rest */}
-                    {(order.items || []).slice(0, 2).map((i: any, n: number) => (
+                    {(order.items || []).slice(0, 2).map((i, n) => (
                       <div key={n} className={styles.itemLine}>
                         {i.productTitle}{i.variantName ? ` (${i.variantName})` : ''} <span className={styles.itemQty}>×{i.qty}</span>
                       </div>

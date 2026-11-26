@@ -3,6 +3,7 @@
 //   (cd apps/api && npx prisma migrate deploy && DB_TESTS=1 npm test -- filter-options)
 // The test creates its own category and products and deletes them afterwards.
 import { PrismaClient } from '@prisma/client';
+import { testMedia } from '../modules/media/test-media';
 import { randomUUID } from 'crypto';
 import { ProductsService } from '../modules/products/products.service';
 
@@ -10,7 +11,7 @@ const describeDb = process.env.DB_TESTS === '1' ? describe : describe.skip;
 
 describeDb('shop filter options (real Postgres)', () => {
   const prisma = new PrismaClient();
-  const service = new ProductsService(prisma as any);
+  const service = new ProductsService(prisma as any, testMedia());
   const tag = randomUUID().replace(/-/g, '').slice(0, 8);
   const F = (name: string) => `${name} ${tag}`; // values no other data has
   let categoryId = '';

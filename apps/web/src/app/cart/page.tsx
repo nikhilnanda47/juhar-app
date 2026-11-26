@@ -4,21 +4,22 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Heart, ShoppingBag, Trash2, Minus, Plus, Truck, ArrowRight, Leaf } from 'lucide-react';
 import { loadToken, getCart, getProductBySlug, updateCartItem, removeCartItem, formatPaise, type CartResponse } from '@/lib/api';
-import { readLocalCart, saveLocalCart } from '@/lib/cart-events';
+import { readLocalCart, saveLocalCart, type LocalCartItem } from '@/lib/cart-events';
 import { remainingForFreeShipping, shippingFor, shippingProgressPercent, useShippingRule } from '@/lib/shipping';
 import { useWishlist } from '@/lib/wishlist-context';
+import ProductImage from '@/components/ProductImage';
 
 
 const getLocalCart = readLocalCart;
 
-function localToCartResponse(items: any[]): CartResponse {
-  const cartItems = items.map((item: any) => ({
+function localToCartResponse(items: LocalCartItem[]): CartResponse {
+  const cartItems = items.map((item) => ({
     id: `local-${item.variantId}`,
     variant: {
       id: item.variantId, sku: item.sku, name: item.variantName,
       color: item.color, pricePaise: item.pricePaise,
       compareAtPaise: item.compareAtPaise, available: item.available,
-      productId: item.productId, productTitle: item.productTitle, productSlug: item.productSlug, imageUrl: null,
+      productId: item.productId, productTitle: item.productTitle, productSlug: item.productSlug, imageUrl: item.imageUrl ?? null,
     },
     quantity: item.quantity,
     lineTotalPaise: item.pricePaise * item.quantity,
@@ -26,8 +27,8 @@ function localToCartResponse(items: any[]): CartResponse {
   }));
   return {
     items: cartItems,
-    subtotalPaise: cartItems.reduce((s: number, i: any) => s + i.lineTotalPaise, 0),
-    itemCount: cartItems.reduce((s: number, i: any) => s + i.quantity, 0),
+    subtotalPaise: cartItems.reduce((s, i) => s + i.lineTotalPaise, 0),
+    itemCount: cartItems.reduce((s, i) => s + i.quantity, 0),
   };
 }
 
@@ -74,8 +75,8 @@ export default function CartPage() {
       } else {
         const variantId = itemId.replace('local-', '');
         let items = getLocalCart();
-        if (newQty <= 0) items = items.filter((c: any) => c.variantId !== variantId);
-        else { const item = items.find((c: any) => c.variantId === variantId); if (item) item.quantity = newQty; }
+        if (newQty <= 0) items = items.filter((c) => c.variantId !== variantId);
+        else { const item = items.find((c) => c.variantId === variantId); if (item) item.quantity = newQty; }
         saveLocalCart(items);
         setCart(localToCartResponse(items));
       }
@@ -89,7 +90,7 @@ export default function CartPage() {
       if (loggedIn) setCart(await removeCartItem(itemId));
       else {
         const variantId = itemId.replace('local-', '');
-        const items = getLocalCart().filter((c: any) => c.variantId !== variantId);
+        const items = getLocalCart().filter((c) => c.variantId !== variantId);
         saveLocalCart(items);
         setCart(localToCartResponse(items));
       }
@@ -143,7 +144,9 @@ export default function CartPage() {
           return (
             <div key={item.id} className="card mb-3">
               <div className="flex gap-3">
-                <div className="w-20 h-[106px] rounded-lg bg-surface-container-low shrink-0" />
+                <div className="relative w-20 h-[106px] rounded-lg bg-surface-container-low overflow-hidden shrink-0">
+                  <ProductImage src={item.variant.imageUrl} alt={item.variant.productTitle} />
+                </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between gap-2">
                     <p className="font-sans text-body-md text-text-primary font-semibold truncate">{item.variant.productTitle}</p>

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import ProductImage from '@/components/ProductImage';
 import { Search, SlidersHorizontal, Heart, ChevronDown, X } from 'lucide-react';
 import { getProducts, getCategories, getProductFilters, formatPaise, type Product, type Category, type ProductFilterOptions } from '@/lib/api';
 import { appendUnique } from '@/lib/paging';
@@ -10,6 +11,7 @@ import {
   removeFilter, shopQuery, type ShopFilters, type ShopSort,
 } from '@/lib/shop-list';
 import { useWishlist } from '@/lib/wishlist-context';
+import { useLatest } from '@/lib/hooks';
 
 export default function ShopPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -60,13 +62,16 @@ export default function ShopPage() {
   const priceError = priceRangeError(filters);
   const categoryId = activeCategory ? categories.find((c) => c.slug === activeCategory)?.id ?? null : null;
 
-  // The first page again whenever the category, the search or the sort changes
+  // The first page again whenever the category, the search, the sort or what the filters send changes.
+  // (appliedFilters is read through a box that always holds the newest one; filtersKey, above, is what says "the
+  // filters really changed", so a new but identical filters object does not reload the list.)
+  const appliedRef = useLatest(appliedFilters);
   useEffect(() => {
     if (activeCategory && !categoryId) return; // categories are still loading
     const mine = ++requestId.current;
     setLoading(true);
     setLoadError('');
-    getProducts(shopQuery({ categoryId, search: searchTerm, sort, filters: appliedFilters }))
+    getProducts(shopQuery({ categoryId, search: searchTerm, sort, filters: appliedRef.current }))
       .then((d) => {
         if (mine !== requestId.current) return;
         setProducts(d.items);
@@ -76,7 +81,7 @@ export default function ShopPage() {
       })
       .catch(() => { if (mine === requestId.current) setLoadError('Could not load sarees. Please try again.'); })
       .finally(() => { if (mine === requestId.current) setLoading(false); });
-  }, [categoryId, activeCategory, searchTerm, sort, filtersKey]);
+  }, [categoryId, activeCategory, searchTerm, sort, filtersKey, appliedRef]);
 
   const loadMore = async () => {
     if (!cursor || loadingMore) return;
@@ -255,7 +260,7 @@ export default function ShopPage() {
         {products.map((product) => {
           const price = product.startingPricePaise ?? 0;
           const compare = product.compareAtPaise ?? null;
-          const lowStock = (product as any).isAvailable === true && (product as any).totalStock > 0 && (product as any).totalStock <= 3;
+          const lowStock = product.isAvailable === true && product.totalStock > 0 && product.totalStock <= 3;
           return (
             <Link
               key={product.id}
@@ -263,6 +268,7 @@ export default function ShopPage() {
               className="group"
             >
               <div className="relative aspect-[3/4] rounded-xl bg-surface-container-low overflow-hidden mb-2 shadow-[0_1px_4px_rgba(0,0,0,0.03)] group-hover:shadow-md transition-shadow">
+                <ProductImage src={product.primaryImage?.url} alt={product.primaryImage?.alt || product.title} />
                 {/* Wishlist */}
                 {/* the heart is for the whole saree: filled when any colour of it is saved */}
                 {(() => {
@@ -280,11 +286,11 @@ export default function ShopPage() {
                 })()}
                 {/* Origin badge */}
                 <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-full bg-surface/90 backdrop-blur">
-                  <span className="font-sans text-label-sm text-text-primary">{(product as any).fabric || 'Handloom'}</span>
+                  <span className="font-sans text-label-sm text-text-primary">{product.fabric || 'Handloom'}</span>
                 </div>
               </div>
               <p className="font-sans text-body-md text-text-primary font-medium truncate">{product.title}</p>
-              <p className="font-sans text-body-sm text-text-secondary truncate">{(product as any).weaveMethod || (product as any).categorySlug || ''}</p>
+              <p className="font-sans text-body-sm text-text-secondary truncate">{product.weaveMethod || product.categorySlug || ''}</p>
               <div className="flex items-baseline gap-1 mt-0.5">
                 <span className="font-sans text-price-md text-accent">{formatPaise(price)}</span>
                 {compare && compare > price && (

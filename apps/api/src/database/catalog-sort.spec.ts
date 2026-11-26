@@ -4,6 +4,7 @@
 //   (cd apps/api && npx prisma migrate deploy && DB_TESTS=1 npm test -- catalog-sort)
 // The test creates its own category and products and deletes them afterwards.
 import { PrismaClient } from '@prisma/client';
+import { testMedia } from '../modules/media/test-media';
 import { randomUUID } from 'crypto';
 import { ProductSortBy } from '@juhar/shared';
 import { ProductsService } from '../modules/products/products.service';
@@ -19,7 +20,7 @@ interface Seeded {
 
 describeDb('catalog sorting and paging (real Postgres)', () => {
   const prisma = new PrismaClient();
-  const service = new ProductsService(prisma as any);
+  const service = new ProductsService(prisma as any, testMedia());
   const tag = randomUUID().replace(/-/g, '').slice(0, 10);
   let categoryId = '';
   let emptyCategoryId = '';

@@ -272,8 +272,15 @@ describe('InventoryService', () => {
     function setup(events: any[], users: any[] = [], admins: any[] = []) {
       const prisma = {
         auditEvent: { findMany: jest.fn().mockResolvedValue(events) },
-        user: { findMany: jest.fn().mockResolvedValue(users) },
-        adminUser: { findMany: jest.fn().mockResolvedValue(admins) },
+        // each login comes with its admin record (matched here by phone, standing in for admin_users.user_id)
+        user: {
+          findMany: jest.fn().mockResolvedValue(
+            users.map((u: any) => {
+              const admin = admins.find((a: any) => a.phone === u.phone);
+              return { ...u, adminUser: admin ? { name: admin.name, role: admin.role } : null };
+            }),
+          ),
+        },
       };
       return { prisma, service: newService(prisma) };
     }

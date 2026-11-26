@@ -1,11 +1,12 @@
 import { OrdersService } from './orders.service';
+import { testMedia } from '../media/test-media';
 
 // The customer's own order list: pages, plus the total number of orders (for "N orders").
 function setup(rows: any[], total: number, byStatus: { status: string; n: number }[] = []) {
   const findMany = jest.fn(async () => rows);
   const count = jest.fn(async () => total);
   const groupBy = jest.fn(async () => byStatus.map((s) => ({ status: s.status, _count: { _all: s.n } })));
-  const service = new OrdersService({ order: { findMany, count, groupBy } } as any, {} as any);
+  const service = new OrdersService({ order: { findMany, count, groupBy } } as any, {} as any, testMedia());
   return { service, findMany, count, groupBy };
 }
 const row = (id: string) => ({ id, publicNumber: 'JUH-' + id, status: 'placed', items: [], totalPaise: 1000, createdAt: new Date() });

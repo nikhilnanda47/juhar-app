@@ -24,7 +24,7 @@ function AppInner() {
         setShowWelcome(val !== 'true');
       });
     }
-  }, [showSplash]);
+  }, [showSplash, showWelcome]);
 
   if (showSplash) {
     return <SplashScreen onFinish={() => setShowSplash(false)} />;

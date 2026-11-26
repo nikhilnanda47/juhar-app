@@ -1,10 +1,33 @@
 import {
   Injectable, NotFoundException, ConflictException, BadRequestException, Logger,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Inventory, Prisma } from '@prisma/client';
+import { asJson } from '../../common/audit/json';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AdjustStockDto } from './dto';
 import { resolveActors } from '../../common/audit/actor-names';
+
+/** A row of the inventory table as a raw query returns it (column names as in the database) */
+interface InventoryRow {
+  variant_id: string;
+  on_hand: number;
+  reserved: number;
+  unavailable: number;
+  version: number;
+}
+
+/** What a stock-change audit entry holds (the JSON columns are read back through this) */
+interface StockAuditState {
+  onHand?: number;
+  adjustment?: number;
+  reason?: string;
+  notes?: string;
+}
+
+/** The JSON of an audit entry as an object; an empty one when it holds nothing */
+function stateOf(json: Prisma.JsonValue): StockAuditState {
+  return json && typeof json === 'object' && !Array.isArray(json) ? (json as StockAuditState) : {};
+}
 
 @Injectable()
 export class InventoryService {
@@ -43,7 +66,7 @@ export class InventoryService {
     if (hasAmount === hasCount) throw new BadRequestException('STOCK_CHANGE_UNCLEAR'); // neither, or both
 
     return this.prisma.$transaction(async (tx) => {
-      const rows = await tx.$queryRaw<any[]>`
+      const rows = await tx.$queryRaw<InventoryRow[]>`
         SELECT * FROM inventory WHERE variant_id = ${dto.variantId}::uuid FOR UPDATE
       `;
       if (rows.length === 0) throw new NotFoundException('VARIANT_NOT_FOUND');
@@ -68,14 +91,14 @@ export class InventoryService {
           entityId: dto.variantId,
           actorType: 'admin',
           actorId: adminId,
-          beforeState: { onHand: inv.on_hand } as any,
-          afterState: {
+          beforeState: asJson({ onHand: inv.on_hand }),
+          afterState: asJson({
             onHand: updated.onHand,
             adjustment: change,
             ...(hasCount ? { setTo: dto.setTo } : {}),
             reason: dto.reason,
             notes: dto.notes,
-          } as any,
+          }),
         },
       });
 
@@ -98,8 +121,8 @@ export class InventoryService {
     });
     const actors = await resolveActors(this.prisma, events.map((e) => e.actorId));
     return events.map((e) => {
-      const before = (e.beforeState as any) ?? {};
-      const after = (e.afterState as any) ?? {};
+      const before = stateOf(e.beforeState);
+      const after = stateOf(e.afterState);
       return {
         at: e.createdAt,
         adjustment: after.adjustment ?? null,
@@ -123,7 +146,7 @@ export class InventoryService {
     expiresAt: Date,
   ) {
     // 1. Lock the inventory row
-    const rows = await tx.$queryRaw<any[]>`
+    const rows = await tx.$queryRaw<InventoryRow[]>`
       SELECT * FROM inventory WHERE variant_id = ${variantId}::uuid FOR UPDATE
     `;
     if (rows.length === 0) throw new NotFoundException('VARIANT_NOT_FOUND');
@@ -199,7 +222,7 @@ export class InventoryService {
     });
 
     for (const item of items) {
-      const rows = await tx.$queryRaw<any[]>`
+      const rows = await tx.$queryRaw<InventoryRow[]>`
         SELECT * FROM inventory WHERE variant_id = ${item.variantId}::uuid FOR UPDATE
       `;
       const onHand = rows[0]?.on_hand ?? 0;
@@ -257,7 +280,7 @@ export class InventoryService {
     });
   }
 
-  private toStockResponse(inv: any) {
+  private toStockResponse(inv: Inventory) {
     return {
       variantId: inv.variantId,
       onHand: inv.onHand,

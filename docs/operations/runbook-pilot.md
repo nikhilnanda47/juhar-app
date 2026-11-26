@@ -42,6 +42,13 @@ Never paste secrets into chat, issues or the repo. They go only into the dashboa
 | `NIXPACKS_NODE_VERSION` | `22` | Makes sure Railway builds with Node 22. |
 | `LOG_LEVEL` | optional, `log` | |
 | `ENABLE_API_DOCS` | leave unset | The Swagger page is off on a live API. |
+| `R2_ACCOUNT_ID` | Cloudflare dashboard > R2 > Account ID | Product photos (section 3, step 3). **Set all five or none**: a half-filled set stops the API from starting. |
+| `R2_ACCESS_KEY_ID` | from the R2 API token | |
+| `R2_SECRET_ACCESS_KEY` | from the R2 API token (shown only once) | |
+| `R2_BUCKET` | the bucket's name, for example `juhar-photos` | |
+| `MEDIA_PUBLIC_URL` | where the bucket is public, `https`, no trailing slash, for example `https://photos.juhar.co.in` | This is the address people's browsers load photos from. |
+
+**With none of the five set, the API still starts but refuses photo uploads** ("Photo storage is not set up on this server yet"): a live server's own disk is wiped on every deploy, so a photo kept there would vanish. Everything else works.
 
 Make a secret:
 
@@ -76,13 +83,20 @@ Do these in order. The accounts come from tracker item 50.
    Project Settings > Database > Connection string, copy the **Transaction pooler** string (port 6543) and the
    **Direct** string (port 5432). Put `?pgbouncer=true` on the end of the first.
 2. **Make the two JWT secrets** with the command above.
-3. **Railway.** New Project > Deploy from GitHub repo > this repository. Leave the service's root directory empty
+3. **Cloudflare R2, for product photos** (can wait until just before the first photos are uploaded; nothing else needs it).
+   Cloudflare dashboard > R2 > **Create bucket** (for example `juhar-photos`). Make it public: Bucket > Settings > Public access,
+   best by **connecting a custom domain** such as `photos.juhar.co.in` (the domain must be on Cloudflare); the free
+   `r2.dev` address also works for testing but is rate-limited. That address, without a trailing slash, is `MEDIA_PUBLIC_URL`.
+   Then R2 > **Manage API tokens** > create a token with **Object Read & Write** for this bucket and copy the Access Key ID
+   and Secret Access Key (the secret is shown once). The Account ID is on the R2 overview page. Put all five values into
+   Railway (section 2). Photos load in `<img>` tags, so no CORS setting is needed on the bucket.
+4. **Railway.** New Project > Deploy from GitHub repo > this repository. Leave the service's root directory empty
    (the repo root). Railway reads `railway.json` and `nixpacks.toml` on its own. Add the variables from section 2 (leave
-   `CORS_ORIGINS` for step 6 if you do not have the website address yet). In the service's Settings, turn on
+   `CORS_ORIGINS` for step 7 if you do not have the website address yet). In the service's Settings, turn on
    **Wait for CI** (so a deploy only goes ahead when the GitHub checks pass), choose the branch `main`, and
    generate a public domain. The first deploy applies the migrations itself (the pre-deploy step), then starts the API.
-4. **Check the API.** Open `https://<api address>/health`. It should show `"status":"ok"` and `"database":"connected"`.
-5. **Create the first admin** from your computer (after `npm install`), pointing at the **direct** database address,
+5. **Check the API.** Open `https://<api address>/health`. It should show `"status":"ok"` and `"database":"connected"`.
+6. **Create the first admin** from your computer (after `npm install`), pointing at the **direct** database address,
    with the admin's real number:
 
    ```bash
@@ -91,13 +105,13 @@ Do these in order. The accounts come from tracker item 50.
 
    Do **not** run `npm run db:seed` or `db:seed:demo` on this database: they refuse to run against a database that is not on
    your computer, because they add made-up sarees and a known admin number.
-6. **Vercel, twice** (website, then admin): Add New Project > import the repository > set the Root Directory, add
+7. **Vercel, twice** (website, then admin): Add New Project > import the repository > set the Root Directory, add
    `NEXT_PUBLIC_API_URL`, deploy. Then go back to Railway and put the two Vercel addresses into `CORS_ORIGINS`
    (the API restarts by itself).
-7. **Try it:** open the website, sign in with a listed number and the code `123456`, place a cash-on-delivery order, then sign in to the
+8. **Try it:** open the website, sign in with a listed number and the code `123456`, upload a photo for a saree in the admin (section 3, step 3 must be done) and check it shows in the shop, place a cash-on-delivery order, then sign in to the
    admin with the admin number and walk the order from Confirm to Delivered. A number that is not on the list should be refused.
-8. **Run the smoke test** (section 4) and keep it for every release.
-9. **Later:** the Android build (tracker item 56).
+9. **Run the smoke test** (section 4) and keep it for every release.
+10. **Later:** the Android build (tracker item 56).
 
 ## 4. Every release (the daily loop)
 
@@ -175,6 +189,11 @@ It needs an empty, disposable database and takes a few minutes. Add `SKIP_FRONTE
 | The website still calls the old API address | `NEXT_PUBLIC_API_URL` changed but was not redeployed | Redeploy the Vercel project |
 | `/health` shows `"database":"disconnected"` | Wrong `DATABASE_URL`, or Supabase paused the free project after a week unused | Check the address; resume the project in Supabase |
 | Railway deploy fails at the health check | The API crashed at start | Read the deployment logs: the first error line says what to fix |
+| A migration stops with "Cannot add the status CHECK constraints ... existing rows have values outside the allowed lists" | A row has a status, role or payment mode that is not one of the allowed ones (the message lists each column and the query that finds the rows) | Fix those rows, then `npx prisma migrate resolve --rolled-back 20261126130000_status_check_constraints` and `npx prisma migrate deploy` again. Nothing was changed by the failed run |
+| "Invalid photo storage settings: ... only partly set" at start | Some of the five R2 settings are missing | Set the ones the message names, or remove all five |
+| Admin says "Photo storage is not set up on this server yet" | None of the R2 settings are set on the live API | Do section 3, step 3, then add the five settings in Railway |
+| Photos upload fine but show as grey boxes in the shop | `MEDIA_PUBLIC_URL` is wrong, or the bucket is not public | Open one photo's address from the admin in a new tab: it must load. Fix the address or the bucket's public access |
+| A photo is refused as "too small" or "not a photo we can use" | It is under 600 px on the short side, or not JPG/PNG/WebP (an iPhone HEIC for example) | Export it as JPG and try again |
 | A customer reports a problem | | Ask for the `Reference:` code shown with the error and search the API logs for `req=<code>` |
 
 ## 10. What is in the repo for this
@@ -184,9 +203,10 @@ It needs an empty, disposable database and takes a few minutes. Add `SKIP_FRONTE
 | `railway.json`, `nixpacks.toml` | How Railway builds and starts the API, runs the migrations first, and checks `/health` |
 | `apps/web/vercel.json`, `apps/admin/vercel.json` | How Vercel installs and builds the website and the admin |
 | `apps/api/scripts/migrate-deploy.js` | Applies migrations through `DIRECT_URL` (never through the pooler) |
-| `apps/api/prisma/create-admin.ts` | Creates or updates one admin account; safe to repeat |
+| `apps/api/prisma/create-admin.ts` | Creates or updates one admin: their login and their staff record, linked; safe to repeat (run it again to correct a name or role) |
 | `apps/api/src/config/production-checks.ts` | Stops a live API that has weak secrets or a pooler address without `pgbouncer=true` |
 | `apps/api/src/common/local-database-guard.ts` | Makes the sample seeds refuse to touch a database that is not on your computer |
+| `apps/api/src/config/media-config.ts`, `apps/api/src/modules/media/` | Where product photos are kept (R2, a local folder in development, or nowhere on a live API with nothing set), and the upload, shrink and storage code |
 | `scripts/rehearse-deploy.sh` | The dry run in section 8 |
 | `scripts/smoke-test.js` (`npm run smoke`) | The after-deploy check in section 4 |
 | `.env.example` in `apps/api`, `apps/web`, `apps/admin`, `apps/mobile` | Every setting, explained |

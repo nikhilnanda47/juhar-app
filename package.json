@@ -20,7 +20,7 @@
     "build": "npm run build --workspaces --if-present",
     "build:api": "npm run build -w apps/api",
     "build:admin": "npm run build -w apps/admin",
-    "lint": "eslint . --max-warnings 20",
+    "lint": "eslint . --max-warnings 0",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "db:migrate": "npm run db:migrate -w apps/api",

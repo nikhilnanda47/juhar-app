@@ -12,6 +12,7 @@ import {
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
 import RefreshButton from '../components/RefreshButton';
 import LoadFailed from '../components/LoadFailed';
+import ProductImage from '../components/ProductImage';
 import { describeLoadFailure, type LoadFailure } from '../services/loadFailure';
 import {
   loadToken,
@@ -28,9 +29,11 @@ import {
   localCartToResponse,
 } from '../services/localCart';
 import { remainingForFreeShipping, shippingFor, shippingProgressPercent, useShippingRule } from '../services/shipping';
+import { useLatest } from '../utils/hooks';
+import type { ScreenNavigation } from '../navigation/types';
 
 export default function CartScreen() {
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation<ScreenNavigation>();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [cart, setCart] = useState<CartResponse | null>(null);
@@ -41,13 +44,15 @@ export default function CartScreen() {
   const [loggedIn, setLoggedIn] = useState(false);
   const { rule, loaded: ruleLoaded } = useShippingRule();
 
-  useFocusEffect(useCallback(() => { checkAndLoad(); }, []));
-
   const checkAndLoad = async () => {
     const hasToken = await loadToken();
     setLoggedIn(hasToken);
     await loadCart(hasToken);
   };
+  // the bag is read again every time this screen comes into view. (checkAndLoad is read through a box that always holds
+  // the newest one, so this runs on coming into view, not whenever the function is recreated.)
+  const reloadBag = useLatest(checkAndLoad);
+  useFocusEffect(useCallback(() => { reloadBag.current(); }, [reloadBag]));
 
   const loadCart = async (authenticated?: boolean) => {
     const isAuth = authenticated ?? loggedIn;
@@ -269,7 +274,9 @@ function CartItemCard({
       <View style={styles.itemRow}>
         {/* Thumbnail */}
         <View style={styles.itemThumb}>
-          <View style={styles.thumbPlaceholder} />
+          <View style={styles.thumbPlaceholder}>
+            <ProductImage uri={item.variant.imageUrl} alt={item.variant.productTitle} />
+          </View>
         </View>
 
         {/* Details */}

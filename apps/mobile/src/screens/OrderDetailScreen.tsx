@@ -13,38 +13,52 @@ import {
   Copy,
 } from 'lucide-react-native';
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
-import { getOrder, formatPaise } from '../services/api';
+import { getOrder, formatPaise, type Order } from '../services/api';
 import { useCopyToClipboard } from '../utils/useCopyToClipboard';
 import LoadFailed from '../components/LoadFailed';
+import ProductImage from '../components/ProductImage';
 import { describeLoadFailure, type LoadFailure } from '../services/loadFailure';
+import { useLatest } from '../utils/hooks';
+import type { ScreenNavigation } from '../navigation/types';
 
 const TIMELINE_STEPS = ['placed', 'confirmed', 'packed', 'shipped', 'delivered'];
 const STEP_LABELS: Record<string, string> = {
   placed: 'Order Placed', confirmed: 'Confirmed', packed: 'Packed', shipped: 'Shipped', delivered: 'Delivered',
 };
 
-interface Props { navigation: any; route: { params: { orderId: string } }; }
+interface Props { navigation: ScreenNavigation; route: { params: { orderId: string } }; }
 
 export default function OrderDetailScreen({ route }: Props) {
   const { orderId } = route.params;
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { copiedKey, copy } = useCopyToClipboard();
-  const [order, setOrder] = useState<any>(null);
+  const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [failure, setFailure] = useState<LoadFailure | null>(null); // why the order could not be loaded
 
-  useEffect(() => { load(); }, [orderId]);
   const load = async () => {
     try { setOrder(await getOrder(orderId)); setFailure(null); } catch (err) { setFailure(describeLoadFailure(err, 'Could not load this order.')); }
     setLoading(false);
   };
+  // read the order when the screen opens, and again if it is opened for another order. (load is read through a box that
+  // always holds the newest one: the order should reload when the ORDER changes, not whenever the function is recreated.)
+  const reload = useLatest(load);
+  useEffect(() => { reload.current(); }, [orderId, reload]);
 
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>;
   if (!order && failure && failure.kind !== 'not_found') return <LoadFailed failure={failure} onRetry={load} />;
   if (!order) return <View style={styles.center}><Text style={styles.errorText}>Order not found</Text></View>;
 
+  // when each step of the timeline happened (the order's own timestamps)
+  const stepTimes: Record<string, string | null | undefined> = {
+    placed: order.createdAt,
+    confirmed: order.confirmedAt,
+    packed: order.packedAt,
+    shipped: order.shippedAt,
+    delivered: order.deliveredAt,
+  };
   const currentIdx = TIMELINE_STEPS.indexOf(order.status);
   const isCancelled = order.status === 'cancelled';
   const addr = order.addressSnapshot;
@@ -86,7 +100,7 @@ export default function OrderDetailScreen({ route }: Props) {
               const isDone = idx <= currentIdx;
               const isFuture = idx > currentIdx;
               const isLast = idx === TIMELINE_STEPS.length - 1;
-              const timestamp = order[`${step === 'placed' ? 'created' : step}At`];
+              const timestamp = stepTimes[step];
               return (
                 <View key={step} style={styles.timelineRow}>
                   <View style={styles.timelineLeft}>
@@ -121,11 +135,11 @@ export default function OrderDetailScreen({ route }: Props) {
       </View>
 
       {/* 2. Tracking */}
-      {order.shipments?.length > 0 && (
+      {(order.shipments?.length ?? 0) > 0 && (
         <>
           <Text style={styles.sectionTitle}>Tracking Information</Text>
           <View style={styles.card}>
-            {order.shipments.map((s: any) => (
+            {order.shipments?.map((s) => (
               <View key={s.id}>
                 <View style={styles.trackingHeader}>
                   <View style={styles.trackingIconWrap}>
@@ -143,7 +157,7 @@ export default function OrderDetailScreen({ route }: Props) {
                   </View>
                   <TouchableOpacity
                     style={styles.copyBtn}
-                    onPress={() => copy(s.id, s.trackingId)}
+                    onPress={() => copy(s.id, s.trackingId ?? '')}
                   >
                     <Text style={styles.copyBtnText}>{copiedKey === s.id ? 'Copied' : 'Copy'}</Text>
                     {copiedKey === s.id
@@ -160,10 +174,12 @@ export default function OrderDetailScreen({ route }: Props) {
       {/* 3. Items */}
       <Text style={styles.sectionTitle}>{`Items (${order.items?.length || 0})`}</Text>
       <View style={styles.card}>
-        {order.items?.map((item: any, idx: number) => (
+        {order.items?.map((item, idx) => (
           <View key={item.id}>
             <View style={styles.itemRow}>
-              <View style={styles.itemThumb} />
+              <View style={styles.itemThumb}>
+                <ProductImage uri={item.imageUrl} alt={item.productTitle} />
+              </View>
               <View style={styles.itemDetails}>
                 <Text style={styles.itemName} numberOfLines={1}>{item.productTitle}</Text>
                 <Text style={styles.itemMeta}>{item.variantName || item.sku}</Text>
@@ -332,7 +348,7 @@ const createStyles = (colors: ColorPalette) => StyleSheet.create({
   copyBtnText: { fontFamily: 'DMSans-Medium', fontSize: 13, color: colors.primary },
 
   itemRow: { flexDirection: 'row', gap: 12, paddingVertical: 10 },
-  itemThumb: { width: 60, height: 80, borderRadius: 8, backgroundColor: colors.placeholder },
+  itemThumb: { width: 60, height: 80, borderRadius: 8, overflow: 'hidden', backgroundColor: colors.placeholder },
   itemDetails: { flex: 1, justifyContent: 'space-between' },
   itemName: { fontFamily: 'DMSans-Medium', fontSize: 16, color: colors.textPrimary },
   itemMeta: { fontFamily: 'DMSans-Regular', fontSize: 12, color: colors.textTertiary, marginTop: 2 },

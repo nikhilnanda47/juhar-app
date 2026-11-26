@@ -3,6 +3,7 @@
 //   (cd apps/api && npx prisma migrate deploy && DB_TESTS=1 npm test -- wishlist)
 // The test creates its own users, category and products and deletes them afterwards.
 import { ConflictException, NotFoundException } from '@nestjs/common';
+import { testMedia } from '../modules/media/test-media';
 import { PrismaClient } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { WishlistService } from '../modules/wishlist/wishlist.service';
@@ -11,7 +12,7 @@ const describeDb = process.env.DB_TESTS === '1' ? describe : describe.skip;
 
 describeDb('wishlist (real Postgres)', () => {
   const prisma = new PrismaClient();
-  const service = new WishlistService(prisma as any);
+  const service = new WishlistService(prisma as any, testMedia());
   const tag = randomUUID().replace(/-/g, '').slice(0, 8);
   let userA = '';
   let userB = '';

@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AdminLayout from '../../components/AdminLayout';
-import { api, type ProductCounts } from '../../services/api';
+import { api, type ProductCounts, messageOf } from '../../services/api';
+import { useLatest } from '../../lib/hooks';
 import { appendUnique, loadAtLeast } from '../../services/paging';
 import styles from './catalog.module.css';
 
@@ -25,6 +26,8 @@ interface Product {
   category: { id: string; name: string } | null;
   fabric: string | null;
   variants: Variant[];
+  /** the cover photo (small copy), null when there is none yet */
+  primaryImage?: { url: string; alt: string | null } | null;
   createdAt: string;
 }
 
@@ -71,10 +74,13 @@ export default function CatalogPage() {
     }
   };
 
+  // Start again from the top when the filter changes. (loadProducts is read through a box that always holds the newest
+  // one: the list should reload when the FILTER changes, not every time the function is recreated.)
+  const reloadProducts = useLatest(loadProducts);
   useEffect(() => {
     setLoading(true);
-    loadProducts();
-  }, [filter]);
+    reloadProducts.current();
+  }, [filter, reloadProducts]);
 
   // Refresh after publishing or unpublishing, keeping as many rows on screen as there were
   const refreshProducts = async () => {
@@ -104,8 +110,8 @@ export default function CatalogPage() {
       setCursor(data.cursor);
       setHasMore(data.hasMore);
       if (data.counts) setCounts(data.counts);
-    } catch (err: any) {
-      setLoadError(err?.message || 'Could not load more products');
+    } catch (err) {
+      setLoadError(messageOf(err, 'Could not load more products'));
     } finally {
       setLoadingMore(false);
     }
@@ -178,9 +184,17 @@ export default function CatalogPage() {
                 return (
                   <tr key={product.id}>
                     <td>
-                      <div className={styles.productCell}>
-                        <span className={styles.productTitle}>{product.title}</span>
-                        <span className={styles.slug}>{product.slug}</span>
+                      <div className={styles.productRow}>
+                        <div className={styles.productThumb}>
+                          {product.primaryImage && (
+                            <img src={product.primaryImage.url} alt={product.primaryImage.alt || product.title} loading="lazy"
+                              onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                          )}
+                        </div>
+                        <div className={styles.productCell}>
+                          <span className={styles.productTitle}>{product.title}</span>
+                          <span className={styles.slug}>{product.slug}</span>
+                        </div>
                       </div>
                     </td>
                     <td>{product.category?.name || '—'}</td>

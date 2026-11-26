@@ -13,7 +13,7 @@
 > - `config/` holds only `env.validation.ts` (see 5.5).
 > - Guards live in `modules/auth/guards/` (`jwt-auth`, `admin-auth`, `roles`), not `common/guards/`.
 > - `common/` has `decorators/`, `dto/pagination.dto.ts`, `filters/` and `interceptors/`. There is no `pipes/` (`ValidationPipe` is registered globally in `main.ts`) and no `utils/` (money, slug and order-number helpers are in `packages/shared`).
-> - Implemented modules: auth, users, addresses, categories, products, inventory, cart, checkout, orders. `media`, `payments` and `admin` do not exist (`PaymentsModule` and `AdminModule` are commented out in `app.module.ts`). There is also a `health.controller.ts`.
+> - Implemented modules: auth, users, addresses, categories, products, inventory, cart, checkout, orders, media. `payments` and `admin` do not exist (`PaymentsModule` and `AdminModule` are commented out in `app.module.ts`). There is also a `health.controller.ts`.
 
 ```
 src/
@@ -519,54 +519,53 @@ class VariantResponse {
 
 ### 2.6 Media Module
 
-**Purpose:** Product image/video upload via signed S3 URLs.
+**Purpose:** Product photos: upload through the API, check, shrink, store (Cloudflare R2 live, a local folder in development), and turn keys into public addresses.
 
-> **Implementation status (2026-11-22):** Not implemented (planned Phase 5). There is no `modules/media`. The `product_media` table exists and `ProductsService` reads from it, but there is no upload flow and no media is seeded, so clients render placeholder boxes instead of product images.
+> **Implementation status (item 51):** built and tested (unit, HTTP-level, real Postgres, and in real browsers). **Design change from the original plan:** photos are uploaded THROUGH the API (multipart, up to 10 MB) instead of straight to storage with signed URLs. The API can then look at the real file, which a signed URL cannot, and the limits cannot be bypassed. The cost is that the bytes pass through the API once, which is fine for an admin adding a few photos a day. Videos are not supported yet (`product_media.type` is always `image`).
 
 ```
 modules/media/
-├── media.module.ts
-├── media.controller.ts
-├── media.service.ts
-├── s3.service.ts
-└── dto/
-    ├── request-upload.dto.ts
-    └── confirm-upload.dto.ts
+├── media.module.ts          # builds the storage provider from the settings (config/media-config.ts)
+├── media.service.ts         # add, update, reorder, remove, list, urlFor, present, card, thumbnailsForVariants
+├── image-processor.ts       # Sharp: check, turn upright, shrink, re-encode as WebP
+├── storage.ts               # LocalStorage, R2Storage, NoStorage and createStorage
+├── dto/media.dto.ts         # UploadMediaDto, UpdateMediaDto, ReorderMediaDto
+└── test-media.ts            # test helpers (a real MediaService over a fake database and storage)
 ```
 
-**Upload Flow:**
+The five admin endpoints live on `ProductsAdminController` (`/api/v1/admin/products/:id/media...`, see the HLD table). Writes are for `owner` and `catalog_editor`; listing is for any admin.
+
+**What happens to an upload** (`MediaService.add`):
 
 ```
-Admin                    API                           S3
-──────                   ───                           ──
-1. POST /admin/media/upload-url
-   { productId, type, mimeType }
-                         Validate mime (image/jpeg,
-                         image/png, image/webp, video/mp4)
-                         Generate object key
-                         Create signed PUT URL (5min expiry)
-                    <──  { uploadUrl, objectKey }
-
-2. PUT {uploadUrl}  ─────────────────────────────────> Upload file
-                                                       (max 10MB image, 50MB video)
-
-3. POST /admin/media/confirm
-   { productId, objectKey, altText }
-                         Verify object exists in S3
-                         Generate thumbnail (Sharp: 300px, 600px)
-                         Upload thumbnails to S3
-                         Insert product_media row
-                    <──  { media }
+1. product exists? (404)   colour (if given) belongs to this product? (MEDIA_VARIANT_MISMATCH)
+2. fewer than 10 photos?   (PHOTO_LIMIT_REACHED, an early cheap check)
+3. processImage(buffer):   <= 10 MB (PHOTO_TOO_LARGE); the real content is JPEG, PNG or WebP (PHOTO_NOT_AN_IMAGE; a GIF,
+                           an SVG or a renamed PDF is refused whatever the file name says); shorter side >= 600 px
+                           (PHOTO_TOO_SMALL); at most 80 million pixels (a "decompression bomb" is refused)
+                           -> rotate() applies the phone's EXIF turn; large copy <= 1600 px long side, WebP q82;
+                              small copy <= 600 x 800, WebP q78; re-encoding drops camera and GPS data
+4. storage.put(large), storage.put(small)    keys products/<productId>/<uuid>.webp and ...-thumb.webp
+5. one transaction:        lock the product row (SELECT ... FOR UPDATE), recount (PHOTO_LIMIT_REACHED again, so two
+                           uploads at the same moment cannot both take the last place), position = highest + 1,
+                           insert the product_media row, write the audit event (product.photo_added)
+6. any failure after step 4 deletes the files it stored, so nothing is left that no row points to
 ```
-
-**Service Methods:**
 
 | Method | Rules |
 |---|---|
-| `requestUploadUrl(dto)` | Validate product exists + admin owns. Generate S3 signed PUT URL. Content-type restricted. Max 10MB for images. |
-| `confirmUpload(dto)` | Verify S3 object exists. Generate thumbnails via Sharp. Store media record. |
-| `reorder(productId, mediaIds[])` | Update `sort_order` for all media of a product. |
-| `delete(mediaId, adminId)` | Delete S3 objects (original + thumbnails). Remove DB row. Audit log. |
+| `add(productId, file, { altText, variantId }, adminId)` | As above. Answers with the product's whole photo list. |
+| `update(productId, mediaId, { altText?, variantId? }, adminId)` | Only what differs is written and audited (`product.photo_updated`, before and after). `altText` empty or null clears it; `variantId` null means "the whole saree"; a colour of another product is refused. |
+| `reorder(productId, ids, adminId)` | Under the product lock. The list must be exactly the product's photos (`MEDIA_ORDER_MISMATCH` otherwise: the page was out of date). Writes nothing if the order is unchanged. Audit: `product.photos_reordered` (order before and after). |
+| `remove(productId, mediaId, adminId)` | In one transaction: delete the row, close the gaps in `sort_order`, audit (`product.photo_removed`). The two files are deleted afterwards; a file that cannot be deleted is only logged (wasted space, not an error). |
+| `urlFor(key)` / `present(row)` / `card(row)` | Keys to public addresses. `present` is the full shape (`url` large copy, `thumbnailUrl` small copy, `altText`, `sortOrder`, `variantId`, `width`, `height`); `card` is `{ url: small copy, alt }` for lists. |
+| `thumbnailsForVariants(variantIds)` | One query for many colours, for the bag, wishlist and orders. A colour gets a photo of its own, else a photo of the whole saree (`variantId` null), else the first photo; colours of products with no photos are left out. |
+
+**Storage** (`config/media-config.ts`, `storage.ts`): all five of `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `MEDIA_PUBLIC_URL` set means R2 (`S3Client`, region `auto`, endpoint `https://<account>.r2.cloudflarestorage.com`, each upload with `Cache-Control: public, max-age=31536000, immutable`, since a photo never changes under its name). None set and not production means a local folder (`UPLOAD_DIR`, default `apps/api/uploads`, git-ignored) that the API serves at `/media`. None set in production means `NoStorage`: the API starts, logs a warning, and refuses uploads with `MEDIA_STORAGE_NOT_CONFIGURED` (503), because a live server's disk is wiped on every deploy. A half-filled R2 set stops the start (`validateEnv`).
+
+**Public replies:** product cards carry `primaryImage` (small copy of the first photo, or null); the product page carries `media[]` (`url` large, `thumbnailUrl` small, `variantId`); the bag, wishlist and the customer's and admin's orders carry `imageUrl` per item (read from the product's current photos through `thumbnailsForVariants`, not copied onto the order). The admin product replies carry `media[]` and `primaryImage`.
+
+**Clients:** web `components/ProductImage.tsx`, `lib/photos.ts` (which photo for a colour; gallery stepping), `lib/product-metadata.ts` and `app/shop/[slug]/layout.tsx` (title, line and cover photo in the HTML for link previews); app `components/ProductImage.tsx`, `services/photos.ts`; admin `components/PhotoManager.tsx`, `lib/photos.ts` (checks before sending), `services/api.ts` (`uploadPhoto` sends `FormData` without a JSON content type).
 
 ---
 
@@ -756,7 +755,7 @@ class CartItemResponse {
 
 | Method | Rules |
 |---|---|
-| `getCart(userId)` | Join cart_items → product_variants → inventory → product_media. Recalculate all prices from current variant price. Flag unavailable items. |
+| `getCart(userId)` | Join cart_items → product_variants → inventory; photos come from `MediaService.thumbnailsForVariants` in one extra query (`imageUrl` per line). Recalculate all prices from current variant price. Flag unavailable items. |
 | `addItem(userId, dto)` | Check variant exists + active + published product. If already in cart, increment qty. Max 10 per variant. |
 | `updateItem(userId, itemId, dto)` | Ownership check. Qty=0 removes item. Validate variant still active. |
 | `removeItem(userId, itemId)` | Ownership check. Delete cart_item row. |
@@ -985,7 +984,7 @@ async placeOrder(userId: string, dto: PlaceOrderDto) {
 > - **Shop search and filters:** `GET /products` takes `search`, `fabric`, `weaveMethod`, `color`, `minPrice` and `maxPrice` together with `sortBy`, `categoryId` and paging. `GET /products/filters` (public) returns what those can be chosen from, read from the catalog (`fabrics`, `weaveMethods`, `colors`, `minPricePaise`, `maxPricePaise`; visible products only, capital letters ignored, alphabetical), so a filter list never offers a value that matches nothing. The price range matches a product when one of its active variants is in the range (colour and price together must be the same variant); the card shows the cheapest variant, so a card can show a price below the minimum. Web and mobile (`apps/web/src/lib/shop-list.ts`, `apps/mobile/src/services/shopList.ts`) send a search only from 2 letters, wait 300 ms after typing, send price limits in paise (typed in rupees), and never send a price range whose lowest is above its highest.
 > - **Admin catalog list:** `GET /admin/products` takes `publishStatus` (`draft`, `published`, `archived`), `categoryId`, `search`, `cursor` and `limit` (1 to 50). Its query is the class `AdminProductQueryDto`, so the global validation pipe checks and converts it (it used to be an inline type, which skipped validation and made any `?limit=` fail with a 500). Products and orders are sorted newest first with the id as tie-break, so rows created in the same instant keep one fixed order and paging never skips or repeats a row (tested on real Postgres). The reply carries `counts` over the whole catalog: `products`, `published`, `draft`, `archived`, `variants`, `lowStock` (active variants with 1 to `lowStockThreshold` pieces available; none left is out of stock, not low) and `lowStockThreshold` (`INVENTORY.LOW_STOCK_THRESHOLD` = 3, also used by the cart's "Only N left" warning). The dashboard's Low Stock tile shows `counts.lowStock`; the Catalog page filters by `publishStatus` on the server and shows the real totals; the Catalog and Inventory pages load 20 products at a time with a Load more button.
 > - **Customer endpoints:** `GET /orders` (newest first; `status`, `cursor`, `limit`; the reply also carries `total`, the orders matching the status filter over every page, and `counts`, the customer's orders in each status, so the apps show "55 orders" and the filter numbers without loading everything; the apps load 20 at a time with a Load more button), `GET /orders/:id` (items and shipments; payments are not included) and `POST /orders/:id/cancel`. Cancel works for `placed`/`confirmed` only, releases `held`/`committed` reservations and stores `cancellation_reason`, but writes **no audit event**. Customer-side cancellation is out of scope for now (in discovery): no app calls this endpoint. `POST /orders/:id/return` is not implemented.
-> - **Admin order page:** `GET /admin/orders/:id` (`OrdersService.findOneAdmin`, any admin role; 404 when missing) returns the items (with colour and SKU), `address` (the frozen `addressSnapshot`), `customer`, totals, payments, shipments, `waitingMinutes`/`overdue` and `history`. History is built from the order's own timestamps (placed, confirmed, packed, shipped, delivered, cancelled), so old orders without audit rows still show their steps; the `order.status_changed` audit rows only add *who*. **The audit `actor_id` holds the acting person's `users.id` (the login id, the same `user=<id>` as the logs), not `admin_users.id`**, because the JWT's `sub` is the user row; the admin record (name, role) is found by matching the user's phone to `admin_users.phone`. A person who is no longer an admin is still named from their login.
+> - **Admin order page:** `GET /admin/orders/:id` (`OrdersService.findOneAdmin`, any admin role; 404 when missing) returns the items (with colour and SKU), `address` (the frozen `addressSnapshot`), `customer`, totals, payments, shipments, `waitingMinutes`/`overdue` and `history`. History is built from the order's own timestamps (placed, confirmed, packed, shipped, delivered, cancelled), so old orders without audit rows still show their steps; the `order.status_changed` audit rows only add *who*. **The audit `actor_id` holds the acting person's `users.id` (the login id, the same `user=<id>` as the logs), not `admin_users.id`**, because the JWT's `sub` is the user row; the admin record (name, role) is found through the link `admin_users.user_id` (item 69; it used to be a match on phone numbers, which a changed number broke). `resolveActors` asks once, for the logins with their `adminUser` relation. A person who is no longer an admin is still named from their login, with no role. Sign-in and token refresh find the admin the same way (`AuthService.findActiveAdmin`) and only while `admin_users.status` is `active`.
 - **Admin endpoints:** `GET /admin/orders` (filter by `status`; `search` matches order number or phone; `overdue=true` keeps only COD orders still `placed` for more than 24 hours; no date range or payment-mode filter). Each order carries `waitingMinutes` (minutes since it was placed, only while it is `placed`, otherwise `null`) and `overdue`, and the response has `counts: { placed, overdue, today: { date, orders, gmvPaise } }` over **all** orders (not just the page or filter) for the dashboard and the filter button. `today` is the India day (UTC+5:30, midnight to midnight, worked out by `indiaDayBounds` in `apps/api/src/common/time/india-day.ts`, so it does not depend on the server's or the browser's time zone): `orders` is the number of orders placed today and `gmvPaise` the sum of their totals, with cancelled orders left out of both (an order cancelled later drops out). The dashboard's Today's Orders and GMV Today cards show these (they used to be worked out from the first page of 20 orders). The 24 hours is `INVENTORY.COD_RESERVATION_MINUTES`; an order is overdue when it is older than that (exactly 24 hours is not). The admin Orders page shows an Overdue badge, the waiting time and an Overdue (n) filter, and the dashboard shows "n overdue" under Pending, linking to `/orders?filter=overdue`. Flag only: nothing is cancelled or released automatically. The dashboard's Pending number is now `counts.placed` (it used to count only the first page of 20 orders). The admin Orders page loads 20 rows at a time with a Load more button; after confirming, shipping or cancelling it re-reads as many rows as were showing, so the list does not jump back to 20. And `PATCH /admin/orders/:id/status` (roles `owner`, `fulfillment_operator`; transition validated; audit event written).
 > - **Side effects implemented:** `confirmed_at`/`packed_at`/`shipped_at`/`delivered_at`/`cancelled_at` timestamps; a shipment row on ship (only when a `trackingId` is sent); shipments marked delivered; reservations released on cancel; holds committed on confirm; stock taken off `on_hand` on ship (`409 STOCK_MISMATCH` if the shelf count is too low). **Not implemented:** refunds, customer notifications, the 7-day return-window check, restock on return, refund creation.
 > - **Admin cancellation:** `PATCH /admin/orders/:id/status` with `status: "cancelled"` is allowed for `placed`/`confirmed` orders and **requires a `reason`** (`UpdateOrderStatusDto`: trimmed, non-blank, max 255, enforced both by the request validation and in `OrdersService.updateStatus`). The reason is stored as `cancellation_reason` and in the audit entry's `after_state`. The admin Orders page shows a Cancel button for placed and confirmed orders; it opens a dialog that needs a reason, shows the API's refusal inside the dialog (for example if someone else already packed the order) and releases the stock on success. Packed orders cannot be cancelled (open decision 12 in the HLD).

@@ -32,7 +32,7 @@ describeDb('stock adjustment (real Postgres)', () => {
     categoryId = (await prisma.category.create({ data: { slug: `sa-${tag}`, name: 'Stock test' } })).id;
     productId = (await prisma.product.create({ data: { slug: `sa-${tag}`, title: `Stock ${tag}`, categoryId, publishStatus: 'published' } })).id;
     adminUserId = (await prisma.user.create({ data: { phone: `+7${tag}`, name: 'Stock Tester' } })).id;
-    await prisma.adminUser.create({ data: { phone: `+7${tag}`, name: 'Stock Admin', role: 'owner' } });
+    await prisma.adminUser.create({ data: { userId: adminUserId, phone: `+7${tag}`, name: 'Stock Admin', role: 'owner' } });
   });
 
   afterAll(async () => {

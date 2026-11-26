@@ -6,7 +6,7 @@ import { useParams } from 'next/navigation';
 import AdminLayout from '../../../components/AdminLayout';
 import OrderActions from '../../../components/OrderActions';
 import CopyButton from '../../../components/CopyButton';
-import { api, type AdminOrderDetail } from '../../../services/api';
+import { api, type AdminOrderDetail, messageOf } from '../../../services/api';
 import listStyles from '../orders.module.css';
 import styles from './order-detail.module.css';
 
@@ -62,10 +62,10 @@ export default function OrderDetailPage() {
     try {
       setOrder(await api.getOrder(id));
       setState('ready');
-    } catch (err: any) {
+    } catch (err) {
       // AdminLayout handles a lost login; here it is a missing order or a failed request
-      setMessage(err?.message || '');
-      setState(/not found/i.test(err?.message || '') ? 'missing' : 'failed');
+      setMessage(messageOf(err, ''));
+      setState(/not found/i.test(messageOf(err, '')) ? 'missing' : 'failed');
     }
   }, [id]);
 
@@ -131,8 +131,18 @@ export default function OrderDetailPage() {
                 {order.items.map((i) => (
                   <tr key={i.id}>
                     <td>
-                      <div className={styles.itemTitle}>{i.productTitle}</div>
-                      <div className={styles.muted}>{[i.color, i.variantName].filter(Boolean).join(' · ') || '—'}</div>
+                      <div className={styles.itemCell}>
+                        <div className={styles.itemThumb}>
+                          {i.imageUrl && (
+                            <img src={i.imageUrl} alt={i.productTitle} loading="lazy"
+                              onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                          )}
+                        </div>
+                        <div>
+                          <div className={styles.itemTitle}>{i.productTitle}</div>
+                          <div className={styles.muted}>{[i.color, i.variantName].filter(Boolean).join(' · ') || '—'}</div>
+                        </div>
+                      </div>
                     </td>
                     <td className={styles.mono}>{i.sku}</td>
                     <td className={styles.num}><strong>{i.qty}</strong></td>

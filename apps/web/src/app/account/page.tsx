@@ -16,8 +16,7 @@ import {
   getAddresses,
   getOrders,
   referenceOf,
-  type UserProfile,
-} from '@/lib/api';
+  type UserProfile, messageOf } from '@/lib/api';
 import { useWishlist } from '@/lib/wishlist-context';
 import { readLocalCart, clearLocalCart } from '@/lib/cart-events';
 import { useTheme } from '@/lib/theme-context';
@@ -25,6 +24,7 @@ import ErrorReference from '@/components/ErrorReference';
 import { resendAvailableAt, secondsLeft, resendLabel } from '@/lib/resend';
 import LoadFailed from '@/components/LoadFailed';
 import { describeLoadFailure, isNetworkError, type LoadFailure } from '@/lib/load-failure';
+import { useLatest } from '@/lib/hooks';
 
 type Screen = 'loading' | 'loadFailed' | 'login' | 'otp' | 'profile' | 'editName';
 
@@ -46,8 +46,6 @@ export default function AccountPage() {
   const [orderCount, setOrderCount] = useState(0);
   const [addressCount, setAddressCount] = useState(0);
   const { total: wishlistCount, refreshWishlist } = useWishlist();
-
-  useEffect(() => { checkAuth(); refreshWishlist(); }, [refreshWishlist]);
 
   // tick once a second while the code screen counts down to "Resend code"
   const resendLeft = secondsLeft(resendAt, now);
@@ -82,6 +80,11 @@ export default function AccountPage() {
     } catch {}
   };
 
+  // read the saved login and the saved sarees when the page opens. (checkAuth is read through a box that always holds the
+  // newest one, so this runs when refreshWishlist changes, not whenever checkAuth is recreated.)
+  const startUp = useLatest(checkAuth);
+  useEffect(() => { startUp.current(); refreshWishlist(); }, [refreshWishlist, startUp]);
+
   const handleRequestOtp = async () => {
     setBusy(true); setError(''); setErrorRef('');
     try {
@@ -89,7 +92,7 @@ export default function AccountPage() {
       const t = Date.now(); setNow(t); setResendAt(resendAvailableAt(t)); setResentNote(false);
       setScreen('otp');
     }
-    catch (e: any) { setError(e.message || 'Failed to send OTP'); setErrorRef(referenceOf(e)); }
+    catch (e) { setError(messageOf(e, 'Failed to send OTP')); setErrorRef(referenceOf(e)); }
     finally { setBusy(false); }
   };
 
@@ -101,7 +104,7 @@ export default function AccountPage() {
       await requestOtp('+91' + phone);
       const t = Date.now(); setNow(t); setResendAt(resendAvailableAt(t));
       setOtp(''); setResentNote(true);
-    } catch (e: any) { setError(e.message || 'Could not send a new code'); setErrorRef(referenceOf(e)); }
+    } catch (e) { setError(messageOf(e, 'Could not send a new code')); setErrorRef(referenceOf(e)); }
     finally { setResending(false); }
   };
 
@@ -122,7 +125,7 @@ export default function AccountPage() {
       fetchCounts();
       if (result.isNewUser || !p.name) { setEditName(''); setScreen('editName'); }
       else setScreen('profile');
-    } catch (e: any) { setError(e.message || 'Invalid OTP'); setErrorRef(referenceOf(e)); }
+    } catch (e) { setError(messageOf(e, 'Invalid OTP')); setErrorRef(referenceOf(e)); }
     finally { setBusy(false); }
   };
 
@@ -130,7 +133,7 @@ export default function AccountPage() {
     if (!editName.trim() || editName.trim().length < 2) return;
     setBusy(true); setError(''); setErrorRef('');
     try { const p = await updateProfile({ name: editName.trim() }); setProfile(p); setScreen('profile'); }
-    catch (e: any) { setError(e.message || 'Failed to save name'); setErrorRef(referenceOf(e)); }
+    catch (e) { setError(messageOf(e, 'Failed to save name')); setErrorRef(referenceOf(e)); }
     finally { setBusy(false); }
   };
 

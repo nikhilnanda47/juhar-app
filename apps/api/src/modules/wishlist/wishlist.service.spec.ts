@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { WishlistService } from './wishlist.service';
+import { MediaService } from '../media/media.service';
+import { testMedia } from '../media/test-media';
 import { PrismaService } from '../../prisma/prisma.service';
 
 const USER_A = 'aaaaaaaa-0000-0000-0000-000000000000';
@@ -36,7 +38,7 @@ describe('WishlistService', () => {
   beforeEach(async () => {
     prisma = makePrisma();
     const module: TestingModule = await Test.createTestingModule({
-      providers: [WishlistService, { provide: PrismaService, useValue: prisma }],
+      providers: [WishlistService, { provide: PrismaService, useValue: prisma }, { provide: MediaService, useValue: testMedia() }],
     }).compile();
     service = module.get(WishlistService);
   });

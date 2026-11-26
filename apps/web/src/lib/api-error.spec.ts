@@ -82,3 +82,22 @@ describe('API errors carry the request reference', () => {
     expect(api.referenceOf('text')).toBe('');
   });
 });
+
+describe('messageOf (the sentence a page shows for a failed call)', () => {
+  it('is the error\'s own message', async () => {
+    const api = load({ status: 400, body: failure({ error: { code: 'VAL_001', message: 'Phone must be valid' } }) });
+    expect(api.messageOf(await catchError(() => api.getCart()), 'Something went wrong')).toBe('Phone must be valid');
+  });
+
+  it('says what happened when the server could not be reached', async () => {
+    const api = load('network-down');
+    expect(api.messageOf(await catchError(() => api.getCart()), 'fallback')).toBe(api.NETWORK_ERROR_MESSAGE);
+  });
+
+  it('uses the fallback when there is no message, or the thing thrown is not an error', () => {
+    const { messageOf } = load({ status: 200, body: { success: true, data: {} } });
+    expect(messageOf(new Error(''), 'Could not do that')).toBe('Could not do that');
+    expect(messageOf('a string', 'Could not do that')).toBe('Could not do that');
+    expect(messageOf(undefined, 'Could not do that')).toBe('Could not do that');
+  });
+});

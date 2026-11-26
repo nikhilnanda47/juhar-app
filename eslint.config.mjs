@@ -19,9 +19,9 @@ export default tseslint.config(
   {
     languageOptions: { globals: { ...globals.node, ...globals.es2022 } },
     rules: {
-      // `any` is used widely (API responses, request bodies). Banning it now would bury the useful findings,
-      // so it is allowed for the moment; tightening it is a separate clean-up.
-      '@typescript-eslint/no-explicit-any': 'off',
+      // `any` switches off type checking for a value. It is an error everywhere except tests (see below). Use a real
+      // type, `unknown` plus a check, or a Prisma payload type; for plain JSON in audit entries see common/audit/json.ts.
+      '@typescript-eslint/no-explicit-any': 'error',
       // `catch {}` that deliberately ignores a failure is fine; an empty block anywhere else is not
       'no-empty': ['error', { allowEmptyCatch: true }],
       // an unused name is fine when it starts with an underscore (a deliberately ignored value)
@@ -42,12 +42,14 @@ export default tseslint.config(
     },
   },
 
-  // Tests (they load modules with require() after jest.mock / resetModules)
+  // Tests (they load modules with require() after jest.mock / resetModules, and their fakes stand in for big
+  // objects, which is what `as any` is for)
   {
-    files: ['**/*.spec.{ts,tsx}', '**/*.test.{ts,tsx}', '**/test/**'],
+    files: ['**/*.spec.{ts,tsx}', '**/*.test.{ts,tsx}', '**/test/**', 'apps/api/src/modules/media/test-media.ts'],
     languageOptions: { globals: { ...globals.jest } },
-    rules: { '@typescript-eslint/no-require-imports': 'off' },
+    rules: { '@typescript-eslint/no-require-imports': 'off', '@typescript-eslint/no-explicit-any': 'off' },
   },
+
 
   // Plain Node command-line scripts (CommonJS): require() is how they load modules
   {

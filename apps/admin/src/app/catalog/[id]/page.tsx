@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import AdminLayout from '../../../components/AdminLayout';
 import StockAdjustModal, { type StockTarget } from '../../../components/StockAdjustModal';
-import { api, type AdminProductDetail } from '../../../services/api';
+import PhotoManager from '../../../components/PhotoManager';
+import { api, type AdminProductDetail, messageOf } from '../../../services/api';
 import { BasicInfoSection, FabricSection, splitList, type ProductFields } from '../new/ProductFields';
 import styles from '../new/new.module.css';
 import edit from './edit.module.css';
@@ -65,6 +66,7 @@ export default function EditProductPage() {
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
   const [adjusting, setAdjusting] = useState<StockTarget | null>(null);
+  const [justCreated, setJustCreated] = useState(false); // arrived from "Create product": photos are the next step
 
   // Read the product (again), and put the form back in line with what is saved
   const load = useCallback(async () => {
@@ -75,14 +77,22 @@ export default function EditProductPage() {
       setEdits(editsOf(p));
       setAdded([]);
       setState('ready');
-    } catch (err: any) {
-      setState(/not found/i.test(err?.message || '') ? 'missing' : 'failed');
-      setError(err?.message || '');
+    } catch (err) {
+      setState(/not found/i.test(messageOf(err, '')) ? 'missing' : 'failed');
+      setError(messageOf(err, ''));
     }
   }, [id]);
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => { api.getCategories().then(setCategories).catch(() => {}); }, []);
+
+  // Coming here straight after creating a product: say so and bring the Photos section into view
+  useEffect(() => {
+    if (state !== 'ready' || justCreated || new URLSearchParams(window.location.search).get('created') !== '1') return;
+    setJustCreated(true);
+    setActiveSection(3);
+    document.getElementById('photos')?.scrollIntoView({ block: 'start' });
+  }, [state, justCreated]);
 
   const setField = (name: keyof ProductFields, value: string) => {
     setFields((f) => (f ? { ...f, [name]: value } : f));
@@ -177,8 +187,8 @@ export default function EditProductPage() {
       }
       await load();
       setSaved(true);
-    } catch (err: any) {
-      setError(err?.message || 'Could not save the changes. Please try again.');
+    } catch (err) {
+      setError(messageOf(err, 'Could not save the changes. Please try again.'));
       await load().catch(() => {}); // some of the changes may have been saved: show what is now stored
       setSaved(false);
     }
@@ -344,6 +354,32 @@ export default function EditProductPage() {
                   </div>
                 </div>
               ))}
+            </div>
+          </section>
+
+          {/* Photos: saved the moment they are added, so they live outside the form's Save button */}
+          <section
+            id="photos"
+            className={`${styles.section} ${activeSection === 3 ? styles.sectionActive : ''}`}
+            onClick={() => setActiveSection(3)}
+          >
+            <div className={styles.sectionHeader}>
+              <div className={styles.sectionNumber}>4</div>
+              <div>
+                <h3 className={styles.sectionTitle}>Photos</h3>
+                <p className={styles.sectionDesc}>The first photo is the cover on the shop, in the app and in lists. Photos are saved as soon as you add them.</p>
+              </div>
+            </div>
+            <div className={styles.sectionBody}>
+              {justCreated && (
+                <div className={edit.savedCard} role="status">✓ Product created. Add its photos here; it shows a grey box in the shop until you do.</div>
+              )}
+              <PhotoManager
+                productId={product.id}
+                photos={product.media ?? []}
+                colours={product.variants.map((v) => ({ id: v.id, label: v.color || v.name || v.sku }))}
+                onChange={(media) => setProduct((current) => (current ? { ...current, media } : current))}
+              />
             </div>
           </section>
 

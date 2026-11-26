@@ -1,5 +1,6 @@
 // Reading the command line of `npm run db:create-admin`, which makes the first real admin account of a new
 // environment (the sample seed is for development only and must never run on a live database).
+import { PrismaClient } from '@prisma/client';
 import { AdminRole } from '@juhar/shared';
 
 export interface NewAdmin {
@@ -40,4 +41,40 @@ export function parseCreateAdminArgs(argv: string[]): NewAdmin {
     throw new Error(`--email "${email}" does not look like an email address.`);
   }
   return { phone, name, role: role as AdminRole, ...(email ? { email } : {}) };
+}
+
+/** The parts of the database client the account creation uses (so it can be tested without a database) */
+export type AdminBootstrapDb = Pick<PrismaClient, '$transaction'>;
+
+export interface AdminResult {
+  created: boolean;
+  userId: string;
+  adminId: string;
+  name: string;
+  role: string;
+  phone: string;
+}
+
+/**
+ * Creates or updates one admin, as one transaction: their login (users, found by phone number or created) and their
+ * staff record (admin_users) linked to it by user_id. Safe to run again. An admin who already exists is found through the
+ * link, so their phone number, name or role can be corrected here without making a second account.
+ */
+export async function createOrUpdateAdmin(db: AdminBootstrapDb, admin: NewAdmin): Promise<AdminResult> {
+  return db.$transaction(async (tx) => {
+    // the login this admin signs in with
+    let user = await tx.user.findUnique({ where: { phone: admin.phone } });
+    if (!user) {
+      user = await tx.user.create({ data: { phone: admin.phone, name: admin.name } });
+    } else if (!user.name) {
+      user = await tx.user.update({ where: { id: user.id }, data: { name: admin.name } });
+    }
+
+    const existing = await tx.adminUser.findUnique({ where: { userId: user.id } });
+    const data = { name: admin.name, role: admin.role, status: 'active', phone: admin.phone, ...(admin.email ? { email: admin.email } : {}) };
+    const saved = existing
+      ? await tx.adminUser.update({ where: { id: existing.id }, data })
+      : await tx.adminUser.create({ data: { ...data, userId: user.id } });
+    return { created: !existing, userId: user.id, adminId: saved.id, name: saved.name, role: saved.role, phone: saved.phone };
+  });
 }

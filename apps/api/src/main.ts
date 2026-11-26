@@ -10,6 +10,7 @@ import { createAccessLogMiddleware } from './common/logging/access-log.middlewar
 import { requestIdMiddleware } from './common/logging/request-id.middleware';
 import { logLevelsFor, resolveLogLevel } from './config/log-level';
 import { parseTrustProxy } from './config/trust-proxy';
+import { LocalStorage, STORAGE_PROVIDER } from './modules/media/storage';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true });
@@ -36,6 +37,18 @@ async function bootstrap() {
       'TRUST_PROXY is not set. If the API runs behind a proxy, all callers will share one IP address ' +
         'in the rate limits. Set TRUST_PROXY to the number of proxies in front of the API (for example 1).',
     );
+  }
+
+  // Product photos kept on this computer (development): the API serves them itself. On a live system they are in
+  // Cloudflare R2 and this does nothing. A photo never changes once stored (a new upload gets a new name), so it may be cached for a year.
+  const storage = app.get(STORAGE_PROVIDER);
+  if (storage instanceof LocalStorage) {
+    app.useStaticAssets(storage.directory, {
+      prefix: '/media',
+      maxAge: '365d',
+      immutable: true,
+      setHeaders: (res) => res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin'), // shown on the website, admin and app
+    });
   }
 
   // Global validation pipe

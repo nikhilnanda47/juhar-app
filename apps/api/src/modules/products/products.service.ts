@@ -4,15 +4,52 @@ import {
   ConflictException,
   BadRequestException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, ProductMedia } from '@prisma/client';
+import { asJson, jsonOrNull } from '../../common/audit/json';
 import { PrismaService } from '../../prisma/prisma.service';
+import { MediaService } from '../media/media.service';
 import { ProductQueryDto, AdminProductQueryDto, CreateProductDto, UpdateProductDto, UpdateVariantDto } from './dto';
 import { CreateVariantDto } from './dto/create-product.dto';
 import { generateSlug, ProductSortBy, PublishStatus, PAGINATION, INVENTORY } from '@juhar/shared';
 
+/** What a product card needs (the shop list); the same for every sort order. */
+const CARD_INCLUDE = {
+  category: { select: { slug: true, name: true } },
+  variants: {
+    where: { active: true },
+    orderBy: { pricePaise: 'asc' },
+    include: {
+      inventory: { select: { onHand: true, reserved: true, unavailable: true } },
+    },
+  },
+  media: {
+    where: { type: 'image' },
+    orderBy: { sortOrder: 'asc' },
+    take: 1,
+  },
+} as const satisfies Prisma.ProductInclude;
+type CardRow = Prisma.ProductGetPayload<{ include: typeof CARD_INCLUDE }>;
+
+/** What the admin's product list shows for each product. */
+const ADMIN_LIST_INCLUDE = {
+  category: true,
+  variants: { include: { inventory: true } },
+  media: { orderBy: { sortOrder: 'asc' } },
+  _count: { select: { variants: true } },
+} as const satisfies Prisma.ProductInclude;
+
 @Injectable()
 export class ProductsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly media: MediaService,
+  ) {}
+
+  /** A product from the admin side with its photos as addresses (the database holds keys) and the cover for lists */
+  private withPhotos<T extends { media?: ProductMedia[] }>(product: T) {
+    const photos = (product.media ?? []).filter((m) => m.type === 'image');
+    return { ...product, media: photos.map((m) => this.media.present(m)), primaryImage: this.media.card(photos[0]) };
+  }
 
   // ─────────────────────────────────────
   // PUBLIC ENDPOINTS
@@ -60,24 +97,8 @@ export class ProductsService {
       where.variants = { some: variantFilter };
     }
 
-    // What a product card needs; the same for every sort order.
-    const include = {
-      category: { select: { slug: true, name: true } },
-      variants: {
-        where: { active: true },
-        orderBy: { pricePaise: 'asc' },
-        include: {
-          inventory: { select: { onHand: true, reserved: true, unavailable: true } },
-        },
-      },
-      media: {
-        where: { type: 'image' },
-        orderBy: { sortOrder: 'asc' },
-        take: 1,
-      },
-    } as const;
 
-    let items: any[];
+    let items: CardRow[];
     let hasMore: boolean;
     let nextCursor: string | null;
     let total: number; // every product that matches the filters, over all pages ("58 sarees")
@@ -85,27 +106,22 @@ export class ProductsService {
     if (query.sortBy === ProductSortBy.PRICE_ASC || query.sortBy === ProductSortBy.PRICE_DESC) {
       ({ items, hasMore, nextCursor, total } = await this.findPageByPrice(
         where,
-        include,
         limit,
         query.cursor,
         query.sortBy === ProductSortBy.PRICE_DESC,
       ));
     } else {
       // Newest first (also used when no sort is given)
-      const findArgs: Prisma.ProductFindManyArgs = {
+      const findArgs = {
         where,
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], // id breaks ties, so paging never skips or repeats
         take: limit + 1,
-        include,
-      };
-
-      if (query.cursor) {
-        findArgs.cursor = { id: query.cursor };
-        findArgs.skip = 1;
-      }
+        include: CARD_INCLUDE,
+        ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
+      } satisfies Prisma.ProductFindManyArgs;
 
       const [products, count] = await Promise.all([
-        this.prisma.product.findMany(findArgs as any),
+        this.prisma.product.findMany(findArgs),
         this.prisma.product.count({ where }),
       ]);
       total = count;
@@ -115,9 +131,9 @@ export class ProductsService {
     }
 
     // Transform to ProductCard shape
-    const cards = items.map((product: any) => {
+    const cards = items.map((product) => {
       const lowestVariant = product.variants[0];
-      const totalAvailable = product.variants.reduce((sum: number, v: any) => {
+      const totalAvailable = product.variants.reduce((sum, v) => {
         const inv = v.inventory;
         return sum + (inv ? inv.onHand - inv.reserved - inv.unavailable : 0);
       }, 0);
@@ -128,9 +144,7 @@ export class ProductsService {
         title: product.title,
         shortDescription: product.shortDescription,
         categorySlug: product.category.slug,
-        primaryImage: product.media[0]
-          ? { url: product.media[0].thumbnailKey || product.media[0].objectKey, alt: product.media[0].altText }
-          : null,
+        primaryImage: this.media.card(product.media[0]),
         startingPricePaise: lowestVariant?.pricePaise ?? 0,
         compareAtPaise: lowestVariant?.compareAtPaise ?? null,
         isAvailable: totalAvailable > 0,
@@ -155,11 +169,10 @@ export class ProductsService {
    */
   private async findPageByPrice(
     where: Prisma.ProductWhereInput,
-    include: Prisma.ProductInclude,
     limit: number,
     cursor: string | undefined,
     descending: boolean,
-  ): Promise<{ items: any[]; hasMore: boolean; nextCursor: string | null; total: number }> {
+  ): Promise<{ items: CardRow[]; hasMore: boolean; nextCursor: string | null; total: number }> {
     const matching = await this.prisma.product.findMany({ where, select: { id: true } });
     const ids = matching.map((p) => p.id);
     if (ids.length === 0) return { items: [], hasMore: false, nextCursor: null, total: 0 };
@@ -190,10 +203,10 @@ export class ProductsService {
 
     const products = await this.prisma.product.findMany({
       where: { id: { in: idsOnPage } },
-      include,
-    } as any);
-    const byId = new Map<string, any>(products.map((product: any) => [product.id, product]));
-    const items = idsOnPage.map((id) => byId.get(id)).filter(Boolean);
+      include: CARD_INCLUDE,
+    });
+    const byId = new Map(products.map((product) => [product.id, product]));
+    const items = idsOnPage.map((id) => byId.get(id)).filter((product): product is CardRow => !!product);
 
     return { items, hasMore, nextCursor: hasMore ? idsOnPage[idsOnPage.length - 1] : null, total };
   }
@@ -288,14 +301,7 @@ export class ProductsService {
       weight: product.weight,
       occasion: product.occasion,
       tags: product.tags,
-      media: product.media.map((m) => ({
-        id: m.id,
-        url: m.thumbnailKey || m.objectKey,
-        thumbnailUrl: m.thumbnailKey,
-        type: m.type,
-        altText: m.altText,
-        sortOrder: m.sortOrder,
-      })),
+      media: product.media.filter((m) => m.type === 'image').map((m) => this.media.present(m)),
       variants,
       createdAt: product.createdAt,
     };
@@ -321,30 +327,19 @@ export class ProductsService {
       ];
     }
 
-    const findArgs: Prisma.ProductFindManyArgs = {
+    const findArgs = {
       where,
       // id breaks ties, so products created in the same instant keep one fixed order across pages
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: limit + 1,
-      include: {
-        category: true,
-        variants: {
-          include: { inventory: true },
-        },
-        media: { orderBy: { sortOrder: 'asc' } },
-        _count: { select: { variants: true } },
-      },
-    };
-
-    if (query.cursor) {
-      findArgs.cursor = { id: query.cursor };
-      findArgs.skip = 1;
-    }
+      include: ADMIN_LIST_INCLUDE,
+      ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
+    } satisfies Prisma.ProductFindManyArgs;
 
     // The counts cover the whole catalog (not just this page or filter), for the page headings,
     // the filter buttons and the dashboard's Low Stock tile.
     const [products, byStatus, variants, lowStock] = await Promise.all([
-      this.prisma.product.findMany(findArgs as any),
+      this.prisma.product.findMany(findArgs),
       this.prisma.product.groupBy({ by: ['publishStatus'], _count: { _all: true } }),
       this.prisma.productVariant.count(),
       this.countLowStockVariants(),
@@ -358,7 +353,7 @@ export class ProductsService {
       byStatus.find((row) => row.publishStatus === status)?._count._all ?? 0;
 
     return {
-      items,
+      items: items.map((item) => this.withPhotos(item)),
       cursor: nextCursor,
       hasMore,
       counts: {
@@ -461,7 +456,7 @@ export class ProductsService {
             sku: variantDto.sku,
             name: variantDto.name,
             color: variantDto.color,
-            attributes: (variantDto.attributes as any) ?? Prisma.JsonNull,
+            attributes: jsonOrNull(variantDto.attributes),
             pricePaise: variantDto.pricePaise,
             compareAtPaise: variantDto.compareAtPaise,
             sortOrder: index,
@@ -477,7 +472,7 @@ export class ProductsService {
       }
 
       // Return full product with relations
-      return tx.product.findUnique({
+      const created = await tx.product.findUnique({
         where: { id: product.id },
         include: {
           category: true,
@@ -485,6 +480,7 @@ export class ProductsService {
           media: { orderBy: { sortOrder: 'asc' } },
         },
       });
+      return created ? this.withPhotos(created) : created;
     });
   }
 
@@ -502,7 +498,7 @@ export class ProductsService {
       },
     });
     if (!product) throw new NotFoundException({ code: 'PROD_001', message: 'Product not found' });
-    return product;
+    return this.withPhotos(product);
   }
 
   /**
@@ -552,18 +548,18 @@ export class ProductsService {
       ...(dto.occasion && { occasion: dto.occasion }),
       ...(dto.tags && { tags: dto.tags }),
     };
-    const { before, after } = changedFields(product as any, wanted);
+    const { before, after } = changedFields(product, wanted);
     const include = {
       category: true,
       variants: { include: { inventory: true } },
       media: { orderBy: { sortOrder: 'asc' as const } },
     };
     if (Object.keys(after).length === 0) {
-      return this.prisma.product.findUniqueOrThrow({ where: { id }, include });
+      return this.withPhotos(await this.prisma.product.findUniqueOrThrow({ where: { id }, include }));
     }
 
     return this.prisma.$transaction(async (tx) => {
-      const updated = await tx.product.update({ where: { id }, data: after as any, include });
+      const updated = await tx.product.update({ where: { id }, data: after as Prisma.ProductUpdateInput, include });
       await tx.auditEvent.create({
         data: {
           action: 'product.updated',
@@ -571,11 +567,11 @@ export class ProductsService {
           entityId: id,
           actorType: 'admin',
           actorId: adminId,
-          beforeState: before as any,
-          afterState: after as any,
+          beforeState: asJson(before),
+          afterState: asJson(after),
         },
       });
-      return updated;
+      return this.withPhotos(updated);
     });
   }
 
@@ -604,7 +600,7 @@ export class ProductsService {
           sku: dto.sku,
           name: dto.name,
           color: dto.color,
-          attributes: (dto.attributes as any) ?? Prisma.JsonNull,
+          attributes: jsonOrNull(dto.attributes),
           pricePaise: dto.pricePaise,
           compareAtPaise: dto.compareAtPaise,
         },
@@ -650,18 +646,18 @@ export class ProductsService {
     const wanted: Record<string, unknown> = {
       ...(dto.name !== undefined && { name: dto.name }),
       ...(dto.color !== undefined && { color: dto.color }),
-      ...(dto.attributes !== undefined && { attributes: (dto.attributes as any) ?? Prisma.JsonNull }),
+      ...(dto.attributes !== undefined && { attributes: jsonOrNull(dto.attributes) }),
       ...(dto.pricePaise !== undefined && { pricePaise: dto.pricePaise }),
       ...(dto.compareAtPaise !== undefined && { compareAtPaise: dto.compareAtPaise }),
       ...(dto.active !== undefined && { active: dto.active }),
     };
-    const { before, after } = changedFields(variant as any, wanted);
+    const { before, after } = changedFields(variant, wanted);
     if (Object.keys(after).length === 0) {
       return this.prisma.productVariant.findUniqueOrThrow({ where: { id: variantId }, include: { inventory: true } });
     }
 
     return this.prisma.$transaction(async (tx) => {
-      const updated = await tx.productVariant.update({ where: { id: variantId }, data: after as any, include: { inventory: true } });
+      const updated = await tx.productVariant.update({ where: { id: variantId }, data: after as Prisma.ProductVariantUpdateInput, include: { inventory: true } });
       await tx.auditEvent.create({
         data: {
           action: 'variant.updated',
@@ -669,9 +665,9 @@ export class ProductsService {
           entityId: variantId,
           actorType: 'admin',
           actorId: adminId,
-          beforeState: before as any,
-          afterState: after as any,
-          metadata: { productId, sku: variant.sku } as any,
+          beforeState: asJson(before),
+          afterState: asJson(after),
+          metadata: asJson({ productId, sku: variant.sku }),
         },
       });
       return updated;

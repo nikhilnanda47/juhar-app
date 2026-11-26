@@ -1,0 +1,214 @@
+.drop {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-hover);
+  padding: 1.4rem 1rem;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.dropActive {
+  border-color: var(--maroon);
+  background: var(--maroon-50);
+}
+
+.dropFull {
+  opacity: 0.7;
+}
+
+.pickBtn {
+  margin-top: 0.6rem;
+  background: var(--maroon);
+  color: var(--on-accent);
+  border: 0;
+  border-radius: var(--radius);
+  padding: 0.55rem 1.1rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pickBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.fine {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.hiddenInput {
+  display: none;
+}
+
+.progress {
+  margin-top: 0.8rem;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border);
+  border-top-color: var(--maroon);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.problems {
+  margin: 0.8rem 0 0;
+  padding: 0.7rem 1rem 0.7rem 1.6rem;
+  background: var(--error-bg);
+  color: var(--error);
+  border-radius: var(--radius);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  text-align: left;
+}
+
+.grid {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 0.9rem;
+}
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.cardBusy {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.thumb {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  background: var(--bg-hover);
+}
+
+.thumb img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cover {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  background: var(--maroon);
+  color: var(--on-accent);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.18rem 0.5rem;
+  border-radius: 999px;
+}
+
+.position {
+  position: absolute;
+  bottom: 0.5rem;
+  left: 0.5rem;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 0.72rem;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+}
+
+.tools {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  display: flex;
+  gap: 0.3rem;
+}
+
+.tool {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 0;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+}
+
+.tool:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.toolRemove {
+  color: var(--error);
+}
+
+.fields {
+  padding: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.fields label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.fields input,
+.fields select {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.38rem 0.5rem;
+  font-size: 0.82rem;
+  background: var(--bg-card);
+  color: var(--text-primary);
+}
+
+.error {
+  margin-top: 0.8rem;
+  background: var(--error-bg);
+  color: var(--error);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.9rem;
+  font-size: 0.85rem;
+}
+
+.empty {
+  margin-top: 1rem;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}

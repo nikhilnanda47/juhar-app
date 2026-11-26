@@ -29,6 +29,14 @@ export const RATE_LIMITS = {
   API_PUBLIC_PER_IP: { max: 30, windowMinutes: 1 },
 } as const;
 
+// ── Product photos ──
+export const MEDIA = {
+  MAX_PER_PRODUCT: 10,
+  MAX_FILE_BYTES: 10 * 1024 * 1024, // 10 MB, as chosen from a phone or camera (the API shrinks it before keeping it)
+  MIN_SIDE_PX: 600, // the shorter side; smaller photos look blurry on a product page
+  ACCEPTED_TYPES: ['image/jpeg', 'image/png', 'image/webp'],
+} as const;
+
 // ── Auth ──
 export const AUTH = {
   ACCESS_TOKEN_EXPIRY: '15m',

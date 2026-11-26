@@ -23,11 +23,19 @@ export const OtpThrottle = () => SetMetadata(OTP_THROTTLE, true);
 const notOtpRoute = (context: ExecutionContext): boolean =>
   !Reflect.getMetadata(OTP_THROTTLE, context.getHandler());
 
-const ipTracker = (req: Record<string, any>): string => `ip:${req.ip}`;
+/** The few parts of an incoming request the limits look at (all of it is untrusted) */
+interface RequestLike {
+  ip?: string;
+  headers?: Record<string, unknown>;
+  body?: { phone?: unknown };
+}
+
+const ipTracker = (req: RequestLike): string => `ip:${req.ip}`;
 
 /** The phone number in the request body. Guards run before validation, so treat it as untrusted text. */
-const phoneTracker = (req: Record<string, any>): string => {
-  const phone = typeof req.body?.phone === 'string' ? req.body.phone.trim() : '';
+const phoneTracker = (req: RequestLike): string => {
+  const sent = req.body?.phone;
+  const phone = typeof sent === 'string' ? sent.trim() : '';
   return phone ? `phone:${phone}` : ipTracker(req);
 };
 
@@ -38,7 +46,7 @@ const phoneTracker = (req: Record<string, any>): string => {
  * does not verify (missing, expired, forged) is counted by IP instead.
  */
 export function createUserOrIpTracker(jwt: JwtService) {
-  return (req: Record<string, any>): string => {
+  return (req: RequestLike): string => {
     const header: unknown = req.headers?.authorization;
     if (typeof header === 'string' && header.startsWith('Bearer ')) {
       try {

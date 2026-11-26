@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AdminLayout from '../../components/AdminLayout';
-import { api, type ProductCounts } from '../../services/api';
+import { api, type ProductCounts, messageOf, type AdminProductListItem } from '../../services/api';
 import { appendUnique, loadAtLeast } from '../../services/paging';
 import StockAdjustModal, { type StockTarget } from '../../components/StockAdjustModal';
 import styles from './inventory.module.css';
+import { useOnMount } from '../../lib/hooks';
 
 interface VariantStock {
   variantId: string;
@@ -22,7 +23,7 @@ interface VariantStock {
 
 export default function InventoryPage() {
   const router = useRouter();
-  const [products, setProducts] = useState<any[]>([]);
+  const [products, setProducts] = useState<AdminProductListItem[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -32,9 +33,10 @@ export default function InventoryPage() {
   const lowAt = counts?.lowStockThreshold ?? 3;
   const [adjusting, setAdjusting] = useState<StockTarget | null>(null);
 
-  useEffect(() => {
+  // the first load, once, when the page opens
+  useOnMount(() => {
     loadInventory();
-  }, []);
+  });
 
   const loadInventory = async () => {
     try {
@@ -77,17 +79,17 @@ export default function InventoryPage() {
       setCursor(data.cursor);
       setHasMore(data.hasMore);
       if (data.counts) setCounts(data.counts);
-    } catch (err: any) {
-      setLoadError(err?.message || 'Could not load more products');
+    } catch (err) {
+      setLoadError(messageOf(err, 'Could not load more products'));
     } finally {
       setLoadingMore(false);
     }
   };
 
   // One row per variant of the products loaded so far
-  const variants: VariantStock[] = products.flatMap((p: any) =>
-    (p.variants || []).map((v: any) => {
-      const inv = v.inventory || {};
+  const variants: VariantStock[] = products.flatMap((p) =>
+    (p.variants || []).map((v) => {
+      const inv = v.inventory ?? { onHand: 0, reserved: 0, unavailable: 0 };
       return {
         variantId: v.id,
         sku: v.sku,

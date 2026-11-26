@@ -1,6 +1,7 @@
 // The cart count must be the number of pieces (3 sarees = 3), the same as a guest cart shows,
 // so the badge does not change when a guest logs in.
 import { CartService } from './cart.service';
+import { testMedia } from '../media/test-media';
 
 function line(id: string, quantity: number) {
   return {
@@ -15,7 +16,7 @@ function line(id: string, quantity: number) {
 }
 
 const serviceWith = (items: any[]) =>
-  new CartService({ cartItem: { findMany: async () => items } } as any);
+  new CartService({ cartItem: { findMany: async () => items } } as any, testMedia());
 
 describe('CartService.getCart itemCount', () => {
   it('is 0 for an empty cart', async () => {

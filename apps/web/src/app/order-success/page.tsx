@@ -3,15 +3,16 @@
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Check, Truck, ShieldCheck, ArrowRight } from 'lucide-react';
-import { loadToken, getOrder } from '@/lib/api';
+import { loadToken, getOrder, type Order } from '@/lib/api';
 import LoadFailed from '@/components/LoadFailed';
+import ProductImage from '@/components/ProductImage';
 import { describeLoadFailure, type LoadFailure } from '@/lib/load-failure';
 
 function OrderSuccessContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const orderId = searchParams.get('orderId');
-  const [order, setOrder] = useState<any>(null);
+  const [order, setOrder] = useState<Order | null>(null);
   const [failure, setFailure] = useState<LoadFailure | null>(null);
 
   const load = useCallback(async () => {
@@ -51,7 +52,9 @@ function OrderSuccessContent() {
       {/* Preview */}
       <div className="card w-full text-left mb-4">
         <div className="flex gap-3 mb-3">
-          <div className="w-14 h-[72px] rounded-lg bg-surface-container-low shrink-0" />
+          <div className="relative w-14 h-[72px] rounded-lg bg-surface-container-low overflow-hidden shrink-0">
+            <ProductImage src={firstItem?.imageUrl} alt={firstItem?.productTitle || 'Handloom saree'} />
+          </div>
           <div>
             <span className="label-upper text-accent">MASTERPIECE RESERVED</span>
             <p className="font-sans text-body-md text-text-primary font-medium mt-0.5">{firstItem?.productTitle || 'Handloom Saree'}</p>

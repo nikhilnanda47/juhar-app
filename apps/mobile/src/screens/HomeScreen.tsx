@@ -11,21 +11,23 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { useTheme, type ColorPalette } from '../theme';
 import { spacing, borderRadius } from '../theme';
-import { getProducts, getCategories, formatPaise, type Product } from '../services/api';
+import { getProducts, getCategories, formatPaise, type Product, type Category } from '../services/api';
 import { FadeInUp, ScalePress } from '../components/AnimatedUI';
 import RefreshButton from '../components/RefreshButton';
 import LoadFailed from '../components/LoadFailed';
+import ProductImage from '../components/ProductImage';
 import { describeLoadFailure, type LoadFailure } from '../services/loadFailure';
+import type { ScreenNavigation } from '../navigation/types';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - spacing.margin * 2 - spacing.gutter) / 2;
 
 export default function HomeScreen() {
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation<ScreenNavigation>();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [newArrivals, setNewArrivals] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [failure, setFailure] = useState<LoadFailure | null>(null); // why the first load failed
 
@@ -36,7 +38,7 @@ export default function HomeScreen() {
         getCategories(),
       ]);
       setNewArrivals(productsData.items || []);
-      setCategories((catsData || []).filter((c: any) => c.active !== false).slice(0, 4));
+      setCategories((catsData || []).filter((c) => c.active !== false).slice(0, 4));
       setFailure(null);
     } catch (err) { setFailure(describeLoadFailure(err, 'Could not load the collection.')); }
   };
@@ -100,7 +102,7 @@ export default function HomeScreen() {
           <Text style={styles.sectionCount}>{categories.length} WEAVES</Text>
         </View>
         <View style={styles.collectionsGrid}>
-          {categories.map((cat: any) => (
+          {categories.map((cat) => (
             <TouchableOpacity
               key={cat.id}
               style={styles.collectionCard}
@@ -135,7 +137,7 @@ export default function HomeScreen() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.arrivalsScroll}
           >
-            {newArrivals.map((product: any) => {
+            {newArrivals.map((product) => {
               const price = product.startingPricePaise ?? 0;
               const compare = product.compareAtPaise ?? null;
               const lowStock = product.totalStock !== undefined && product.totalStock > 0 && product.totalStock <= 3;
@@ -149,7 +151,9 @@ export default function HomeScreen() {
                     params: { slug: product.slug },
                   })}
                 >
-                  <View style={styles.arrivalImage} />
+                  <View style={styles.arrivalImage}>
+                    <ProductImage uri={product.primaryImage?.url} alt={product.primaryImage?.alt || product.title} />
+                  </View>
                   <View style={styles.arrivalMeta}>
                     <Text style={styles.arrivalTitle} numberOfLines={1}>{product.title}</Text>
                     <View style={styles.priceRow}>
@@ -342,6 +346,7 @@ const createStyles = (colors: ColorPalette) => StyleSheet.create({
     width: '100%',
     aspectRatio: 3 / 4,
     borderRadius: borderRadius.md,
+    overflow: 'hidden',
     backgroundColor: colors.placeholder,
     marginBottom: spacing.xs,
   },

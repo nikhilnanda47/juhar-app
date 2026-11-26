@@ -1,16 +1,19 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
 import { Truck, Phone, ArrowRight, Package, Handshake } from 'lucide-react-native';
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
-import { getAddresses, getCart, placeOrder, formatPaise, referenceOf, type Address, type CartResponse } from '../services/api';
+import { getAddresses, getCart, placeOrder, formatPaise, referenceOf, messageOf, type Address, type CartResponse } from '../services/api';
 import ErrorReference from '../components/ErrorReference';
+import ProductImage from '../components/ProductImage';
 import { shippingFor, useShippingRule } from '../services/shipping';
+import { useOnMount } from '../utils/hooks';
+import type { ScreenNavigation } from '../navigation/types';
 
 interface Props {
-  navigation: any;
+  navigation: ScreenNavigation;
   route: { params: { addressId: string } };
 }
 
@@ -27,7 +30,8 @@ export default function OrderReviewScreen({ navigation, route }: Props) {
   const [paymentMode] = useState<'cod'>('cod');
   const { rule, loaded: ruleLoaded } = useShippingRule();
 
-  useEffect(() => { loadData(); }, []);
+  // the address and the bag, once, when the screen opens
+  useOnMount(() => { loadData(); });
 
   const loadData = async () => {
     try {
@@ -49,8 +53,8 @@ export default function OrderReviewScreen({ navigation, route }: Props) {
       const idempotencyKey = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
       const order = await placeOrder({ addressId, paymentMode, idempotencyKey });
       navigation.replace('OrderSuccess', { order });
-    } catch (err: any) {
-      setError(err.message || 'Could not place order. Please try again.');
+    } catch (err) {
+      setError(messageOf(err, 'Could not place order. Please try again.'));
       setErrorRef(referenceOf(err));
     } finally {
       setPlacing(false);
@@ -107,7 +111,9 @@ export default function OrderReviewScreen({ navigation, route }: Props) {
           {cart.items.map((item, idx) => (
             <View key={item.id}>
               <View style={styles.itemRow}>
-                <View style={styles.itemThumb} />
+                <View style={styles.itemThumb}>
+                  <ProductImage uri={item.variant.imageUrl} alt={item.variant.productTitle} />
+                </View>
                 <View style={styles.itemDetails}>
                   <View style={styles.itemNameRow}>
                     <Text style={styles.itemName} numberOfLines={1}>{item.variant.productTitle}</Text>
@@ -254,7 +260,7 @@ const createStyles = (colors: ColorPalette) => StyleSheet.create({
 
   // Items
   itemRow: { flexDirection: 'row', gap: 12, paddingVertical: 8 },
-  itemThumb: { width: 60, height: 80, borderRadius: 8, backgroundColor: colors.placeholder },
+  itemThumb: { width: 60, height: 80, borderRadius: 8, overflow: 'hidden', backgroundColor: colors.placeholder },
   itemDetails: { flex: 1 },
   itemNameRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 4 },
   itemName: { fontFamily: 'DMSans-SemiBold', fontSize: 16, color: colors.textPrimary, flex: 1, letterSpacing: -0.2 },

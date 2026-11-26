@@ -1,4 +1,5 @@
 import { OrdersService } from './orders.service';
+import { testMedia } from '../media/test-media';
 
 // Each order in the admin list says who placed it, including the user ID that the logs show
 // ("user=<id>"), so a log line can be matched to a customer without opening the database.
@@ -6,7 +7,7 @@ function setup(rows: any[]) {
   const findMany = jest.fn(async () => rows);
   const count = jest.fn(async () => 0);
   const aggregate = jest.fn(async () => ({ _count: { _all: 0 }, _sum: { totalPaise: null } }));
-  return { service: new OrdersService({ order: { findMany, count, aggregate } } as any, {} as any), findMany };
+  return { service: new OrdersService({ order: { findMany, count, aggregate } } as any, {} as any, testMedia()), findMany };
 }
 const order = (id: string, user: any) => ({
   id, publicNumber: `JUH-${id}`, status: 'confirmed', paymentMode: 'cod', paymentStatus: 'cod_pending',

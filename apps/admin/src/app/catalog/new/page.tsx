@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AdminLayout from '../../../components/AdminLayout';
-import { api } from '../../../services/api';
+import { api, messageOf } from '../../../services/api';
 import styles from './new.module.css';
 import { BasicInfoSection, FabricSection, emptyProductFields, splitList, type ProductFields } from './ProductFields';
 
@@ -104,10 +104,11 @@ export default function CreateProductPage() {
       if (occasion.trim()) body.occasion = splitList(occasion);
       if (tags.trim()) body.tags = splitList(tags);
 
-      await api.createProduct(body);
-      router.push('/catalog');
-    } catch (err: any) {
-      setError(err.message || 'Failed to create product');
+      const created = await api.createProduct(body);
+      // photos need the product to exist, so the next step is its page, at the Photos section
+      router.push(`/catalog/${created.id}?created=1`);
+    } catch (err) {
+      setError(messageOf(err, 'Failed to create product'));
     } finally {
       setSaving(false);
     }
@@ -289,7 +290,7 @@ export default function CreateProductPage() {
                 <circle cx="8.5" cy="8.5" r="1.5" />
                 <polyline points="21 15 16 10 5 21" />
               </svg>
-              <span>No images yet</span>
+              <span>Photos come next</span>
             </div>
 
             <div className={styles.previewName}>{title || 'Product Title'}</div>

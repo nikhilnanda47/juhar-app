@@ -43,8 +43,8 @@
 | ORM | Prisma | Type-safe queries, versioned migrations |
 | Database | PostgreSQL 16 | ACID for inventory reservations, JSONB for attributes |
 | Admin Panel | Next.js + TypeScript | React ecosystem, shared types with API |
-| Object Storage | AWS S3 | Product images; signed uploads |
-| CDN | CloudFront | Image delivery across India |
+| Object Storage | Cloudflare R2 | Product photos, uploaded through the API (S3-compatible API, no charge for traffic out) |
+| CDN | Cloudflare | Photo delivery across India (the R2 bucket on a custom domain); optional for the pilot |
 | Auth | OTP via SMS (MSG91 / Gupshup) | Phone-based, India standard |
 | Payments | Razorpay (or Cashfree) | UPI, webhook verification, refund APIs |
 | Shipping | Manual entry (pilot) | Admin enters tracking ID; no courier API integration yet |
@@ -56,7 +56,7 @@
 > **Implementation status (2026-11-22):** The table above is the target stack. In the code today:
 > - **OTP:** a mock provider with a fixed code (`123456`); no SMS provider is wired (see section 9).
 > - **Payments:** not integrated. Only Cash on Delivery works.
-> - **Object storage / CDN:** not integrated. Products use placeholder images; there is no Media module.
+> - **Object storage / CDN:** product photos are uploaded through the API (`modules/media`), shrunk, and kept in **Cloudflare R2** on a live system (a folder on the developer's computer in development). R2 has no CDN in front of it yet: photos are served from the bucket's public address (a custom domain on Cloudflare caches them; see the runbook). Until the bucket exists (tracker item 50) a live API refuses uploads with a clear message.
 > - **Notifications / WhatsApp:** not built. WhatsApp integration is pending, and the web order page still contains a placeholder support number.
 > - **CI/CD:** GitHub Actions runs typecheck/test/build for API, web, admin and mobile (section 8). A **Lint** job runs ESLint over all four apps (`eslint.config.mjs`; section 8) and there is no automated deploy in the workflow: Railway and Vercel deploy `main` themselves once connected (see the [runbook](../operations/runbook-pilot.md)); the repo carries their settings (`railway.json`, `nixpacks.toml`, `vercel.json`) and `npm run rehearse:deploy` rehearses a deploy on a developer's computer.
 
@@ -182,7 +182,7 @@ Users can browse and add to cart without logging in:
 | **Addresses** | CRUD, PIN code, default address |
 | **Categories** | List, sort order |
 | **Products** | CRUD (admin), public search/filter/sort, paginated catalog |
-| **Media** | Signed S3 uploads, thumbnail generation, CDN URLs |
+| **Media** | Photo upload through the API (multipart), checks of the real file, shrinking to a large and a small WebP copy with Sharp, Cloudflare R2 storage, public addresses built from keys |
 | **Inventory** | on_hand/reserved/available per SKU, atomic reservation with row lock, expiry worker, audit log |
 | **Cart** | Server-side cart, price recalculation, variant validation |
 | **Checkout** | Quote (totals + shipping + tax), stock reservation → order creation in single transaction |
@@ -192,7 +192,7 @@ Users can browse and add to cart without logging in:
 
 **Deferred modules (post-pilot):** Shipping API integration, Notifications service, Analytics/reporting engine
 
-> **Implementation status (2026-11-22):** 9 of the 12 modules are active: Auth, Users, Addresses, Categories, Products, Inventory, Cart, Checkout, Orders. **Media**, **Payments** and the standalone **Admin** module (reports, admin-user management) are not built. Admin endpoints for categories, products, inventory and orders live inside their feature modules, protected by `JwtAuthGuard` + `AdminAuthGuard` + `RolesGuard`. The stock reservation expiry worker is implemented (every minute). Known gaps in these modules (inventory settlement on confirm/ship, order-number generation, admin cancel reason, auth rate limiting) are tracked in the team tracker.
+> **Implementation status (2026-11-22):** 10 of the 12 modules are active: Auth, Users, Addresses, Categories, Products, Inventory, Cart, Checkout, Orders, Media. **Payments** and the standalone **Admin** module (reports, admin-user management) are not built. Admin endpoints for categories, products, inventory and orders live inside their feature modules, protected by `JwtAuthGuard` + `AdminAuthGuard` + `RolesGuard`. The stock reservation expiry worker is implemented (every minute). Known gaps in these modules (inventory settlement on confirm/ship, order-number generation, admin cancel reason, auth rate limiting) are tracked in the team tracker.
 
 ### 3.5 Admin Panel (`apps/admin`)
 
@@ -380,9 +380,11 @@ Key constraints: integer paise for money, UTC timestamps, UUID PKs, indexes on S
 | PATCH | /api/v1/admin/products/:id | Admin | Update product |
 | POST | /api/v1/admin/products/:id/variants | Admin | Add variant |
 | PATCH | /api/v1/admin/products/:id/variants/:variantId | Admin | Update variant |
-| POST | /api/v1/admin/media/upload-url | Admin | Request signed upload URL |
-| POST | /api/v1/admin/media/confirm | Admin | Confirm upload + thumbnails |
-| DELETE | /api/v1/admin/media/:id | Admin | Delete media |
+| GET | /api/v1/admin/products/:id/media | Admin | A product's photos, in order (the first is the cover) |
+| POST | /api/v1/admin/products/:id/media | Admin | Upload a photo (multipart, part `file`); shrunk and kept as WebP |
+| PATCH | /api/v1/admin/products/:id/media/order | Admin | Put the photos in a new order |
+| PATCH | /api/v1/admin/products/:id/media/:mediaId | Admin | Change a photo's description or the colour it shows |
+| DELETE | /api/v1/admin/products/:id/media/:mediaId | Admin | Remove a photo and its files |
 | GET | /api/v1/admin/inventory | Admin | List stock levels |
 | POST | /api/v1/admin/inventory/adjustments | Admin | Adjust stock (audited) |
 | GET | /api/v1/admin/orders | Admin | Search/filter orders |
@@ -395,9 +397,9 @@ Key constraints: integer paise for money, UTC timestamps, UUID PKs, indexes on S
 | GET | /api/v1/admin/users | Admin (owner) | List admin users |
 | POST | /api/v1/admin/users | Admin (owner) | Create admin user |
 
-**46 endpoints in the table above.** `docs/api/openapi.yaml` is the detailed reference and lists 49 operations (35 implemented, 14 planned): it also documents `GET /auth/me`, `GET /admin/categories` and `GET /admin/inventory/{variantId}`, which are implemented but not in this table. Errors: `{success, error: {code, message, details?}, requestId}` with 400/401/403/404/409/429 statuses. See `docs/api/openapi.yaml` for full request/response schemas.
+**48 endpoints in the table above.** `docs/api/openapi.yaml` is the detailed reference and lists 61 operations (51 implemented, 10 planned): it also documents endpoints that are implemented but not in this table (for example `GET /auth/me`, `GET /admin/categories`, `GET /admin/inventory/{variantId}`, `GET /delivery/check`). Errors: `{success, error: {code, message, details?}, requestId}` with 400/401/403/404/409/429 statuses. See `docs/api/openapi.yaml` for full request/response schemas.
 
-> **Implementation status (2026-11-22):** The API implements the auth, profile, address, catalog, cart, checkout, customer-order and admin category/product/order endpoints in the table. **Not implemented yet:** `POST /orders/:id/return`, `POST /payments/:orderId/initiate`, `POST /webhooks/payments`, the three `/admin/media/*` endpoints, `POST /admin/orders/:id/refund`, the three `/admin/reports/*` endpoints and both `/admin/users` endpoints. **Differences:** inventory is exposed as `GET /admin/inventory/:variantId`, `GET /admin/inventory/:variantId/history` and `POST /admin/inventory/adjust` (the table shows `GET /admin/inventory` and `POST /admin/inventory/adjustments`); `GET /admin/categories` and `GET /auth/me` exist but are not listed. The table above remains the design target.
+> **Implementation status (2026-11-22):** The API implements the auth, profile, address, catalog, cart, checkout, customer-order and admin category/product/order endpoints in the table. **Not implemented yet:** `POST /orders/:id/return`, `POST /payments/:orderId/initiate`, `POST /webhooks/payments`, `POST /admin/orders/:id/refund`, the three `/admin/reports/*` endpoints and both `/admin/users` endpoints. **Differences:** inventory is exposed as `GET /admin/inventory/:variantId`, `GET /admin/inventory/:variantId/history` and `POST /admin/inventory/adjust` (the table shows `GET /admin/inventory` and `POST /admin/inventory/adjustments`); `GET /admin/categories` and `GET /auth/me` exist but are not listed. The table above remains the design target.
 
 ---
 
@@ -407,8 +409,8 @@ Key constraints: integer paise for money, UTC timestamps, UUID PKs, indexes on S
 |---|---|---|
 | **OTP** | API call to send/verify | Managed provider (MSG91/Gupshup), rate-limited per phone+IP |
 | **Payments** | Server SDK + webhook | Razorpay/Cashfree sandbox → production; verify signature + amount |
-| **Media Storage** | S3 signed uploads | Admin uploads images; generate thumbnails on upload via Sharp |
-| **CDN** | CloudFront in front of S3 | Cache product images with long TTL |
+| **Media Storage** | Cloudflare R2 (S3-compatible API) | The admin uploads through the API, which re-encodes with Sharp (large 1600 px and small 600x800 WebP, camera and location data dropped) and stores both copies under `products/<productId>/<uuid>.webp`. Uploads go through the API rather than straight to storage so the API can check the real content of the file and enforce the limits (10 photos, 10 MB, 600 px). Files never change under their name, so they are served with a one-year `immutable` cache. |
+| **CDN** | Cloudflare (custom domain on the R2 bucket) | Caches photos at the edge; not required for the pilot (the bucket's public address works) |
 | **WhatsApp** | API for notifications | Order confirmation + shipping updates (via aggregator) |
 | **Shipping** | Manual (no API) | Admin enters carrier name + tracking ID. Delivery area: a fixed rule for the pilot (all of India except army post offices, 5 to 7 days, COD everywhere), checked by `GET /delivery/check`, when an address is saved and at checkout; no courier serviceability API yet |
 
@@ -443,7 +445,7 @@ Key constraints: integer paise for money, UTC timestamps, UUID PKs, indexes on S
        └──┬──────┬───────┘
           │      │
    ┌──────▼──┐  ┌▼──────────┐
-   │PostgreSQL│  │ S3 + CDN  │
+   │PostgreSQL│  │ R2 + CDN  │
    │(Managed) │  │ (Images)  │
    └─────────┘  └───────────┘
 ```
@@ -525,8 +527,8 @@ juhar-app/
 │   ├── api/                 # NestJS (port 3000)
 │   │   ├── src/
 │   │   │   ├── modules/     # auth, users, addresses, categories, products,
-│   │   │   │                # inventory, cart, checkout, orders
-│   │   │   │                # (media, payments, admin: planned)
+│   │   │   │                # inventory, cart, checkout, orders, media
+│   │   │   │                # (payments, admin: planned)
 │   │   │   ├── common/      # decorators, DTOs, filters, interceptors
 │   │   │   ├── config/      # env.validation.ts (required-variable check at startup)
 │   │   │   └── prisma/

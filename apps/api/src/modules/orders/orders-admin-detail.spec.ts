@@ -1,4 +1,5 @@
 import { NotFoundException } from '@nestjs/common';
+import { testMedia } from '../media/test-media';
 import { OrdersService } from './orders.service';
 
 // The admin's order page: what to pack, where to send it, who to call, what to collect, and the history.
@@ -25,16 +26,20 @@ function order(over: any = {}) {
 const audit = (status: string, actorId: string | null, at: string) =>
   ({ action: 'order.status_changed', actorId, afterState: { status }, createdAt: T(at) });
 
-// The audit trail holds the acting person's USER id; the admin record is matched by phone.
-// `people` are [userId, phone, userName]; `admins` are [phone, name, role].
+// The audit trail holds the acting person's USER id; the login is followed to its admin record (admin_users.user_id).
+// `people` are [userId, phone, userName]; `admins` are [phone, name, role], and an admin belongs to the person with that phone.
 function setup(o: any, events: any[] = [], people: [string, string, string | null][] = [], admins: [string, string, string][] = []) {
   const prisma = {
     order: { findUnique: jest.fn(async () => o) },
     auditEvent: { findMany: jest.fn(async () => events) },
-    user: { findMany: jest.fn(async () => people.map(([id, phone, name]) => ({ id, phone, name }))) },
-    adminUser: { findMany: jest.fn(async () => admins.map(([phone, name, role]) => ({ phone, name, role }))) },
+    user: {
+      findMany: jest.fn(async () => people.map(([id, phone, name]) => {
+        const admin = admins.find(([adminPhone]) => adminPhone === phone);
+        return { id, phone, name, adminUser: admin ? { name: admin[1], role: admin[2] } : null };
+      })),
+    },
   };
-  return { service: new OrdersService(prisma as any, {} as any), prisma };
+  return { service: new OrdersService(prisma as any, {} as any, testMedia()), prisma };
 }
 const NOW = T('2026-11-25T10:00:00Z');
 
@@ -111,7 +116,6 @@ describe('OrdersService.findOneAdmin', () => {
       const { service, prisma } = setup(order(), [audit('confirmed', null, '2026-11-24T06:00:00Z')]);
       await service.findOneAdmin('o1', NOW);
       expect(prisma.user.findMany).not.toHaveBeenCalled();
-      expect(prisma.adminUser.findMany).not.toHaveBeenCalled();
     });
   });
 

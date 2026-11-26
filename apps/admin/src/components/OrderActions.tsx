@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { api } from '../services/api';
+import { api, messageOf } from '../services/api';
 import styles from '../app/orders/orders.module.css';
 
 // The next step for each status, and the label on its button
@@ -48,8 +48,8 @@ export default function OrderActions({ order, onChanged }: Props) {
     try {
       await api.updateOrderStatus(order.id, { status: next });
       await onChanged();
-    } catch (err: any) {
-      alert(err.message);
+    } catch (err) {
+      alert(messageOf(err, 'That did not work. Please try again.'));
     }
     setUpdating(false);
   };
@@ -63,8 +63,8 @@ export default function OrderActions({ order, onChanged }: Props) {
       await api.updateOrderStatus(order.id, { status: 'shipped', trackingId, courierName: courierName || 'Manual' });
       closeShip();
       await onChanged();
-    } catch (err: any) {
-      alert(err.message);
+    } catch (err) {
+      alert(messageOf(err, 'That did not work. Please try again.'));
     }
     setUpdating(false);
   };
@@ -79,8 +79,8 @@ export default function OrderActions({ order, onChanged }: Props) {
       await api.updateOrderStatus(order.id, { status: 'cancelled', reason: cancelReason.trim() });
       closeCancel();
       await onChanged();
-    } catch (err: any) {
-      setCancelError(err.message || 'Could not cancel the order');
+    } catch (err) {
+      setCancelError(messageOf(err, 'Could not cancel the order'));
     }
     setCancelling(false);
   };

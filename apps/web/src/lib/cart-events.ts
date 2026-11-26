@@ -11,7 +11,24 @@ export function notifyCartChanged(): void {
 
 // ── Guest cart (kept in this browser until the customer logs in) ──
 
-export function readLocalCart(): any[] {
+/** One line of the guest cart, kept in this browser (what the saree page saves when a guest adds to the bag) */
+export interface LocalCartItem {
+  variantId: string;
+  quantity: number;
+  productId: string;
+  productTitle: string;
+  productSlug: string;
+  variantName: string | null;
+  color: string | null;
+  sku: string;
+  pricePaise: number;
+  compareAtPaise: number | null;
+  available: number;
+  /** the small photo, so the bag can show it without asking again (older carts have none) */
+  imageUrl?: string | null;
+}
+
+export function readLocalCart(): LocalCartItem[] {
   if (typeof window === 'undefined') return [];
   try {
     return JSON.parse(localStorage.getItem(LOCAL_CART_KEY) || '[]');
@@ -20,7 +37,7 @@ export function readLocalCart(): any[] {
   }
 }
 
-export function saveLocalCart(items: any[]): void {
+export function saveLocalCart(items: LocalCartItem[]): void {
   localStorage.setItem(LOCAL_CART_KEY, JSON.stringify(items));
   notifyCartChanged();
 }

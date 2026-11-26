@@ -1,4 +1,5 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { testMedia } from '../media/test-media';
 import { ProductSortBy } from '@juhar/shared';
 import { ProductsService } from './products.service';
 
@@ -15,7 +16,7 @@ function setup(stored: { pricePaise: number; compareAtPaise: number | null } | n
     },
     $transaction: jest.fn(async (work: any) => work(tx)),
   };
-  return { service: new ProductsService(prisma as any), update, auditCreate, prisma };
+  return { service: new ProductsService(prisma as any, testMedia()), update, auditCreate, prisma };
 }
 
 describe('ProductsService.updateVariant', () => {
@@ -95,7 +96,7 @@ describe('ProductsService.findAll price sorting (fake database)', () => {
       return [...args.where.id.in].reverse().map((id: string) => products.get(id));
     });
     const queryRaw = jest.fn(async () => orderedByDb.map((id) => ({ id })));
-    const service = new ProductsService({ product: { findMany }, $queryRaw: queryRaw } as any);
+    const service = new ProductsService({ product: { findMany }, $queryRaw: queryRaw } as any, testMedia());
     return { service, findMany, queryRaw };
   }
 
@@ -163,7 +164,7 @@ describe('ProductsService.findAll price sorting (fake database)', () => {
     const findMany = jest.fn(async () => [card('a', 1000), card('b', 2000)]);
     const count = jest.fn(async () => 2);
     const queryRaw = jest.fn();
-    const service = new ProductsService({ product: { findMany, count }, $queryRaw: queryRaw } as any);
+    const service = new ProductsService({ product: { findMany, count }, $queryRaw: queryRaw } as any, testMedia());
     await service.findAll({ sortBy: ProductSortBy.NEWEST, limit: 10 } as any);
     expect((findMany.mock.calls[0] as unknown as any[])[0]).toMatchObject({ orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 11 });
     expect(queryRaw).not.toHaveBeenCalled();
@@ -173,7 +174,7 @@ describe('ProductsService.findAll price sorting (fake database)', () => {
     it('newest-first: counts with the same filters as the list, not just the page', async () => {
       const findMany = jest.fn(async () => [card('a', 1000), card('b', 2000)]);
       const count = jest.fn(async () => 58);
-      const service = new ProductsService({ product: { findMany, count }, $queryRaw: jest.fn() } as any);
+      const service = new ProductsService({ product: { findMany, count }, $queryRaw: jest.fn() } as any, testMedia());
       const page = await service.findAll({ sortBy: ProductSortBy.NEWEST, limit: 2, categoryId: 'cat-1' } as any);
       expect(page.total).toBe(58);
       const listWhere = (findMany.mock.calls[0] as unknown as any[])[0].where;
@@ -234,7 +235,7 @@ describe('ProductsService.update', () => {
       category: { findUnique: jest.fn(async () => ({ id: 'c1' })) },
       $transaction: jest.fn(async (work: any) => work(tx)),
     };
-    return { service: new ProductsService(prisma as any), update, auditCreate };
+    return { service: new ProductsService(prisma as any, testMedia()), update, auditCreate };
   }
 
   it('a draft product\'s shop address follows its title', async () => {
@@ -284,7 +285,7 @@ describe('ProductsService.update', () => {
 describe('ProductsService.findOneAdmin', () => {
   it('asks for every colour, hidden ones included, with its stock', async () => {
     const findUnique = jest.fn(async () => ({ id: 'p1', variants: [] }));
-    const service = new ProductsService({ product: { findUnique } } as any);
+    const service = new ProductsService({ product: { findUnique } } as any, testMedia());
     await service.findOneAdmin('p1');
     const args = (findUnique.mock.calls[0] as any[])[0];
     expect(args.include.variants.include).toEqual({ inventory: true });
@@ -292,7 +293,7 @@ describe('ProductsService.findOneAdmin', () => {
   });
 
   it('is "not found" for an unknown product', async () => {
-    const service = new ProductsService({ product: { findUnique: jest.fn(async () => null) } } as any);
+    const service = new ProductsService({ product: { findUnique: jest.fn(async () => null) } } as any, testMedia());
     await expect(service.findOneAdmin('nope')).rejects.toBeInstanceOf(NotFoundException);
   });
 });

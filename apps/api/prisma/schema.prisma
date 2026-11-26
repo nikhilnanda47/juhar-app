@@ -24,6 +24,8 @@ model User {
   cartItems     CartItem[]
   orders        Order[]
   wishlistItems WishlistItem[]
+  /// set when this login is also a staff member (every admin is a user; see AdminUser.userId)
+  adminUser     AdminUser?
 
   @@index([status])
   @@map("users")
@@ -423,6 +425,9 @@ model Refund {
 // ─────────────────────────────────────────────
 model AdminUser {
   id          String    @id @default(uuid()) @db.Uuid
+  /// The login this staff member signs in with. The audit trail names people by this login's id (users.id), so this link is
+  /// what turns "who did it" into a name and role. Every admin has exactly one login, and a login is at most one admin.
+  userId      String    @unique @map("user_id") @db.Uuid
   phone       String    @unique @db.VarChar(15)
   name        String    @db.VarChar(100)
   email       String?   @db.VarChar(255)
@@ -432,6 +437,7 @@ model AdminUser {
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
 
+  user    User     @relation(fields: [userId], references: [id])
   refunds Refund[]
 
   @@index([role])

@@ -4,10 +4,14 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { AddToCartDto, UpdateCartItemDto } from './dto';
 import { CART, INVENTORY } from '@juhar/shared';
+import { MediaService } from '../media/media.service';
 
 @Injectable()
 export class CartService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly media: MediaService,
+  ) {}
 
   /**
    * Get full cart with server-calculated prices and availability.
@@ -31,6 +35,7 @@ export class CartService {
       orderBy: { addedAt: 'desc' },
     });
 
+    const photos = await this.media.thumbnailsForVariants(items.map((item) => item.variant.id));
     const cartItems = items.map((item) => {
       const v = item.variant;
       const inv = v.inventory;
@@ -59,7 +64,7 @@ export class CartService {
           productId: v.product.id,
           productTitle: v.product.title,
           productSlug: v.product.slug,
-          imageUrl: null, // Media upload coming in Phase 5
+          imageUrl: photos.get(v.id) ?? null,
         },
         quantity: item.quantity,
         lineTotalPaise: item.quantity * v.pricePaise,

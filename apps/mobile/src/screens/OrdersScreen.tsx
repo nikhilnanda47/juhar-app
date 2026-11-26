@@ -8,9 +8,11 @@ import { Package, User, ArrowRight } from 'lucide-react-native';
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
 import RefreshButton from '../components/RefreshButton';
 import LoadFailed from '../components/LoadFailed';
+import ProductImage from '../components/ProductImage';
 import { describeLoadFailure, type LoadFailure } from '../services/loadFailure';
-import { loadToken, getOrders, formatPaise } from '../services/api';
+import { loadToken, getOrders, formatPaise, type OrderSummary } from '../services/api';
 import { appendUnique } from '../services/paging';
+import type { ScreenNavigation } from '../navigation/types';
 
 const getStatusStyles = (colors: ColorPalette): Record<string, { bg: string; text: string }> => ({
   placed: { bg: colors.surfaceMuted, text: colors.primary },
@@ -21,13 +23,13 @@ const getStatusStyles = (colors: ColorPalette): Record<string, { bg: string; tex
   cancelled: { bg: colors.statusCancelledBg, text: colors.statusCancelledText },
 });
 
-interface Props { navigation: any; }
+interface Props { navigation: ScreenNavigation; }
 
 export default function OrdersScreen({ navigation }: Props) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const statusStyles = useMemo(() => getStatusStyles(colors), [colors]);
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [total, setTotal] = useState(0); // every order of this customer, not just the ones loaded
@@ -133,7 +135,7 @@ export default function OrdersScreen({ navigation }: Props) {
         <Text style={styles.summaryLabel}>ARTISAN CERTIFIED</Text>
       </View>
 
-      {orders.map((order: any) => {
+      {orders.map((order) => {
         const sc = statusStyles[order.status] || statusStyles.placed;
         const firstItem = order.items?.[0];
         const moreCount = (order.itemCount || order.items?.length || 0) - 1;
@@ -160,7 +162,9 @@ export default function OrdersScreen({ navigation }: Props) {
             </View>
 
             <View style={styles.itemPreview}>
-              <View style={styles.itemThumb} />
+              <View style={styles.itemThumb}>
+                <ProductImage uri={firstItem?.imageUrl} alt={firstItem?.productTitle || 'Handloom saree'} />
+              </View>
               <View style={styles.itemInfo}>
                 <Text style={styles.itemName} numberOfLines={1}>
                   {firstItem?.productTitle || 'Handloom Saree'}
@@ -260,7 +264,7 @@ const createStyles = (colors: ColorPalette) => StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: colors.surfaceAlt, padding: 4, borderRadius: 8, marginTop: spacing.md,
   },
-  itemThumb: { width: 48, height: 64, borderRadius: 8, backgroundColor: colors.placeholder },
+  itemThumb: { width: 48, height: 64, borderRadius: 8, overflow: 'hidden', backgroundColor: colors.placeholder },
   itemInfo: { flex: 1, justifyContent: 'center' },
   itemName: { fontFamily: 'DMSans-Medium', fontSize: 14, color: colors.textPrimary },
   itemMeta: { fontFamily: 'DMSans-Regular', fontSize: 12, color: colors.textSecondary, marginTop: 2 },

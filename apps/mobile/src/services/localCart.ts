@@ -18,6 +18,8 @@ export interface LocalCartItem {
   pricePaise: number;
   compareAtPaise: number | null;
   available: number;
+  /** the small photo, kept so the bag can show it without asking again (older carts have none) */
+  imageUrl?: string | null;
 }
 
 // ── Read local cart ──
@@ -86,7 +88,7 @@ export function localCartToResponse(items: LocalCartItem[]): CartResponse {
       productId: item.productId,
       productTitle: item.productTitle,
       productSlug: item.productSlug,
-      imageUrl: null,
+      imageUrl: item.imageUrl ?? null,
     },
     quantity: item.quantity,
     lineTotalPaise: item.pricePaise * item.quantity,

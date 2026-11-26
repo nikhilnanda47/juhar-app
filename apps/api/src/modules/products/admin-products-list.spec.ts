@@ -1,4 +1,5 @@
 import { ValidationPipe } from '@nestjs/common';
+import { testMedia } from '../media/test-media';
 import 'reflect-metadata';
 import { AdminProductQueryDto } from './dto';
 import { ProductsAdminController } from './products.controller';
@@ -51,7 +52,7 @@ describe('ProductsService.findAllAdmin counts', () => {
       productVariant: { count: jest.fn(async () => 52) },
       $queryRaw: jest.fn(async () => [{ count: BigInt(lowStock) }]),
     };
-    return { service: new ProductsService(prisma as any), findMany, prisma };
+    return { service: new ProductsService(prisma as any, testMedia()), findMany, prisma };
   }
 
   it('returns the numbers for the whole catalog, not the page', async () => {

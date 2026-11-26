@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { User } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { UpdateProfileDto } from './dto';
 
@@ -36,7 +37,7 @@ export class UsersService {
     return this.sanitize(user);
   }
 
-  private sanitize(user: any) {
+  private sanitize(user: User) {
     return {
       id: user.id,
       phone: user.phone,

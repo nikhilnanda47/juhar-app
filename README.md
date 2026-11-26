@@ -127,7 +127,7 @@ Open items as of 2026-11-22, grouped by urgency. The team tracker holds owners a
 
 ### Engineering hygiene
 - Test coverage is early: the order state machine, stock (reserve, release, commit, ship, adjust, expiry job), admin order status changes, checkout (quote, order placement, shipping and totals) and rate limiting have tests (`npm test -w apps/api`). The automatic token refresh in the admin, web and mobile API clients is also tested (`npm test -w apps/admin`, `npm test -w apps/web`, and `npm test` inside `apps/mobile`). Auth, cart, the orders service, products and the web and mobile screens are not covered yet. Most of these tests use a fake database, so they cannot prove real concurrent locking or real SQL. The one exception is the test of the database `CHECK` constraints (`apps/api/src/database/check-constraints.spec.ts`), which runs against a real migrated Postgres only when you set `DB_TESTS=1` (CI does): `cd apps/api && npx prisma migrate deploy && DB_TESTS=1 npm test -- check-constraints`.
-- Lint: one ESLint setup (`eslint.config.mjs`) covers the API, web, admin, mobile and shared code. Run `npm run lint` from the repo root (`npm run lint:fix` fixes what is safe to fix); CI runs it as the **Lint** job and a failure blocks the merge. It checks unused code, hooks used wrongly, and (API only) promises that are not awaited. Two things are left loose on purpose: `any` is allowed for now (about 400 uses), and 20 `react-hooks/exhaustive-deps` warnings are tolerated (`--max-warnings 20` stops new ones from being added; fix some and lower the number).
+- Lint: one ESLint setup (`eslint.config.mjs`) covers the API, web, admin, mobile and shared code. Run `npm run lint` from the repo root (`npm run lint:fix` fixes what is safe to fix); CI runs it as the **Lint** job and a failure blocks the merge. It checks unused code, hooks used wrongly or with a stale list of values (`react-hooks/exhaustive-deps`), the `any` type, and (API only) promises that are not awaited. **Zero warnings are allowed** (`--max-warnings 0`): fix a warning or, if it really is intended, say why in the code. For a screen that should load its data **once when it opens**, or an animation that should play once, use `useOnMount` (`apps/mobile/src/utils/hooks.ts`, `apps/web/src/lib/hooks.ts`, `apps/admin/src/lib/hooks.ts`); for an effect that should run when ONE value changes but call the newest version of a function, use `useLatest` from the same file. **`any`** is an error in every file except tests (their fakes stand in for big objects): use a real type, a Prisma payload type, or `unknown` plus a check. Plain JSON for audit entries goes through `asJson` (`apps/api/src/common/audit/json.ts`); a failed call's message through `messageOf` in each app's API client.
 - The mobile tab bar and its screens are type-checked (`apps/mobile/src/navigation/types.ts` lists every screen and what it needs, so a wrong screen name fails the build). One loose spot: the order passed to the success screen is typed `any` because `placeOrder` returns `any`.
 
 ## Tech Stack
@@ -218,7 +218,7 @@ juhar-app/
 | Wishlist | ✅ Active | Saved items per colour; the shop hearts are per saree; unpublished items are flagged, not listed as buyable |
 | Checkout | ✅ Active | Quote calculation, atomic order placement transaction |
 | Orders | ✅ Active | 12-state machine, customer/admin views, cancellation |
-| Media | 🔲 Phase 5 | S3 signed uploads, thumbnail generation |
+| Media | ✅ Active | Product photos: upload through the API, checked and shrunk (Sharp, WebP), kept in Cloudflare R2 (a local folder in development), gallery on the website and in the app |
 | Payments | 🔲 Phase 4 | Gateway integration, webhook verification, refunds |
 | Admin | 🔲 Phase 5 | Extended RBAC, reports |
 
@@ -226,9 +226,9 @@ juhar-app/
 
 `users` · `addresses` · `categories` · `products` · `product_variants` · `product_media` · `inventory` · `inventory_reservations` · `cart_items` · `orders` · `order_items` · `payments` · `shipments` · `returns` · `refunds` · `admin_users` · `audit_events` · `webhook_events`
 
-### API (35 implemented endpoints, 14 more planned)
+### API (51 implemented endpoints, 10 more planned)
 
-Public (catalog, auth) · Customer (cart, checkout, orders, addresses, profile) · Admin (catalog CRUD, inventory, orders). Planned: payments and webhooks (Phase 4), media uploads, reports and admin users (Phase 5).
+Public (catalog, auth, delivery check) · Customer (cart, checkout, orders, addresses, wishlist, profile) · Admin (catalog CRUD, product photos, inventory, orders). Planned: payments and webhooks (Phase 4), reports and admin users (Phase 5).
 
 Full spec: [`docs/api/openapi.yaml`](docs/api/openapi.yaml)
 
@@ -425,7 +425,7 @@ cp apps/api/.env.example apps/api/.env
 # Defaults work for local dev
 ```
 
-The API checks its environment at startup and refuses to start, naming the variable, if `DATABASE_URL`, `JWT_SECRET` or `JWT_REFRESH_SECRET` is missing. If the API runs behind a proxy (Railway, nginx), set `TRUST_PROXY` to the number of proxies in front of it (for example `1`); otherwise the rate limits see every customer as the proxy's address. Leave it unset for local development. If you set `CORS_ORIGINS`, it **replaces** the built-in list, so include every app that calls the API: web (`http://localhost:3001`), admin (`http://localhost:3002`) and the mobile web preview (`http://localhost:8081`).
+The API checks its environment at startup and refuses to start, naming the variable, if `DATABASE_URL`, `JWT_SECRET` or `JWT_REFRESH_SECRET` is missing. **Product photos** need no setup locally: uploads are kept in `apps/api/uploads` (git-ignored) and the API serves them at `http://localhost:3000/media`. After pulling the photo feature run `npm install` once (it adds `sharp`, the image library, and the Cloudflare R2 client). If the API runs behind a proxy (Railway, nginx), set `TRUST_PROXY` to the number of proxies in front of it (for example `1`); otherwise the rate limits see every customer as the proxy's address. Leave it unset for local development. If you set `CORS_ORIGINS`, it **replaces** the built-in list, so include every app that calls the API: web (`http://localhost:3001`), admin (`http://localhost:3002`) and the mobile web preview (`http://localhost:8081`).
 
 > **Windows (if `cp` not available):**
 > ```powershell
@@ -613,7 +613,7 @@ Check what changed (`git diff HEAD@{1} --stat`), then use this table. Dev server
 | [Deployment Plan](docs/architecture/deployment-plan-pilot.md) | Hosting choices, costs, production environment variables |
 | [Pilot Runbook](docs/operations/runbook-pilot.md) | Where everything lives, first deploy step by step, every release, undoing a deploy, safe database changes, troubleshooting |
 | [UI Specification](docs/design/ui-specification.md) | Design system, components, screen designs, light/dark theming |
-| [OpenAPI Spec](docs/api/openapi.yaml) | 35 implemented + 14 planned REST operations with full schemas (planned ones are marked `x-status: planned`) |
+| [OpenAPI Spec](docs/api/openapi.yaml) | 51 implemented + 10 planned REST operations with full schemas (planned ones are marked `x-status: planned`) |
 | [UI/UX Designs](https://drive.google.com/drive/folders/1VGF8a_wP-hkXg4s66_ixaiOxPvS10jpX?usp=sharing) | Mobile app screen designs |
 
 ## Guiding Principles
