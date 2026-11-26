@@ -104,6 +104,13 @@ async function apiChecks(api, args) {
     return `₹${rule.flatPaise / 100} flat, free above ₹${rule.freeAbovePaise / 100}`;
   });
 
+  await check('the delivery check answers (768001 is served)', async () => {
+    const { res, body } = await json(`${api}/api/v1/delivery/check?pin=768001`);
+    if (res.status !== 200 || !body?.data) throw new Error(`answered ${res.status}`);
+    if (!body.data.serviceable) throw new Error(`it says 768001 is not served: ${body.data.message}`);
+    return `${body.data.days.min}\u2013${body.data.days.max} days`;
+  });
+
   await check('categories load', async () => {
     const { res, body } = await json(`${api}/api/v1/categories`);
     if (res.status !== 200 || !Array.isArray(body?.data)) throw new Error(`answered ${res.status}`);

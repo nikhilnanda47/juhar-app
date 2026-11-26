@@ -45,6 +45,15 @@ export const SHIPPING = {
   FREE_ABOVE_PAISE: 500000, // free when the subtotal is ₹5,000 or more
 } as const;
 
+// ── Delivery ──
+// The ONE place the delivery rule is written (see utils/delivery.ts). The pilot delivers all over India,
+// takes 5 to 7 days, and offers cash on delivery everywhere it delivers.
+export const DELIVERY = {
+  DAYS_MIN: 5,
+  DAYS_MAX: 7,
+  COD_AVAILABLE: true,
+} as const;
+
 // ── Inventory ──
 export const INVENTORY = {
   UPI_RESERVATION_MINUTES: 30,

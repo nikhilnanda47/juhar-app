@@ -99,6 +99,26 @@ describeDb('addresses (real Postgres)', () => {
     expect((await defaults(userA)).map((x) => x.id)).toEqual([b.id]);
   });
 
+  it('refuses a PIN code that cannot exist or that we cannot deliver to, and saves nothing', async () => {
+    await expect(service.create(userA, { ...dto('A'), pinCode: '000000' })).rejects.toThrow('PIN_NOT_VALID');
+    await expect(service.create(userA, { ...dto('A'), pinCode: '350001' })).rejects.toThrow('PIN_NOT_VALID');
+    await expect(service.create(userA, { ...dto('A'), pinCode: '900001' })).rejects.toThrow('PIN_NOT_SERVICEABLE');
+    expect(await mine(userA)).toHaveLength(0);
+  });
+
+  it('accepts PIN codes from anywhere in India (the pilot delivers all over)', async () => {
+    const delhi = await service.create(userA, { ...dto('A'), pinCode: '110001' });
+    expect(delhi.pinCode).toBe('110001');
+  });
+
+  it('an edit that changes the PIN code is checked too, and an edit that does not touch it is not', async () => {
+    const a = await service.create(userA, dto('A'));
+    await expect(service.update(userA, a.id, { pinCode: '000000' })).rejects.toThrow('PIN_NOT_VALID');
+    expect((await mine(userA))[0].pinCode).toBe('768001');
+    await expect(service.update(userA, a.id, { line1: 'A, changed' })).resolves.toMatchObject({ line1: 'A, changed' });
+    await expect(service.update(userA, a.id, { pinCode: '560001' })).resolves.toMatchObject({ pinCode: '560001' });
+  });
+
   it('a placed order keeps its own copy of the address after the saved address is deleted', async () => {
     // the order stores addressSnapshot (JSON), not a link to the address row
     const col = await prisma.$queryRaw<{ column_name: string }[]>`

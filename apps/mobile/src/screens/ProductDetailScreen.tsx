@@ -17,8 +17,10 @@ import {
   getProducts,
   formatPaise,
   addToCart,
+  checkDelivery,
   isLoggedIn,
   referenceOf,
+  type DeliveryCheck,
   type Product,
   type ProductVariant,
 } from '../services/api';
@@ -47,7 +49,12 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
   const { loaded: wishlistLoaded, isSaved, savedVariantOf, toggleVariant } = useWishlist();
   const pickedVariant = useRef(false); // true once the customer chose a colour themselves
   const [pinCode, setPinCode] = useState('');
-  const [pinChecked, setPinChecked] = useState(false);
+  // The delivery answer for the PIN code typed in. It belongs to that PIN code only: typing again clears it.
+  const [delivery, setDelivery] = useState<DeliveryCheck | null>(null);
+  const [checkingPin, setCheckingPin] = useState(false);
+  const [pinError, setPinError] = useState('');
+  const [pinErrorRef, setPinErrorRef] = useState('');
+  const pinRequest = useRef(0); // only the newest question may show its answer
   const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
   const [toastVisible, setToastVisible] = useState(false);
   const toastAnim = useRef(new RNAnimated.Value(0)).current;
@@ -117,6 +124,24 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
   const discount = selectedVariant?.compareAtPaise && selectedVariant.compareAtPaise > selectedVariant.pricePaise
     ? Math.round((1 - selectedVariant.pricePaise / selectedVariant.compareAtPaise) * 100)
     : null;
+
+  // Ask the API whether we deliver to the PIN code typed in (the same rule checkout holds to)
+  const askDelivery = async () => {
+    if (pinCode.length !== 6 || checkingPin) return;
+    const mine = ++pinRequest.current;
+    setCheckingPin(true); setPinError(''); setPinErrorRef(''); setDelivery(null);
+    try {
+      const answer = await checkDelivery(pinCode);
+      if (mine === pinRequest.current) setDelivery(answer);
+    } catch (err: any) {
+      if (mine === pinRequest.current) {
+        setPinError(err?.message || 'Could not check this PIN code right now. Please try again.');
+        setPinErrorRef(referenceOf(err));
+      }
+    } finally {
+      if (mine === pinRequest.current) setCheckingPin(false);
+    }
+  };
 
   const handleAddToCart = async () => {
     if (!selectedVariant || !product) return;
@@ -276,32 +301,43 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
             <TextInput
               style={styles.pinInput}
               value={pinCode}
-              onChangeText={(t) => { setPinCode(t.replace(/[^0-9]/g, '')); setPinChecked(false); }}
+              onChangeText={(t) => { setPinCode(t.replace(/[^0-9]/g, '')); pinRequest.current++; setDelivery(null); setPinError(''); setPinErrorRef(''); setCheckingPin(false); }}
+              onSubmitEditing={askDelivery}
+              accessibilityLabel="PIN code to check delivery for"
               placeholder="Enter PIN code"
               placeholderTextColor={colors.textTertiary}
               keyboardType="number-pad"
               maxLength={6}
             />
             <TouchableOpacity
-              style={[styles.pinCheckBtn, pinCode.length < 6 && { opacity: 0.4 }]}
-              onPress={() => pinCode.length === 6 && setPinChecked(true)}
-              disabled={pinCode.length < 6}
+              style={[styles.pinCheckBtn, (pinCode.length < 6 || checkingPin) && { opacity: 0.4 }]}
+              onPress={askDelivery}
+              disabled={pinCode.length < 6 || checkingPin}
             >
-              <Text style={styles.pinCheckText}>Check</Text>
+              <Text style={styles.pinCheckText}>{checkingPin ? 'Checking...' : 'Check'}</Text>
             </TouchableOpacity>
           </View>
-          {pinChecked && (
+          {delivery?.serviceable && delivery.days && (
             <View style={styles.pinResults}>
               <View style={styles.pinResultRow}>
                 <CheckCircle size={16} color={colors.success} strokeWidth={2} />
-                <Text style={styles.pinResultText}>Delivery in 5-7 days</Text>
+                <Text style={styles.pinResultText}>Delivery in {delivery.days.min}-{delivery.days.max} days</Text>
               </View>
-              <View style={styles.pinResultRow}>
-                <CheckCircle size={16} color={colors.success} strokeWidth={2} />
-                <Text style={styles.pinResultText}>Cash on delivery available</Text>
-              </View>
+              {delivery.codAvailable && (
+                <View style={styles.pinResultRow}>
+                  <CheckCircle size={16} color={colors.success} strokeWidth={2} />
+                  <Text style={styles.pinResultText}>Cash on delivery available</Text>
+                </View>
+              )}
             </View>
           )}
+          {delivery && !delivery.serviceable && (
+            <View style={styles.pinResults}>
+              <Text style={styles.pinProblemText}>{delivery.message}</Text>
+            </View>
+          )}
+          {pinError ? <View style={styles.pinResults}><Text style={styles.pinProblemText}>{pinError}</Text></View> : null}
+          <ErrorReference id={pinErrorRef} />
         </View>
 
         <View style={styles.divider} />
@@ -551,6 +587,7 @@ const createStyles = (colors: ColorPalette) => StyleSheet.create({
   },
   pinResultRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   pinResultText: { fontFamily: 'DMSans-Medium', fontSize: 12, color: colors.success },
+  pinProblemText: { fontFamily: 'DMSans-Medium', fontSize: 12, color: colors.error },
 
   // Details Table
   detailsTable: {

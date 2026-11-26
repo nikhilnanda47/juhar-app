@@ -410,7 +410,7 @@ Key constraints: integer paise for money, UTC timestamps, UUID PKs, indexes on S
 | **Media Storage** | S3 signed uploads | Admin uploads images; generate thumbnails on upload via Sharp |
 | **CDN** | CloudFront in front of S3 | Cache product images with long TTL |
 | **WhatsApp** | API for notifications | Order confirmation + shipping updates (via aggregator) |
-| **Shipping** | Manual (no API) | Admin enters carrier name + tracking ID; no automated serviceability |
+| **Shipping** | Manual (no API) | Admin enters carrier name + tracking ID. Delivery area: a fixed rule for the pilot (all of India except army post offices, 5 to 7 days, COD everywhere), checked by `GET /delivery/check`, when an address is saved and at checkout; no courier serviceability API yet |
 
 ---
 

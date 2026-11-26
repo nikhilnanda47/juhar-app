@@ -19,6 +19,11 @@ const CATALOG: Record<string, Wording> = {
   // Signing in
   LOGIN_NOT_OPEN: 'Juhar is not open to the public yet. Sign-in is limited to the pilot team for now.',
 
+  // Delivery area
+  PIN_NOT_VALID: 'That PIN code does not look right. Please check the 6 digits.',
+  PIN_NOT_SERVICEABLE: 'We cannot deliver to this PIN code yet. Please choose another address.',
+  COD_NOT_AVAILABLE_HERE: 'Cash on delivery is not available for this PIN code. Please choose another way to pay.',
+
   // Saved items (wishlist)
   ALREADY_IN_WISHLIST: 'This saree is already in your wishlist.',
   WISHLIST_ITEM_NOT_FOUND: 'That saree is not in your wishlist.',

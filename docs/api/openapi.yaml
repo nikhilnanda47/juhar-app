@@ -9,8 +9,8 @@ info:
     ## Implementation status
     Operations marked `x-status: planned` are part of the target design but are **not implemented yet**
     (Phase 4: payments, webhooks, returns, refunds; Phase 5: media uploads, reports, admin users,
-    admin inventory list). This spec lists **38 implemented** and
-    **13 planned** operations (51 in total). Unmarked operations match the code in `apps/api`.
+    admin inventory list). This spec lists **39 implemented** and
+    **13 planned** operations (52 in total). Unmarked operations match the code in `apps/api`.
 
     ## Conventions
     - All monetary values are in **integer paise** (1 INR = 100 paise)
@@ -1627,6 +1627,49 @@ paths:
   # ────────────────────────────────────────────
   # AUTH
   # ────────────────────────────────────────────
+  /api/v1/delivery/check:
+    get:
+      tags: [Checkout]
+      summary: Can we deliver to this PIN code?
+      description: >
+        Public (no login), so the product page can ask before the customer has an address. The pilot delivers to every
+        valid PIN code in India (5 to 7 days, cash on delivery available) except army and field post offices (PIN codes
+        starting 90 to 99). A PIN code whose first two digits are not a real postal zone (000000, 100000, 350001) is
+        reported as invalid. The same rule is used when an address is saved and at checkout, so the product page never
+        promises what checkout refuses. The rule lives in `packages/shared` (`checkDelivery`).
+      operationId: checkDelivery
+      security: []
+      parameters:
+        - name: pin
+          in: query
+          required: true
+          schema: { type: string, pattern: '^[0-9]{6}$', example: '768001' }
+      responses:
+        "200":
+          description: The answer (also when we do not deliver there)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    type: object
+                    properties:
+                      pin: { type: string, example: '768001' }
+                      serviceable: { type: boolean }
+                      codAvailable: { type: boolean }
+                      days:
+                        type: object
+                        nullable: true
+                        properties:
+                          min: { type: integer, example: 5 }
+                          max: { type: integer, example: 7 }
+                      reason: { type: string, enum: [ok, invalid, not_served] }
+                      message: { type: string, example: 'We deliver to 768001 in 5–7 days. Cash on delivery is available.' }
+        "400":
+          description: The PIN code is not exactly six digits
+
   /api/v1/auth/otp/request:
     post:
       tags: [Auth]

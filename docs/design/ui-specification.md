@@ -964,7 +964,7 @@ Reusable refresh icon (`RefreshCw`) with spin animation on press. Used on Home, 
 
 - Wishlist: requires login, scale animation (0.8→1.2→1.0, 200ms)
 - Share: native share sheet (WhatsApp, copy link), no login required
-- PIN check: 6-digit, numeric. Pilot: all PINs valid. Remembers in session.
+- PIN check: 6-digit, numeric. Check asks the API (`GET /delivery/check`): a served PIN shows "Delivery in 5–7 days" and "Cash on delivery available"; a PIN with no real postal zone shows "That does not look like a valid PIN code" and an army post office PIN shows "We cannot deliver to …" (red, no delivery promise); a network failure shows the usual error with its Reference. Typing again clears the answer. The pilot delivers all over India. The same rule is applied when an address is saved and at checkout.
 - Variant change updates price/stock/images
 - Add to Bag: login check → checkmark animation (500ms) → text restores
 - Shimmer skeleton on load

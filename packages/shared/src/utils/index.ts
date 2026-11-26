@@ -80,3 +80,5 @@ export function isValidPinCode(pinCode: string): boolean {
 export function calculateShippingPaise(subtotalPaise: number): number {
   return subtotalPaise >= SHIPPING.FREE_ABOVE_PAISE ? 0 : SHIPPING.FLAT_PAISE;
 }
+
+export * from './delivery';

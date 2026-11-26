@@ -7,7 +7,7 @@ Juhar is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce pl
 ## Pilot Scope (P0)
 
 - **Catalog**: Browse, search, filter sarees by fabric/weave/price/color
-- **Cart & Checkout**: Server-calculated pricing, address capture, serviceability check
+- **Cart & Checkout**: Server-calculated pricing, address capture, delivery check (all of India for the pilot; checkout and address forms hold to the same rule as the product page)
 - **Payments**: Cash on Delivery (COD); UPI planned for Phase 4
 - **Inventory**: Atomic stock reservations with row-level locking, expiry cron
 - **Orders**: Full lifecycle — placed → confirmed → packed → shipped → delivered + cancellation
@@ -27,7 +27,7 @@ Juhar is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce pl
 | 3 | Home screen — hero, collections grid, new arrivals from API | ✅ |
 | 4 | Explore catalog — category chips, 2-column product grid | ✅ |
 | 5 | Filter products by category | ✅ |
-| 6 | Product detail — price, variants, PIN check, specs, delivery info | ✅ |
+| 6 | Product detail — price, variants, delivery PIN check (real: all over India, 5–7 days, COD), specs, delivery info | ✅ |
 | 7 | Variant selection (color) | ✅ |
 | 8 | Login via phone OTP | ✅ |
 | 9 | Name capture for new users | ✅ |
@@ -54,7 +54,7 @@ Juhar is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce pl
 |---|---------|--------|
 | 1 | Home — hero banner, collections, new arrivals | ✅ |
 | 2 | Shop — search, category filters, product grid (responsive 2–5 cols) | ✅ |
-| 3 | Product detail — variants, PIN check, add to bag, related products | ✅ |
+| 3 | Product detail — variants, delivery PIN check (real, same rule as checkout), add to bag, related products | ✅ |
 | 4 | Guest cart — add items without login (localStorage) | ✅ |
 | 5 | Cart — stepper, price breakdown, checkout redirect | ✅ |
 | 6 | Cart badge count on header + bottom nav | ✅ |

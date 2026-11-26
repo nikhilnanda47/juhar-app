@@ -16,7 +16,7 @@ import {
   ShieldCheck,
   MapPin,
 } from 'lucide-react';
-import { getProductBySlug, getProducts, formatPaise, isLoggedIn, addToCart, referenceOf, type Product, type ProductVariant } from '@/lib/api';
+import { getProductBySlug, getProducts, formatPaise, isLoggedIn, addToCart, checkDelivery, referenceOf, type DeliveryCheck, type Product, type ProductVariant } from '@/lib/api';
 import ErrorReference from '@/components/ErrorReference';
 import { useWishlist } from '@/lib/wishlist-context';
 import { readLocalCart, saveLocalCart } from '@/lib/cart-events';
@@ -33,7 +33,12 @@ export default function ProductDetailPage() {
   const { loaded: wishlistLoaded, isSaved, savedVariantOf, toggleVariant } = useWishlist();
   const pickedVariant = useRef(false); // true once the customer chose a colour themselves
   const [pinCode, setPinCode] = useState('');
-  const [pinChecked, setPinChecked] = useState(false);
+  // The delivery answer for the PIN code typed above. It belongs to that PIN code only: typing again clears it.
+  const [delivery, setDelivery] = useState<DeliveryCheck | null>(null);
+  const [checkingPin, setCheckingPin] = useState(false);
+  const [pinError, setPinError] = useState('');
+  const [pinErrorRef, setPinErrorRef] = useState('');
+  const pinRequest = useRef(0); // only the newest question may show its answer
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [showToast, setShowToast] = useState(false);
 
@@ -64,6 +69,24 @@ export default function ProductDetailPage() {
   useEffect(() => {
     setAddedToCart(false);
   }, [slug]);
+
+  // Ask the API whether we deliver to the PIN code typed in (the same rule checkout holds to)
+  const askDelivery = async () => {
+    if (pinCode.length !== 6 || checkingPin) return;
+    const mine = ++pinRequest.current;
+    setCheckingPin(true); setPinError(''); setPinErrorRef(''); setDelivery(null);
+    try {
+      const answer = await checkDelivery(pinCode);
+      if (mine === pinRequest.current) setDelivery(answer);
+    } catch (e: any) {
+      if (mine === pinRequest.current) {
+        setPinError(e?.message || 'Could not check this PIN code right now. Please try again.');
+        setPinErrorRef(referenceOf(e));
+      }
+    } finally {
+      if (mine === pinRequest.current) setCheckingPin(false);
+    }
+  };
 
   const handleAddToCart = async () => {
     if (!selectedVariant || !product) return;
@@ -246,31 +269,40 @@ export default function ProductDetailPage() {
                 <input
                   type="text"
                   value={pinCode}
-                  onChange={(e) => { setPinCode(e.target.value.replace(/\D/g, '')); setPinChecked(false); }}
+                  onChange={(e) => { setPinCode(e.target.value.replace(/\D/g, '')); pinRequest.current++; setDelivery(null); setPinError(''); setPinErrorRef(''); setCheckingPin(false); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') askDelivery(); }}
+                  aria-label="PIN code to check delivery for"
                   placeholder="Enter PIN code"
                   maxLength={6}
                   className="flex-1 lg:max-w-[200px] h-11 bg-surface rounded-xl border border-border px-4 font-sans text-body-md outline-none focus:border-primary"
                 />
                 <button
-                  onClick={() => pinCode.length === 6 && setPinChecked(true)}
-                  disabled={pinCode.length < 6}
+                  onClick={askDelivery}
+                  disabled={pinCode.length < 6 || checkingPin}
                   className="h-11 px-5 rounded-xl bg-surface-container-low font-sans text-label-md text-text-primary font-medium hover:bg-surface-container transition-colors disabled:opacity-40"
                 >
-                  Check
+                  {checkingPin ? 'Checking...' : 'Check'}
                 </button>
               </div>
-              {pinChecked && (
-                <div className="mt-3 space-y-2">
+              {delivery?.serviceable && delivery.days && (
+                <div className="mt-3 space-y-2" role="status">
                   <div className="flex items-center gap-2">
                     <CheckCircle size={16} className="text-success" strokeWidth={2} />
-                    <span className="font-sans text-body-md text-text-primary">Delivery in 5–7 days</span>
+                    <span className="font-sans text-body-md text-text-primary">Delivery in {delivery.days.min}–{delivery.days.max} days</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle size={16} className="text-success" strokeWidth={2} />
-                    <span className="font-sans text-body-md text-text-primary">Cash on delivery available</span>
-                  </div>
+                  {delivery.codAvailable && (
+                    <div className="flex items-center gap-2">
+                      <CheckCircle size={16} className="text-success" strokeWidth={2} />
+                      <span className="font-sans text-body-md text-text-primary">Cash on delivery available</span>
+                    </div>
+                  )}
                 </div>
               )}
+              {delivery && !delivery.serviceable && (
+                <p className="mt-3 font-sans text-body-md text-error" role="status">{delivery.message}</p>
+              )}
+              {pinError && <p className="mt-3 font-sans text-body-md text-error" role="alert">{pinError}</p>}
+              <ErrorReference id={pinErrorRef} className="mt-1" />
             </div>
 
             <div className="h-px bg-border mb-6" />
