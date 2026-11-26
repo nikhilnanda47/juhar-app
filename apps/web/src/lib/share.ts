@@ -1,5 +1,8 @@
-// Sharing a saree: the browser's own share sheet when there is one (phones), otherwise the link is copied.
-// The link is this website's own address plus the saree's page, so it works on whichever domain the site is on.
+// Sharing a saree: on a phone, the browser's own share sheet (WhatsApp, Messages, ...); anywhere else the link is
+// copied. The link is this website's own address plus the saree's page, so it works on whichever domain the site is on.
+//
+// Only a title and the link go to the share sheet, never a separate line of text: a desktop browser's "Copy" in its
+// share sheet pastes the text and the link together, and the address bar then cannot open it.
 
 export type ShareOutcome = 'shared' | 'copied' | 'cancelled' | 'failed';
 
@@ -7,7 +10,7 @@ export interface ShareEnv {
   /** the website's address, like https://juhar.co.in (no path) */
   origin: string;
   /** navigator.share, when the browser has it */
-  share?: (data: { title: string; text: string; url: string }) => Promise<void>;
+  share?: (data: { title: string; url: string }) => Promise<void>;
   writeClipboard?: (text: string) => Promise<void>;
 }
 
@@ -15,12 +18,22 @@ export function productUrl(origin: string, slug: string): string {
   return `${origin.replace(/\/+$/, '')}/shop/${encodeURIComponent(slug)}`;
 }
 
+/** A phone or tablet: the main way of pointing is a finger. A laptop with a touch screen still counts as a computer. */
+function isTouchFirstDevice(): boolean {
+  try {
+    return window.matchMedia('(pointer: coarse)').matches;
+  } catch {
+    return false;
+  }
+}
+
 /** What this browser can do, read from the window (kept out of shareProduct so it can be tested). */
 export function browserShareEnv(): ShareEnv {
   const nav = typeof navigator !== 'undefined' ? navigator : undefined;
+  const hasShareSheet = !!nav && typeof nav.share === 'function' && isTouchFirstDevice();
   return {
     origin: window.location.origin,
-    share: nav && typeof nav.share === 'function' ? (data) => nav.share(data) : undefined,
+    share: hasShareSheet ? (data) => nav!.share(data) : undefined,
     writeClipboard: nav?.clipboard ? (text) => nav.clipboard.writeText(text) : undefined,
   };
 }
@@ -50,7 +63,7 @@ export async function shareProduct(
 
   if (env.share) {
     try {
-      await env.share({ title: product.title, text: `${product.title} on Juhar`, url });
+      await env.share({ title: product.title, url });
       return { outcome: 'shared', url };
     } catch (err) {
       // closing the share sheet is not a failure, and nothing more is done
