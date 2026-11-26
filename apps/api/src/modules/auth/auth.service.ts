@@ -51,6 +51,16 @@ export class AuthService {
   }
 
   /**
+   * The staff record of a login, when they are staff and still active. The link is the login's id (admin_users.user_id),
+   * not the phone number, so changing a number can never turn an admin into a customer or the other way round.
+   * A suspended admin signs in as an ordinary customer.
+   */
+  private async findActiveAdmin(userId: string) {
+    const admin = await this.prisma.adminUser.findUnique({ where: { userId } });
+    return admin && admin.status === 'active' ? admin : null;
+  }
+
+  /**
    * Request OTP for a phone number.
    * Rate limiting is handled by ThrottlerGuard at controller level.
    */
@@ -152,7 +162,7 @@ export class AuthService {
     }
 
     // Check if user is also an admin
-    const adminUser = await this.prisma.adminUser.findUnique({ where: { phone } });
+    const adminUser = await this.findActiveAdmin(user.id);
     this.logger.log(`login ok user=${user.id} type=${adminUser ? 'admin' : 'customer'} new=${isNewUser}`);
 
     // Issue tokens
@@ -214,9 +224,7 @@ export class AuthService {
       this.ensureLoginOpen(user.phone);
 
       // Check if admin
-      const adminUser = await this.prisma.adminUser.findUnique({
-        where: { phone: user.phone },
-      });
+      const adminUser = await this.findActiveAdmin(user.id);
 
       const tokenPayload = {
         sub: user.id,

@@ -189,6 +189,7 @@ It needs an empty, disposable database and takes a few minutes. Add `SKIP_FRONTE
 | The website still calls the old API address | `NEXT_PUBLIC_API_URL` changed but was not redeployed | Redeploy the Vercel project |
 | `/health` shows `"database":"disconnected"` | Wrong `DATABASE_URL`, or Supabase paused the free project after a week unused | Check the address; resume the project in Supabase |
 | Railway deploy fails at the health check | The API crashed at start | Read the deployment logs: the first error line says what to fix |
+| A migration stops with "Cannot add the status CHECK constraints ... existing rows have values outside the allowed lists" | A row has a status, role or payment mode that is not one of the allowed ones (the message lists each column and the query that finds the rows) | Fix those rows, then `npx prisma migrate resolve --rolled-back 20261126130000_status_check_constraints` and `npx prisma migrate deploy` again. Nothing was changed by the failed run |
 | "Invalid photo storage settings: ... only partly set" at start | Some of the five R2 settings are missing | Set the ones the message names, or remove all five |
 | Admin says "Photo storage is not set up on this server yet" | None of the R2 settings are set on the live API | Do section 3, step 3, then add the five settings in Railway |
 | Photos upload fine but show as grey boxes in the shop | `MEDIA_PUBLIC_URL` is wrong, or the bucket is not public | Open one photo's address from the admin in a new tab: it must load. Fix the address or the bucket's public access |
@@ -202,7 +203,7 @@ It needs an empty, disposable database and takes a few minutes. Add `SKIP_FRONTE
 | `railway.json`, `nixpacks.toml` | How Railway builds and starts the API, runs the migrations first, and checks `/health` |
 | `apps/web/vercel.json`, `apps/admin/vercel.json` | How Vercel installs and builds the website and the admin |
 | `apps/api/scripts/migrate-deploy.js` | Applies migrations through `DIRECT_URL` (never through the pooler) |
-| `apps/api/prisma/create-admin.ts` | Creates or updates one admin account; safe to repeat |
+| `apps/api/prisma/create-admin.ts` | Creates or updates one admin: their login and their staff record, linked; safe to repeat (run it again to correct a name or role) |
 | `apps/api/src/config/production-checks.ts` | Stops a live API that has weak secrets or a pooler address without `pgbouncer=true` |
 | `apps/api/src/common/local-database-guard.ts` | Makes the sample seeds refuse to touch a database that is not on your computer |
 | `apps/api/src/config/media-config.ts`, `apps/api/src/modules/media/` | Where product photos are kept (R2, a local folder in development, or nowhere on a live API with nothing set), and the upload, shrink and storage code |

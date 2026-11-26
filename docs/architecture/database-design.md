@@ -438,16 +438,19 @@ Staff accounts with role-based access.
 | Column | Type | Constraints | Notes |
 |---|---|---|---|
 | id | UUID | PK | |
-| phone | VARCHAR(15) | UNIQUE, NOT NULL | |
+| user_id | UUID | FK → users.id, NOT NULL, UNIQUE, ON DELETE RESTRICT | The login this staff member signs in with. Every admin has exactly one login and a login is at most one admin. |
+| phone | VARCHAR(15) | UNIQUE, NOT NULL | A copy of the login's number, kept equal by `db:create-admin`. **Not used to find the admin**: `user_id` is. |
 | name | VARCHAR(100) | NOT NULL | |
 | email | VARCHAR(255) | NULL | |
-| role | VARCHAR(30) | NOT NULL | owner, catalog_editor, fulfillment_operator, support |
-| status | VARCHAR(20) | NOT NULL, DEFAULT 'active' | active, suspended |
+| role | VARCHAR(30) | NOT NULL | owner, catalog_editor, fulfillment_operator, support (CHECK) |
+| status | VARCHAR(20) | NOT NULL, DEFAULT 'active' | active, suspended (CHECK). A suspended admin signs in as an ordinary customer. |
 | last_login_at | TIMESTAMPTZ | NULL | |
 | created_at | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | |
 | updated_at | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | |
 
-**Indexes:** `phone` (unique), `role`, `status`
+**Indexes:** `user_id` (unique), `phone` (unique), `role`, `status`
+
+> **Implementation status (item 69, migration `20261126120000_admin_user_link`):** an admin used to be two unconnected records that only shared a phone number. `admin_users.user_id` now links the staff record to its login. The migration made a login for every admin that had none, filled `user_id` from the phone number once (an existing login with the same number is reused, so the history already recorded under it keeps its name), then made the column required, unique and a foreign key. Everything that needs "who is this admin" now follows the link: sign-in and token refresh (`AuthService.findActiveAdmin`), and the names in order and stock history (`resolveActors`, one query through the `User.adminUser` relation). `refunds.initiated_by` still points at `admin_users.id`, which now maps to exactly one login, so an audit entry and a refund name the same person. `npm run db:create-admin` makes the login and the staff record together and can be run again to correct a name or role. Tested against a real Postgres (`database/admin-link.spec.ts`) and end to end through the API.
 
 ---
 
@@ -459,7 +462,7 @@ Immutable log of all admin and system mutations.
 |---|---|---|---|
 | id | UUID | PK | |
 | actor_type | VARCHAR(20) | NOT NULL | "admin", "system", "customer" |
-| actor_id | UUID | NULL | The acting person's **users.id** (the login id; the JWT `sub`). For admin actions it is NOT `admin_users.id`; the admin record is matched through the phone number |
+| actor_id | UUID | NULL | The acting person's **users.id** (the login id; the JWT `sub`). For admin actions it is NOT `admin_users.id`; the admin record is found through `admin_users.user_id` |
 | action | VARCHAR(50) | NOT NULL | "product.created", "inventory.adjusted", "order.confirmed" |
 | entity_type | VARCHAR(50) | NOT NULL | "product", "inventory", "order" |
 | entity_id | UUID | NOT NULL | |
@@ -549,6 +552,8 @@ admin_users ──1:N──> audit_events (actor_id)
 
 > **Implementation status (2026-11-22):** Every rule marked `CHECK` here and in section 3 is enforced by the database (migration `20261122150000_check_constraints`, 15 named constraints `chk_<table>_<rule>`): non-negative stock and `reserved + unavailable <= on_hand`; `qty`/`quantity` above 0 on reservations, cart items, order items and returns; `price_paise > 0` and `compare_at_paise` above the price; order amounts `>= 0` and `total = subtotal - discount + shipping + tax`; `unit_price_paise > 0` on order items; `amount_paise > 0` on payments and refunds. A write that breaks one fails with Postgres error `23514` (check violation); the app surfaces that as a 500 and logs the constraint name, because the app's own checks should have stopped it first (that means a bug). Unique constraints, foreign keys and the `SELECT FOR UPDATE` reservation lock are in place too. Tested against a real Postgres: `apps/api/src/database/check-constraints.spec.ts` (`DB_TESTS=1`, run in CI). Not implemented: the per-item total formula `qty × (unit_price + tax)` from section 3.11.
 
+> **Allowed values (item 71, migration `20261126130000_status_check_constraints`):** the "status" style columns are now limited by the database to the lists in `packages/shared` (10 constraints `chk_<table>_<column>_allowed`): `users.status`, `products.publish_status`, `product_media.type`, `inventory_reservations.status`, `orders.status`, `orders.payment_status`, `orders.payment_mode`, `shipments.status`, `admin_users.role` and `admin_users.status`. A value that is not on the list (a typo like `deliverd`) is refused with Postgres error `23514` naming the constraint. Before adding the rules the migration checks the existing rows and, if any holds another value, stops and lists every such column with the query that finds the rows, changing nothing. **Adding a status later means changing the shared enum AND adding a migration that replaces the constraint**; a test (`database/status-check-constraints.sync.spec.ts`) reads the migration and fails if its lists differ from the enums. Not covered yet, on purpose: `payments.status`, `returns.status`, `refunds.status`, `webhook_events.status` (nothing writes to those tables; their lists are set when the features are built). **Still open:** tax. `tax_paise` is always 0 and prices are tax-inclusive, so what an invoice must show needs an accountant (tracker item 71, second half).
+
 | Rule | Enforcement |
 |---|---|
 | Stock cannot go negative | CHECK constraint: `on_hand >= 0`, `reserved >= 0` |
@@ -572,3 +577,5 @@ admin_users ──1:N──> audit_events (actor_id)
 - Seed script for development with sample categories, products, variants, and inventory
 
 > **Implementation status (2026-11-22):** Three migrations exist: `20261113122754_init` (all 18 tables), `20261122120000_order_number_sequence` (the `order_number_seq` sequence, created by hand-written SQL because Prisma's schema cannot declare sequences; it starts after the highest existing order number). After pulling, run `npx prisma migrate deploy` to apply new migrations locally (it needs no extra database permission) and `npx prisma generate` if the schema changed; use `npx prisma migrate dev --name <name>` only to create a new migration, which needs a database user allowed to create databases (the shadow database). Prisma does not report the sequence as schema drift. A third migration, `20261122150000_check_constraints`, adds the `CHECK` constraints (section 6). It first checks the existing rows and, if any break a rule, stops with a message that lists them and the query that finds them, without changing any data. After you fix the rows run `npx prisma migrate resolve --rolled-back 20261122150000_check_constraints` (Prisma refuses to continue after a failed migration until you do) and then `npx prisma migrate deploy` again. Never point `--shadow-database-url` at a database you want to keep: Prisma wipes it.
+
+> **Migrations since then:** `20261122000000_add_wishlist`, `20261126120000_admin_user_link` (item 69) and `20261126130000_status_check_constraints` (item 71) bring the count to six. Each migration runs in its own transaction, so if the last one stops on its pre-flight check the earlier ones stay applied. To recover after fixing the rows: `npx prisma migrate resolve --rolled-back 20261126130000_status_check_constraints`, then `npx prisma migrate deploy`.

@@ -35,3 +35,77 @@ describe('parseCreateAdminArgs', () => {
     expect(() => parseCreateAdminArgs(['--phone', '--name', 'Owner One'])).toThrow(/--phone/);
   });
 });
+
+// ── createOrUpdateAdmin: a login and a staff record, linked ──
+import { createOrUpdateAdmin } from './admin-bootstrap';
+
+function fakeDb(initial: { users?: any[]; admins?: any[] } = {}) {
+  const users = [...(initial.users ?? [])];
+  const admins = [...(initial.admins ?? [])];
+  const tx = {
+    user: {
+      findUnique: jest.fn(async ({ where }: any) => users.find((u) => u.phone === where.phone) ?? null),
+      create: jest.fn(async ({ data }: any) => { const u = { id: `user-${users.length + 1}`, name: null, ...data }; users.push(u); return u; }),
+      update: jest.fn(async ({ where, data }: any) => Object.assign(users.find((u) => u.id === where.id), data)),
+    },
+    adminUser: {
+      findUnique: jest.fn(async ({ where }: any) => admins.find((a) => a.userId === where.userId) ?? null),
+      create: jest.fn(async ({ data }: any) => { const a = { id: `admin-${admins.length + 1}`, ...data }; admins.push(a); return a; }),
+      update: jest.fn(async ({ where, data }: any) => Object.assign(admins.find((a) => a.id === where.id), data)),
+    },
+  };
+  return { db: { $transaction: async (fn: any) => fn(tx) }, tx, users, admins };
+}
+const owner = { phone: '+919876543210', name: 'Owner Name', role: 'owner' as any };
+
+describe('createOrUpdateAdmin', () => {
+  it('makes a login and a staff record, linked to each other', async () => {
+    const { db, users, admins } = fakeDb();
+    const result = await createOrUpdateAdmin(db as any, owner);
+    expect(users).toHaveLength(1);
+    expect(users[0]).toMatchObject({ phone: owner.phone, name: 'Owner Name' });
+    expect(admins).toHaveLength(1);
+    expect(admins[0]).toMatchObject({ userId: users[0].id, phone: owner.phone, name: 'Owner Name', role: 'owner', status: 'active' });
+    expect(result).toMatchObject({ created: true, userId: users[0].id, adminId: admins[0].id, role: 'owner' });
+  });
+
+  it('uses the login the person already has (a customer account with the same number) instead of making another', async () => {
+    const { db, users, admins } = fakeDb({ users: [{ id: 'existing-login', phone: owner.phone, name: 'Priya' }] });
+    const result = await createOrUpdateAdmin(db as any, owner);
+    expect(users).toHaveLength(1);
+    expect(admins[0].userId).toBe('existing-login');
+    expect(users[0].name).toBe('Priya'); // a name they already chose is left alone
+    expect(result.created).toBe(true);
+  });
+
+  it('gives a login with no name the admin\'s name', async () => {
+    const { db, users } = fakeDb({ users: [{ id: 'l1', phone: owner.phone, name: null }] });
+    await createOrUpdateAdmin(db as any, owner);
+    expect(users[0].name).toBe('Owner Name');
+  });
+
+  it('run again, it updates the same admin (name, role, email) and makes no second account', async () => {
+    const { db, users, admins } = fakeDb();
+    await createOrUpdateAdmin(db as any, owner);
+    const again = await createOrUpdateAdmin(db as any, { ...owner, name: 'New Name', role: 'support' as any, email: 'o@example.com' });
+    expect(users).toHaveLength(1);
+    expect(admins).toHaveLength(1);
+    expect(admins[0]).toMatchObject({ name: 'New Name', role: 'support', email: 'o@example.com', status: 'active' });
+    expect(again.created).toBe(false);
+  });
+
+  it('re-activates a suspended admin', async () => {
+    const { db, admins } = fakeDb();
+    await createOrUpdateAdmin(db as any, owner);
+    admins[0].status = 'suspended';
+    await createOrUpdateAdmin(db as any, owner);
+    expect(admins[0].status).toBe('active');
+  });
+
+  it('does it all in one transaction', async () => {
+    const { db } = fakeDb();
+    const spy = jest.spyOn(db, '$transaction');
+    await createOrUpdateAdmin(db as any, owner);
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+});

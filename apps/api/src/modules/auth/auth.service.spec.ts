@@ -4,7 +4,7 @@ import { AuthService } from './auth.service';
 // What the login flow writes to the log, and what it must keep out of it.
 const PHONE = '+919876543210';
 
-function setup(opts: { existingUser?: boolean; admin?: boolean } = {}) {
+function setup(opts: { existingUser?: boolean; admin?: boolean; adminStatus?: string } = {}) {
   const user = { id: 'user-1', phone: PHONE, name: null, email: null, verifiedAt: null, createdAt: new Date() };
   const prisma = {
     user: {
@@ -12,7 +12,7 @@ function setup(opts: { existingUser?: boolean; admin?: boolean } = {}) {
       create: jest.fn().mockResolvedValue(user),
       update: jest.fn().mockResolvedValue(user),
     },
-    adminUser: { findUnique: jest.fn().mockResolvedValue(opts.admin ? { role: 'owner' } : null) },
+    adminUser: { findUnique: jest.fn().mockResolvedValue(opts.admin ? { role: 'owner', status: opts.adminStatus ?? 'active' } : null) },
   };
   const jwt = { sign: jest.fn().mockReturnValue('signed.token.value') };
   const config = { get: jest.fn().mockReturnValue('secret') };

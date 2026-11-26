@@ -13,10 +13,17 @@ async function main() {
   console.log('🌱 Seeding database...');
 
   // ── Admin User (owner) ──
-  const admin = await prisma.adminUser.upsert({
+  // an admin is a login (users) plus a staff record (admin_users) linked to it
+  const adminLogin = await prisma.user.upsert({
     where: { phone: '+919876543210' },
     update: {},
+    create: { phone: '+919876543210', name: 'Juhar Admin' },
+  });
+  const admin = await prisma.adminUser.upsert({
+    where: { userId: adminLogin.id },
+    update: {},
     create: {
+      userId: adminLogin.id,
       phone: '+919876543210',
       name: 'Juhar Admin',
       role: 'owner',
