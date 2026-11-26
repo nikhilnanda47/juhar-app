@@ -304,6 +304,7 @@ async function main() {
     prisma.productVariant.count(),
   ]);
   console.log(`✅ Done. The database now has ${p} products (${d} drafts) and ${v} variants.`);
+  console.log('   No photos yet? `npm run db:seed:photos` adds clearly labelled sample pictures (development only).');
 }
 
 main()

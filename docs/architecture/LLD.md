@@ -523,6 +523,8 @@ class VariantResponse {
 
 > **Implementation status (item 51):** built and tested (unit, HTTP-level, real Postgres, and in real browsers). **Design change from the original plan:** photos are uploaded THROUGH the API (multipart, up to 10 MB) instead of straight to storage with signed URLs. The API can then look at the real file, which a signed URL cannot, and the limits cannot be bypassed. The cost is that the bytes pass through the API once, which is fine for an admin adding a few photos a day. Videos are not supported yet (`product_media.type` is always `image`).
 
+> **Sample pictures (development only):** `npm run db:seed:photos` (`prisma/seed-photos.ts`, code in `common/sample-photos/`) draws placeholder fabric images with sharp (SVG to JPEG, 1200x1600, labelled "SAMPLE PICTURE") and calls `MediaService.add` for sarees without photos, so the whole pipeline is exercised. Sample rows are recognised by an alt text starting "Sample picture", which is how `--remove` finds them and leaves real photos alone. It refuses non-local databases, production and R2.
+
 ```
 modules/media/
 ├── media.module.ts          # builds the storage provider from the settings (config/media-config.ts)

@@ -19,6 +19,7 @@
     "db:generate": "prisma generate",
     "db:seed": "ts-node prisma/seed.ts",
     "db:seed:demo": "ts-node prisma/seed-demo.ts",
+    "db:seed:photos": "ts-node prisma/seed-photos.ts",
     "db:studio": "prisma studio",
     "db:migrate:deploy": "node scripts/migrate-deploy.js",
     "db:create-admin": "ts-node prisma/create-admin.ts"

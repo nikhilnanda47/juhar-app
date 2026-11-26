@@ -453,6 +453,16 @@ npm run db:seed:demo -- --clean                # remove everything this script a
 
 It is safe to run again (it skips what exists) and it refuses to run with `NODE_ENV=production`. The sarees mix every case on purpose: about 1 in 6 is a draft and 1 in 20 archived, stock cycles through none, 1 to 3 (low stock), ordinary and plenty, some variants are retired, and prices run from about ₹1,200 to ₹18,000 so some carts pass the free-shipping amount. The demo orders have 1 to 3 items in every status (some placed more than a day ago, so they show as overdue; a few are from today). To see those orders as the customer, log in with phone `9000000099` and OTP `123456`. The orders are plain records: stock is not deducted for them.
 
+**Optional: sample pictures until there are real photos.** The demo sarees have no photos, so the shop shows grey placeholders. This command draws Sambalpuri-style fabric pictures (colour taken from each saree's colour name; a full view per colour, then border, ikat, pallu and weave close-ups) and adds them through the real photo pipeline, so everything (resizing, thumbnails, audit rows, admin, shop, app) behaves exactly as with real photos. Every picture carries a small "SAMPLE PICTURE" label so nobody mistakes it for a product photo.
+
+```bash
+npm run db:seed:photos                         # sample pictures for every saree that has no photo yet
+npm run db:seed:photos -- --prefix demo- --limit 10   # only sarees whose slug starts with "demo-", at most 10
+npm run db:seed:photos -- --remove             # delete the sample pictures (real photos are never touched)
+```
+
+It takes about 1 to 2 seconds per saree (about a minute for 48 sarees, about 40 MB in `apps/api/uploads`, which git ignores), skips sarees that already have any photo, and is safe to run again. It is for local development only: it refuses a database that is not on this computer, `NODE_ENV=production`, and a setup with Cloudflare R2 configured. Run `--remove` before `db:seed:demo -- --clean` so the picture files go too.
+
 > **If `prisma migrate deploy` fails with a message starting "Cannot add the CHECK constraints":** some rows already in your database break a rule (for example stock reserved beyond what is on hand). The message lists each problem and the `SELECT` that finds the rows; nothing was changed. Fix or delete those rows, then run `npx prisma migrate resolve --rolled-back 20261122150000_check_constraints` (Prisma refuses to continue after a failed migration until you do) and `npx prisma migrate deploy` again. If you do not need the data, `npx prisma migrate reset` rebuilds the local database from scratch (it deletes everything, so then run the seed again).
 
 > **If `prisma migrate dev` fails with `P3014` ("could not create the shadow database"):** your database user is not allowed to create databases, and `migrate dev` needs that to compare migrations against a temporary database. To apply existing migrations, use `npx prisma migrate deploy` instead (it needs no extra permission). To create new migrations yourself, grant the permission once: `psql postgres -c "ALTER USER juhar CREATEDB;"` (run as your Postgres superuser).
@@ -579,6 +589,7 @@ Check what changed (`git diff HEAD@{1} --stat`), then use this table. Dev server
 | `npm run rehearse:deploy` | Root | Dry run of the Railway and Vercel steps from a clean copy (see the runbook) |
 | `npm run smoke -- --api https://… --web https://… --admin https://…` | Root | After-deploy check of a live environment: health, database, shop, closed login, pages, API address and CORS (reads only; see the runbook) |
 | `npm run db:seed:demo -- --products 60 --orders 55` | Root | Add demo sarees and orders for testing long lists (`-- --clean` removes them) |
+| `npm run db:seed:photos` | Root | Draw and attach "SAMPLE PICTURE" images to sarees without photos (local only; `-- --remove` deletes them) |
 | `psql -U juhar -d juhar_dev` | Anywhere | Connect to database CLI |
 | `cd apps/mobile && npx expo start --web --clear` | Root | Mobile with cleared cache |
 | `npm run build -w packages/shared` | Root | Rebuild the shared package after editing it |
