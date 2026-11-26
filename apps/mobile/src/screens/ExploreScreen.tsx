@@ -7,8 +7,7 @@ import { Search as SearchIcon, SlidersHorizontal, Heart, ChevronDown, Check, X }
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
 import {
   getCategories, getProducts, getProductFilters, formatPaise,
-  type Category, type Product, type ProductFilterOptions,
-} from '../services/api';
+  type Category, type Product, type ProductFilterOptions, messageOf} from '../services/api';
 import { useFocusEffect } from '@react-navigation/native';
 import { useWishlist } from '../contexts/WishlistContext';
 import { appendUnique } from '../services/paging';
@@ -21,13 +20,13 @@ import RefreshButton from '../components/RefreshButton';
 import LoadFailed from '../components/LoadFailed';
 import ProductImage from '../components/ProductImage';
 import { describeLoadFailure, type LoadFailure } from '../services/loadFailure';
+import type { ScreenNavigation } from '../navigation/types';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - spacing.margin * 2 - spacing.gutter) / 2;
 
 interface Props {
-  navigation: any;
-  route?: any;
+  navigation: ScreenNavigation;
 }
 
 export default function ExploreScreen({ navigation }: Props) {
@@ -79,8 +78,8 @@ export default function ExploreScreen({ navigation }: Props) {
       setHasMore(page.hasMore);
       setTotal(page.total);
       setError(''); setFailure(null);
-    } catch (err: any) {
-      if (mine === requestId.current) { setError(err.message || 'Failed to load catalog'); setFailure(describeLoadFailure(err)); }
+    } catch (err) {
+      if (mine === requestId.current) { setError(messageOf(err, 'Failed to load catalog')); setFailure(describeLoadFailure(err)); }
     } finally {
       if (mine === requestId.current) {
         setLoading(false);
@@ -93,7 +92,7 @@ export default function ExploreScreen({ navigation }: Props) {
   const loadCategories = useCallback(async () => {
     try {
       const cats = await getCategories();
-      setCategories(cats.filter((c: any) => c.active !== false));
+      setCategories(cats.filter((c) => c.active !== false));
     } catch {
       // the list below still works without the chips
     }
@@ -279,7 +278,7 @@ export default function ExploreScreen({ navigation }: Props) {
 
       {/* Product Grid */}
       <View style={[styles.grid, listLoading && { opacity: 0.4 }]}>
-        {products.map((product: any, idx: number) => (
+        {products.map((product, idx) => (
           <FadeInUp key={product.id} delay={idx * 80} duration={400} distance={12}>
             <ProductCard
               product={product}
@@ -405,7 +404,7 @@ export default function ExploreScreen({ navigation }: Props) {
   );
 }
 
-function ProductCard({ product, onPress }: { product: any; onPress: () => void }) {
+function ProductCard({ product, onPress }: { product: Product; onPress: () => void }) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const price = product.startingPricePaise ?? 0;

@@ -7,8 +7,9 @@ import { useFocusEffect } from '@react-navigation/native';
 import { MapPin, Plus, Phone, Pencil, ShieldCheck, ArrowRight, Leaf } from 'lucide-react-native';
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
 import { getAddresses, type Address } from '../services/api';
+import type { ScreenNavigation } from '../navigation/types';
 
-interface Props { navigation: any; route: any; }
+interface Props { navigation: ScreenNavigation; }
 
 export default function SelectAddressScreen({ navigation }: Props) {
   const { colors } = useTheme();

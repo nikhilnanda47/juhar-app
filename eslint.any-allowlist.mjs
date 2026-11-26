@@ -19,21 +19,6 @@ export const filesStillUsingAny = [
   'apps/admin/src/components/PhotoManager.tsx', // 2
   'apps/admin/src/components/StockAdjustModal.tsx', // 1
   'apps/admin/src/services/api.ts', // 3
-  'apps/mobile/src/navigation/types.ts', // 1
-  'apps/mobile/src/screens/AddAddressScreen.tsx', // 3
-  'apps/mobile/src/screens/CartScreen.tsx', // 1
-  'apps/mobile/src/screens/ExploreScreen.tsx', // 6
-  'apps/mobile/src/screens/HomeScreen.tsx', // 5
-  'apps/mobile/src/screens/ManageAddressesScreen.tsx', // 3
-  'apps/mobile/src/screens/OrderDetailScreen.tsx', // 4
-  'apps/mobile/src/screens/OrderReviewScreen.tsx', // 2
-  'apps/mobile/src/screens/OrdersScreen.tsx', // 3
-  'apps/mobile/src/screens/OrderSuccessScreen.tsx', // 3
-  'apps/mobile/src/screens/ProductDetailScreen.tsx', // 7
-  'apps/mobile/src/screens/ProfileScreen.tsx', // 5
-  'apps/mobile/src/screens/SelectAddressScreen.tsx', // 2
-  'apps/mobile/src/screens/WishlistScreen.tsx', // 2
-  'apps/mobile/src/services/api.ts', // 7
   'apps/web/src/app/account/addresses/page.tsx', // 2
   'apps/web/src/app/account/page.tsx', // 4
   'apps/web/src/app/cart/page.tsx', // 7

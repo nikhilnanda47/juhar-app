@@ -1,15 +1,16 @@
 import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput,
+  TextInput, type KeyboardTypeOptions,
 } from 'react-native';
 import { Truck, Check } from 'lucide-react-native';
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
-import { createAddress, updateAddress, referenceOf, type Address } from '../services/api';
+import { createAddress, updateAddress, referenceOf, messageOf, type Address } from '../services/api';
 import ErrorReference from '../components/ErrorReference';
+import type { ScreenNavigation } from '../navigation/types';
 
 interface Props {
-  navigation: any;
+  navigation: ScreenNavigation;
   /** with `address` the screen edits that address; without it, it adds a new one */
   route?: { params?: { address?: Address } };
 }
@@ -64,8 +65,8 @@ export default function AddAddressScreen({ navigation, route }: Props) {
         });
       }
       navigation.goBack();
-    } catch (err: any) {
-      setError(err.message || 'Failed to save address');
+    } catch (err) {
+      setError(messageOf(err, 'Failed to save address'));
       setErrorRef(referenceOf(err));
     } finally {
       setSaving(false);
@@ -175,7 +176,18 @@ export default function AddAddressScreen({ navigation, route }: Props) {
   );
 }
 
-function Field({ label, value, onChangeText, placeholder, keyboardType, maxLength, optional, colors }: any) {
+interface FieldProps {
+  label: string;
+  value: string;
+  onChangeText: (text: string) => void;
+  placeholder: string;
+  keyboardType?: KeyboardTypeOptions;
+  maxLength?: number;
+  optional?: boolean;
+  colors: ColorPalette;
+}
+
+function Field({ label, value, onChangeText, placeholder, keyboardType, maxLength, optional, colors }: FieldProps) {
   const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.fieldWrap}>

@@ -5,12 +5,13 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { MapPin, Plus, Phone, Pencil, Trash2 } from 'lucide-react-native';
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
-import { getAddresses, updateAddress, deleteAddress, referenceOf, type Address } from '../services/api';
+import { getAddresses, updateAddress, deleteAddress, referenceOf, messageOf, type Address } from '../services/api';
 import ErrorReference from '../components/ErrorReference';
+import type { ScreenNavigation } from '../navigation/types';
 
 const MAX_ADDRESSES = 10; // the same limit the API enforces
 
-interface Props { navigation: any; }
+interface Props { navigation: ScreenNavigation; }
 
 /** Account > Addresses: see, edit, delete and choose the default of the saved delivery addresses. */
 export default function ManageAddressesScreen({ navigation }: Props) {
@@ -26,8 +27,8 @@ export default function ManageAddressesScreen({ navigation }: Props) {
     try {
       setAddresses(await getAddresses());
       setError(''); setErrorRef('');
-    } catch (e: any) {
-      setError(e?.message || 'Could not load your addresses. Please try again.');
+    } catch (e) {
+      setError(messageOf(e, 'Could not load your addresses. Please try again.'));
       setErrorRef(referenceOf(e));
     }
     setLoading(false);
@@ -40,7 +41,7 @@ export default function ManageAddressesScreen({ navigation }: Props) {
     if (busyId) return;
     setBusyId(id); setError(''); setErrorRef('');
     try { await work(); await reload(); }
-    catch (e: any) { setError(e?.message || 'Something went wrong. Please try again.'); setErrorRef(referenceOf(e)); }
+    catch (e) { setError(messageOf(e, 'Something went wrong. Please try again.')); setErrorRef(referenceOf(e)); }
     finally { setBusyId(null); }
   };
 

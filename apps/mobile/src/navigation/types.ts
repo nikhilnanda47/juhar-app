@@ -1,8 +1,12 @@
 // The screens of the app and the details each one needs when it is opened.
 // With these written down, a wrong screen name or a missing detail is caught when the app is built,
 // not when a customer taps the button.
-import type { NavigatorScreenParams } from '@react-navigation/native';
-import type { Address } from '../services/api';
+import type { NavigatorScreenParams, ParamListBase } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { Address, Order } from '../services/api';
+
+/** Navigation as the screens use it: go to a screen by name (also in another tab), push one, replace, go back. */
+export type ScreenNavigation = NativeStackNavigationProp<ParamListBase>;
 
 export type ExploreStackParams = {
   ExploreList: undefined;
@@ -14,7 +18,7 @@ export type CartStackParams = {
   SelectAddress: undefined;
   AddAddress: { address?: Address } | undefined; // with an address it edits that one
   OrderReview: { addressId: string };
-  OrderSuccess: { order: any }; // the order the API just returned; the screen only reads a few fields of it
+  OrderSuccess: { order: Order }; // the order the API just returned; the screen reads a few fields of it
 };
 
 export type OrdersStackParams = {

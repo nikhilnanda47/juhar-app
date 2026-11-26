@@ -6,12 +6,13 @@ import { Check, Truck, Package, ShieldCheck, ArrowRight, Copy } from 'lucide-rea
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
 import { BounceIn, FadeInUp } from '../components/AnimatedUI';
 import { useCopyToClipboard } from '../utils/useCopyToClipboard';
-import { getOrder } from '../services/api';
+import { getOrder, type Order } from '../services/api';
 import ProductImage from '../components/ProductImage';
+import type { ScreenNavigation } from '../navigation/types';
 
 interface Props {
-  navigation: any;
-  route: { params: { order: any } };
+  navigation: ScreenNavigation;
+  route: { params: { order: Order } };
 }
 
 export default function OrderSuccessScreen({ navigation, route }: Props) {
@@ -23,7 +24,7 @@ export default function OrderSuccessScreen({ navigation, route }: Props) {
   const [photo, setPhoto] = useState<string | null>(firstItem?.imageUrl ?? null);
   useEffect(() => {
     if (photo || !order.id) return;
-    getOrder(order.id).then((o: any) => setPhoto(o?.items?.[0]?.imageUrl ?? null)).catch(() => {});
+    getOrder(order.id).then((o) => setPhoto(o.items?.[0]?.imageUrl ?? null)).catch(() => {});
   }, [order.id, photo]);
 
   const { copiedKey, copy } = useCopyToClipboard();

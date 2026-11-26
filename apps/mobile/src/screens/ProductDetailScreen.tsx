@@ -19,7 +19,7 @@ import {
   addToCart,
   checkDelivery,
   isLoggedIn,
-  referenceOf,
+  referenceOf, messageOf,
   type DeliveryCheck,
   type Product,
   type ProductVariant,
@@ -34,11 +34,12 @@ import { firstPhotoIndexOfVariant, thumbnailForVariant } from '../services/photo
 import { describeLoadFailure, type LoadFailure } from '../services/loadFailure';
 import ErrorReference from '../components/ErrorReference';
 import { useLatest } from '../utils/hooks';
+import type { ScreenNavigation } from '../navigation/types';
 
 
 interface Props {
   route: { params: { slug: string } };
-  navigation: any;
+  navigation: ScreenNavigation;
 }
 
 // what a ScrollView's ref gives back (scrollTo and friends)
@@ -66,7 +67,7 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
   const [pinError, setPinError] = useState('');
   const [pinErrorRef, setPinErrorRef] = useState('');
   const pinRequest = useRef(0); // only the newest question may show its answer
-  const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
+  const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   // The photo gallery: a row of full-width photos you swipe through, with dots underneath
   const [photoIndex, setPhotoIndex] = useState(0);
   const [heroWidth, setHeroWidth] = useState(0);
@@ -124,10 +125,10 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
       if (data.variants.length > 0) setSelectedVariant(data.variants[0]);
       try {
         const related = await getProducts({ limit: '6' });
-        setRelatedProducts((related.items || []).filter((p: any) => p.slug !== slug).slice(0, 6));
+        setRelatedProducts((related.items || []).filter((p) => p.slug !== slug).slice(0, 6));
       } catch {}
-    } catch (err: any) {
-      setError(err.message || 'Product not found');
+    } catch (err) {
+      setError(messageOf(err, 'Product not found'));
       setErrorRef(referenceOf(err));
       setFailure(describeLoadFailure(err));
     } finally {
@@ -196,9 +197,9 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
     try {
       const answer = await checkDelivery(pinCode);
       if (mine === pinRequest.current) setDelivery(answer);
-    } catch (err: any) {
+    } catch (err) {
       if (mine === pinRequest.current) {
-        setPinError(err?.message || 'Could not check this PIN code right now. Please try again.');
+        setPinError(messageOf(err, 'Could not check this PIN code right now. Please try again.'));
         setPinErrorRef(referenceOf(err));
       }
     } finally {
@@ -230,9 +231,9 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
       }
       setAddedToCart(true);
       showToast();
-    } catch (err: any) {
+    } catch (err) {
       const reference = referenceOf(err);
-      showAlert('Error', `${err.message || 'Failed to add to cart'}${reference ? `\n\nReference: ${reference}` : ''}`);
+      showAlert('Error', `${messageOf(err, 'Failed to add to cart')}${reference ? `\n\nReference: ${reference}` : ''}`);
     } finally {
       setAddingToCart(false);
     }
@@ -465,7 +466,7 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
               <Text style={styles.relatedMetaLabel}>RELATED WEAVES</Text>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.relatedScroll}>
-              {relatedProducts.map((p: any) => (
+              {relatedProducts.map((p) => (
                 <TouchableOpacity
                   key={p.id}
                   style={styles.relatedCard}

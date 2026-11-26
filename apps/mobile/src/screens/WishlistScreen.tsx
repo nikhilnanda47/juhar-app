@@ -5,14 +5,15 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { Heart, Trash2, ShoppingBag, ChevronLeft } from 'lucide-react-native';
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
-import { addToCart, getCart, formatPaise, isLoggedIn, referenceOf } from '../services/api';
+import { addToCart, getCart, formatPaise, isLoggedIn, referenceOf, messageOf } from '../services/api';
 import { onCartChanged } from '../services/cartEvents';
 import { useWishlist } from '../contexts/WishlistContext';
 import { showAlert } from '../utils/showAlert';
 import ProductImage from '../components/ProductImage';
+import type { ScreenNavigation } from '../navigation/types';
 
 interface Props {
-  navigation: any;
+  navigation: ScreenNavigation;
 }
 
 export default function WishlistScreen({ navigation }: Props) {
@@ -59,10 +60,10 @@ export default function WishlistScreen({ navigation }: Props) {
     try {
       await addToCart(variantId, 1);
       setInBag((prev) => new Set(prev).add(variantId)); // the bag change event re-reads it too
-    } catch (err: any) {
+    } catch (err) {
       // used to fail without a word
       const reference = referenceOf(err);
-      showAlert('Could not add to bag', `${err?.message || 'Please try again.'}${reference ? `\n\nReference: ${reference}` : ''}`);
+      showAlert('Could not add to bag', `${messageOf(err, 'Please try again.')}${reference ? `\n\nReference: ${reference}` : ''}`);
     }
     setAddingId(null);
   };

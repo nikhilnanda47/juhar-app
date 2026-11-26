@@ -17,7 +17,7 @@ import {
   updateProfile,
   getAddresses,
   getOrders,
-  referenceOf,
+  referenceOf, messageOf,
   type UserProfile,
 } from '../services/api';
 import { useWishlist } from '../contexts/WishlistContext';
@@ -30,11 +30,12 @@ import RefreshButton from '../components/RefreshButton';
 import { syncLocalCartToServer } from '../services/localCart';
 import { resendAvailableAt, secondsLeft, resendLabel } from '../services/resend';
 import { useOnMount } from '../utils/hooks';
+import type { ScreenNavigation } from '../navigation/types';
 
 type Screen = 'loading' | 'loadFailed' | 'login' | 'otp' | 'profile' | 'editName';
 
 export default function ProfileScreen() {
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation<ScreenNavigation>();
   const { colors, isDark, toggleTheme } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -108,8 +109,8 @@ export default function ProfileScreen() {
       await requestOtp(fullPhone);
       const t = Date.now(); setNow(t); setResendAt(resendAvailableAt(t)); setResentNote(false);
       setScreen('otp');
-    } catch (err: any) {
-      setError(err.message || 'Failed to send OTP');
+    } catch (err) {
+      setError(messageOf(err, 'Failed to send OTP'));
       setErrorRef(referenceOf(err));
     } finally {
       setBusy(false);
@@ -124,8 +125,8 @@ export default function ProfileScreen() {
       await requestOtp('+91' + phone);
       const t = Date.now(); setNow(t); setResendAt(resendAvailableAt(t));
       setOtp(''); setResentNote(true);
-    } catch (err: any) {
-      setError(err.message || 'Could not send a new code');
+    } catch (err) {
+      setError(messageOf(err, 'Could not send a new code'));
       setErrorRef(referenceOf(err));
     } finally {
       setResending(false);
@@ -149,8 +150,8 @@ export default function ProfileScreen() {
       } else {
         setScreen('profile');
       }
-    } catch (err: any) {
-      setError(err.message || 'Invalid OTP');
+    } catch (err) {
+      setError(messageOf(err, 'Invalid OTP'));
       setErrorRef(referenceOf(err));
     } finally {
       setBusy(false);
@@ -165,8 +166,8 @@ export default function ProfileScreen() {
       const p = await updateProfile({ name: editName.trim() });
       setProfile(p);
       setScreen('profile');
-    } catch (err: any) {
-      setError(err.message || 'Failed to save name');
+    } catch (err) {
+      setError(messageOf(err, 'Failed to save name'));
       setErrorRef(referenceOf(err));
     } finally {
       setBusy(false);

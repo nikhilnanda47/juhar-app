@@ -5,14 +5,15 @@ import {
 } from 'react-native';
 import { Truck, Phone, ArrowRight, Package, Handshake } from 'lucide-react-native';
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
-import { getAddresses, getCart, placeOrder, formatPaise, referenceOf, type Address, type CartResponse } from '../services/api';
+import { getAddresses, getCart, placeOrder, formatPaise, referenceOf, messageOf, type Address, type CartResponse } from '../services/api';
 import ErrorReference from '../components/ErrorReference';
 import ProductImage from '../components/ProductImage';
 import { shippingFor, useShippingRule } from '../services/shipping';
 import { useOnMount } from '../utils/hooks';
+import type { ScreenNavigation } from '../navigation/types';
 
 interface Props {
-  navigation: any;
+  navigation: ScreenNavigation;
   route: { params: { addressId: string } };
 }
 
@@ -52,8 +53,8 @@ export default function OrderReviewScreen({ navigation, route }: Props) {
       const idempotencyKey = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
       const order = await placeOrder({ addressId, paymentMode, idempotencyKey });
       navigation.replace('OrderSuccess', { order });
-    } catch (err: any) {
-      setError(err.message || 'Could not place order. Please try again.');
+    } catch (err) {
+      setError(messageOf(err, 'Could not place order. Please try again.'));
       setErrorRef(referenceOf(err));
     } finally {
       setPlacing(false);

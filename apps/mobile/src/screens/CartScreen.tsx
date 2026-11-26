@@ -30,9 +30,10 @@ import {
 } from '../services/localCart';
 import { remainingForFreeShipping, shippingFor, shippingProgressPercent, useShippingRule } from '../services/shipping';
 import { useLatest } from '../utils/hooks';
+import type { ScreenNavigation } from '../navigation/types';
 
 export default function CartScreen() {
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation<ScreenNavigation>();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [cart, setCart] = useState<CartResponse | null>(null);
