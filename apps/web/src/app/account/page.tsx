@@ -25,6 +25,7 @@ import ErrorReference from '@/components/ErrorReference';
 import { resendAvailableAt, secondsLeft, resendLabel } from '@/lib/resend';
 import LoadFailed from '@/components/LoadFailed';
 import { describeLoadFailure, isNetworkError, type LoadFailure } from '@/lib/load-failure';
+import { useLatest } from '@/lib/hooks';
 
 type Screen = 'loading' | 'loadFailed' | 'login' | 'otp' | 'profile' | 'editName';
 
@@ -46,8 +47,6 @@ export default function AccountPage() {
   const [orderCount, setOrderCount] = useState(0);
   const [addressCount, setAddressCount] = useState(0);
   const { total: wishlistCount, refreshWishlist } = useWishlist();
-
-  useEffect(() => { checkAuth(); refreshWishlist(); }, [refreshWishlist]);
 
   // tick once a second while the code screen counts down to "Resend code"
   const resendLeft = secondsLeft(resendAt, now);
@@ -81,6 +80,11 @@ export default function AccountPage() {
       setAddressCount(addrs.length);
     } catch {}
   };
+
+  // read the saved login and the saved sarees when the page opens. (checkAuth is read through a box that always holds the
+  // newest one, so this runs when refreshWishlist changes, not whenever checkAuth is recreated.)
+  const startUp = useLatest(checkAuth);
+  useEffect(() => { startUp.current(); refreshWishlist(); }, [refreshWishlist, startUp]);
 
   const handleRequestOtp = async () => {
     setBusy(true); setError(''); setErrorRef('');

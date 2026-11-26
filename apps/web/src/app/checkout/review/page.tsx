@@ -26,7 +26,7 @@ function OrderReviewContent() {
       setAddress(addrs.find(a => a.id === addressId) || null);
       setCart(cartData);
     }).catch(() => {}).finally(() => setLoading(false));
-  }, [addressId]);
+  }, [addressId, router]);
 
   // null = the shipping rule could not be loaded; the order total is always worked out by the API when you place it
   const shippingPaise = rule ? shippingFor(cart?.subtotalPaise ?? 0, rule) : null;

@@ -7,6 +7,7 @@ import OrderActions from '../../components/OrderActions';
 import { api } from '../../services/api';
 import { appendUnique, loadAtLeast } from '../../services/paging';
 import styles from './orders.module.css';
+import { useLatest } from '../../lib/hooks';
 
 const STATUS_OPTIONS = ['all', 'placed', 'confirmed', 'packed', 'shipped', 'delivered', 'cancelled'];
 
@@ -109,11 +110,14 @@ export default function OrdersPage() {
     }
   };
 
+  // Start again from the top when the filter changes. (loadOrders is read through a box that always holds the newest
+  // one: the list should reload when the FILTER changes, not every time the function is recreated.)
+  const reloadOrders = useLatest(loadOrders);
   useEffect(() => {
     if (!filterReady) return;
     setLoading(true);
-    loadOrders();
-  }, [filter, filterReady]);
+    reloadOrders.current();
+  }, [filter, filterReady, reloadOrders]);
 
   // Copy a customer's user id, the same "user=<id>" that the API logs show
   const copyUserId = async (id: string) => {

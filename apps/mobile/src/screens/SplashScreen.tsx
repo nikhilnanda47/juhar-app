@@ -1,6 +1,7 @@
-import React, { useEffect, useRef, useMemo } from 'react';
+import React, { useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
 import { useTheme, type ColorPalette } from '../theme';
+import { useOnMount } from '../utils/hooks';
 
 interface Props {
   onFinish: () => void;
@@ -16,7 +17,8 @@ export default function SplashScreen({ onFinish }: Props) {
   const dot2 = useRef(new Animated.Value(0.3)).current;
   const dot3 = useRef(new Animated.Value(0.3)).current;
 
-  useEffect(() => {
+  // the intro plays once, when the app opens
+  useOnMount(() => {
     Animated.parallel([
       Animated.timing(brandOpacity, {
         toValue: 1, duration: 1000, useNativeDriver: true, easing: Easing.out(Easing.cubic),
@@ -47,7 +49,7 @@ export default function SplashScreen({ onFinish }: Props) {
 
     const timer = setTimeout(onFinish, 2500);
     return () => clearTimeout(timer);
-  }, []);
+  });
 
   return (
     <View style={styles.container}>

@@ -165,6 +165,8 @@ export interface Product {
   // List view fields
   startingPricePaise: number; compareAtPaise: number | null;
   totalStock: number; firstVariantId: string | null;
+  /** list view: the category's address name, and whether any colour is in stock */
+  categorySlug?: string; isAvailable?: boolean;
   // Detail view fields
   variants: ProductVariant[];
   category: Category | null;

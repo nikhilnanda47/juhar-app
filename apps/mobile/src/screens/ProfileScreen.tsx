@@ -29,6 +29,7 @@ import { FadeInUp } from '../components/AnimatedUI';
 import RefreshButton from '../components/RefreshButton';
 import { syncLocalCartToServer } from '../services/localCart';
 import { resendAvailableAt, secondsLeft, resendLabel } from '../services/resend';
+import { useOnMount } from '../utils/hooks';
 
 type Screen = 'loading' | 'loadFailed' | 'login' | 'otp' | 'profile' | 'editName';
 
@@ -57,7 +58,8 @@ export default function ProfileScreen() {
   // the Saved count is read again whenever this screen comes into view
   useFocusEffect(useCallback(() => { refreshWishlist(); }, [refreshWishlist]));
 
-  useEffect(() => { checkAuth(); }, []);
+  // read the saved login once, when the screen first opens
+  useOnMount(() => { checkAuth(); });
 
   // tick once a second while the code screen counts down to "Resend code"
   const resendLeft = secondsLeft(resendAt, now);

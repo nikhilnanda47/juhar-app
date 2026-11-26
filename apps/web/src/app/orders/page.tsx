@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Package, User, ArrowRight, ShieldCheck } from 'lucide-react';
 import { loadToken, getOrders, formatPaise } from '@/lib/api';
 import { appendUnique } from '@/lib/paging';
 import ProductImage from '@/components/ProductImage';
+import { useOnMount } from '@/lib/hooks';
 
 const STATUS_STYLES: Record<string, { bgClass: string; textClass: string; label: string }> = {
   placed: { bgClass: 'bg-surface-container-high', textClass: 'text-primary', label: 'Placed' },
@@ -81,12 +82,13 @@ export default function OrdersPage() {
     }
   };
 
-  useEffect(() => {
+  // the first page of orders, once, when the page opens
+  useOnMount(() => {
     const hasToken = loadToken();
     setLoggedIn(hasToken);
     if (hasToken) loadFirstPage('All');
     else setLoading(false);
-  }, []);
+  });
 
   const changeFilter = (filter: string) => {
     setActiveFilter(filter);

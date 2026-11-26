@@ -19,7 +19,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const refreshCount = useCallback(async () => {
     // If two refreshes overlap, only the newest one may update the badge
     const id = ++latest.current;
-    const localCount = () => readLocalCart().reduce((sum: number, i: any) => sum + i.quantity, 0);
+    const localCount = () => readLocalCart().reduce((sum: number, i: { quantity: number }) => sum + i.quantity, 0);
     let count: number;
     try {
       count = loadToken() ? (await getCart()).itemCount : localCount();

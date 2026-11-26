@@ -29,6 +29,7 @@ import {
   localCartToResponse,
 } from '../services/localCart';
 import { remainingForFreeShipping, shippingFor, shippingProgressPercent, useShippingRule } from '../services/shipping';
+import { useLatest } from '../utils/hooks';
 
 export default function CartScreen() {
   const navigation = useNavigation<any>();
@@ -42,13 +43,15 @@ export default function CartScreen() {
   const [loggedIn, setLoggedIn] = useState(false);
   const { rule, loaded: ruleLoaded } = useShippingRule();
 
-  useFocusEffect(useCallback(() => { checkAndLoad(); }, []));
-
   const checkAndLoad = async () => {
     const hasToken = await loadToken();
     setLoggedIn(hasToken);
     await loadCart(hasToken);
   };
+  // the bag is read again every time this screen comes into view. (checkAndLoad is read through a box that always holds
+  // the newest one, so this runs on coming into view, not whenever the function is recreated.)
+  const reloadBag = useLatest(checkAndLoad);
+  useFocusEffect(useCallback(() => { reloadBag.current(); }, [reloadBag]));
 
   const loadCart = async (authenticated?: boolean) => {
     const isAuth = authenticated ?? loggedIn;

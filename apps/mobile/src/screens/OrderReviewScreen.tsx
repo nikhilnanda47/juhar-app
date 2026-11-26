@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator,
@@ -9,6 +9,7 @@ import { getAddresses, getCart, placeOrder, formatPaise, referenceOf, type Addre
 import ErrorReference from '../components/ErrorReference';
 import ProductImage from '../components/ProductImage';
 import { shippingFor, useShippingRule } from '../services/shipping';
+import { useOnMount } from '../utils/hooks';
 
 interface Props {
   navigation: any;
@@ -28,7 +29,8 @@ export default function OrderReviewScreen({ navigation, route }: Props) {
   const [paymentMode] = useState<'cod'>('cod');
   const { rule, loaded: ruleLoaded } = useShippingRule();
 
-  useEffect(() => { loadData(); }, []);
+  // the address and the bag, once, when the screen opens
+  useOnMount(() => { loadData(); });
 
   const loadData = async () => {
     try {

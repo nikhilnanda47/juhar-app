@@ -1,7 +1,8 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useRef } from 'react';
 import {
   Animated, TouchableOpacity, ViewStyle, StyleProp,
 } from 'react-native';
+import { useOnMount } from '../utils/hooks';
 
 // ─── Fade-in + slide up on mount ───
 export function FadeInUp({
@@ -20,7 +21,7 @@ export function FadeInUp({
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(distance)).current;
 
-  useEffect(() => {
+  useOnMount(() => {
     Animated.parallel([
       Animated.timing(opacity, {
         toValue: 1, duration, delay, useNativeDriver: true,
@@ -29,7 +30,7 @@ export function FadeInUp({
         toValue: 0, duration, delay, useNativeDriver: true,
       }),
     ]).start();
-  }, []);
+  });
 
   return (
     <Animated.View style={[style, { opacity, transform: [{ translateY }] }]}>
@@ -52,11 +53,11 @@ export function FadeIn({
 }) {
   const opacity = useRef(new Animated.Value(0)).current;
 
-  useEffect(() => {
+  useOnMount(() => {
     Animated.timing(opacity, {
       toValue: 1, duration, delay, useNativeDriver: true,
     }).start();
-  }, []);
+  });
 
   return (
     <Animated.View style={[style, { opacity }]}>
@@ -146,7 +147,7 @@ export function Pulse({
 }) {
   const anim = useRef(new Animated.Value(1)).current;
 
-  useEffect(() => {
+  useOnMount(() => {
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(anim, { toValue: minScale, duration: duration / 2, useNativeDriver: true }),
@@ -155,7 +156,7 @@ export function Pulse({
     );
     loop.start();
     return () => loop.stop();
-  }, []);
+  });
 
   return (
     <Animated.View style={[style, { transform: [{ scale: anim }] }]}>
@@ -177,7 +178,7 @@ export function BounceIn({
   const scale = useRef(new Animated.Value(0)).current;
   const opacity = useRef(new Animated.Value(0)).current;
 
-  useEffect(() => {
+  useOnMount(() => {
     const timer = setTimeout(() => {
       Animated.parallel([
         Animated.spring(scale, { toValue: 1, friction: 4, tension: 200, useNativeDriver: true }),
@@ -185,7 +186,7 @@ export function BounceIn({
       ]).start();
     }, delay);
     return () => clearTimeout(timer);
-  }, []);
+  });
 
   return (
     <Animated.View style={[style, { opacity, transform: [{ scale }] }]}>

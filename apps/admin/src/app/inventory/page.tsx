@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AdminLayout from '../../components/AdminLayout';
 import { api, type ProductCounts } from '../../services/api';
 import { appendUnique, loadAtLeast } from '../../services/paging';
 import StockAdjustModal, { type StockTarget } from '../../components/StockAdjustModal';
 import styles from './inventory.module.css';
+import { useOnMount } from '../../lib/hooks';
 
 interface VariantStock {
   variantId: string;
@@ -32,9 +33,10 @@ export default function InventoryPage() {
   const lowAt = counts?.lowStockThreshold ?? 3;
   const [adjusting, setAdjusting] = useState<StockTarget | null>(null);
 
-  useEffect(() => {
+  // the first load, once, when the page opens
+  useOnMount(() => {
     loadInventory();
-  }, []);
+  });
 
   const loadInventory = async () => {
     try {

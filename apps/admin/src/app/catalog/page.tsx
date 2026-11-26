@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AdminLayout from '../../components/AdminLayout';
 import { api, type ProductCounts } from '../../services/api';
+import { useLatest } from '../../lib/hooks';
 import { appendUnique, loadAtLeast } from '../../services/paging';
 import styles from './catalog.module.css';
 
@@ -73,10 +74,13 @@ export default function CatalogPage() {
     }
   };
 
+  // Start again from the top when the filter changes. (loadProducts is read through a box that always holds the newest
+  // one: the list should reload when the FILTER changes, not every time the function is recreated.)
+  const reloadProducts = useLatest(loadProducts);
   useEffect(() => {
     setLoading(true);
-    loadProducts();
-  }, [filter]);
+    reloadProducts.current();
+  }, [filter, reloadProducts]);
 
   // Refresh after publishing or unpublishing, keeping as many rows on screen as there were
   const refreshProducts = async () => {

@@ -84,7 +84,7 @@ export default function HomePage() {
                 <div className="relative aspect-[3/4] rounded-xl bg-surface-container-low overflow-hidden mb-2 group-hover:shadow-md transition-shadow">
                   <ProductImage src={product.primaryImage?.url} alt={product.primaryImage?.alt || product.title} />
                 </div>
-                <p className="font-sans text-body-sm text-text-secondary truncate">{(product as any).fabric || 'Handloom'}</p>
+                <p className="font-sans text-body-sm text-text-secondary truncate">{product.fabric || 'Handloom'}</p>
                 <p className="font-sans text-body-md text-text-primary font-medium truncate">{product.title}</p>
                 <div className="flex items-baseline gap-1 mt-0.5">
                   <span className="font-sans text-price-md text-accent">{formatPaise(price)}</span>

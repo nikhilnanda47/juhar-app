@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AdminLayout from '../../components/AdminLayout';
 import { api } from '../../services/api';
 import styles from './categories.module.css';
+import { useOnMount } from '../../lib/hooks';
 
 interface Category {
   id: string;
@@ -24,9 +25,10 @@ export default function CategoriesPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  useEffect(() => {
+  // the first load, once, when the page opens
+  useOnMount(() => {
     loadCategories();
-  }, []);
+  });
 
   const loadCategories = async () => {
     try {

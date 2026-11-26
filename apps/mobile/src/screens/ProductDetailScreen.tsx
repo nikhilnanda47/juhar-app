@@ -33,6 +33,7 @@ import ProductImage from '../components/ProductImage';
 import { firstPhotoIndexOfVariant, thumbnailForVariant } from '../services/photos';
 import { describeLoadFailure, type LoadFailure } from '../services/loadFailure';
 import ErrorReference from '../components/ErrorReference';
+import { useLatest } from '../utils/hooks';
 
 
 interface Props {
@@ -82,8 +83,6 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
       RNAnimated.timing(toastAnim, { toValue: 0, duration: 300, useNativeDriver: Platform.OS !== 'web' }),
     ]).start(() => setToastVisible(false));
   };
-
-  useEffect(() => { loadProduct(); }, [slug]);
 
   const photos = (product?.media ?? []).filter((m) => (m.type ?? 'image') === 'image');
   const goToPhoto = useCallback((index: number) => {
@@ -135,6 +134,11 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
       setLoading(false);
     }
   };
+
+  // the saree is read when the screen opens, and again if it is opened for another one. (loadProduct is read through a box
+  // that always holds the newest one: it should reload when the SAREE changes, not whenever the function is recreated.)
+  const reloadProduct = useLatest(loadProduct);
+  useEffect(() => { reloadProduct.current(); }, [slug, reloadProduct]);
 
   if (loading) {
     return <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>;
