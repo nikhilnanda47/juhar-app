@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import AdminLayout from '../../../components/AdminLayout';
 import StockAdjustModal, { type StockTarget } from '../../../components/StockAdjustModal';
 import PhotoManager from '../../../components/PhotoManager';
-import { api, type AdminProductDetail } from '../../../services/api';
+import { api, type AdminProductDetail, messageOf } from '../../../services/api';
 import { BasicInfoSection, FabricSection, splitList, type ProductFields } from '../new/ProductFields';
 import styles from '../new/new.module.css';
 import edit from './edit.module.css';
@@ -77,9 +77,9 @@ export default function EditProductPage() {
       setEdits(editsOf(p));
       setAdded([]);
       setState('ready');
-    } catch (err: any) {
-      setState(/not found/i.test(err?.message || '') ? 'missing' : 'failed');
-      setError(err?.message || '');
+    } catch (err) {
+      setState(/not found/i.test(messageOf(err, '')) ? 'missing' : 'failed');
+      setError(messageOf(err, ''));
     }
   }, [id]);
 
@@ -187,8 +187,8 @@ export default function EditProductPage() {
       }
       await load();
       setSaved(true);
-    } catch (err: any) {
-      setError(err?.message || 'Could not save the changes. Please try again.');
+    } catch (err) {
+      setError(messageOf(err, 'Could not save the changes. Please try again.'));
       await load().catch(() => {}); // some of the changes may have been saved: show what is now stored
       setSaved(false);
     }

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AdminLayout from '../../components/AdminLayout';
-import { api, type ProductCounts } from '../../services/api';
+import { api, type ProductCounts, messageOf } from '../../services/api';
 import { useLatest } from '../../lib/hooks';
 import { appendUnique, loadAtLeast } from '../../services/paging';
 import styles from './catalog.module.css';
@@ -110,8 +110,8 @@ export default function CatalogPage() {
       setCursor(data.cursor);
       setHasMore(data.hasMore);
       if (data.counts) setCounts(data.counts);
-    } catch (err: any) {
-      setLoadError(err?.message || 'Could not load more products');
+    } catch (err) {
+      setLoadError(messageOf(err, 'Could not load more products'));
     } finally {
       setLoadingMore(false);
     }

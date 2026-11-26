@@ -4,7 +4,6 @@ import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import reactHooks from 'eslint-plugin-react-hooks';
 import globals from 'globals';
-import { filesStillUsingAny } from './eslint.any-allowlist.mjs';
 
 export default tseslint.config(
   {
@@ -20,8 +19,8 @@ export default tseslint.config(
   {
     languageOptions: { globals: { ...globals.node, ...globals.es2022 } },
     rules: {
-      // `any` switches off type checking for a value. It is an error in every file except the ones listed in
-      // eslint.any-allowlist.mjs (old code, cleaned up file by file) and tests (see below).
+      // `any` switches off type checking for a value. It is an error everywhere except tests (see below). Use a real
+      // type, `unknown` plus a check, or a Prisma payload type; for plain JSON in audit entries see common/audit/json.ts.
       '@typescript-eslint/no-explicit-any': 'error',
       // `catch {}` that deliberately ignores a failure is fine; an empty block anywhere else is not
       'no-empty': ['error', { allowEmptyCatch: true }],
@@ -51,11 +50,6 @@ export default tseslint.config(
     rules: { '@typescript-eslint/no-require-imports': 'off', '@typescript-eslint/no-explicit-any': 'off' },
   },
 
-  // Old code that still uses `any`, cleaned up file by file (item 49). Shrink this list, never grow it.
-  {
-    files: filesStillUsingAny,
-    rules: { '@typescript-eslint/no-explicit-any': 'off' },
-  },
 
   // Plain Node command-line scripts (CommonJS): require() is how they load modules
   {

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import AdminLayout from '../components/AdminLayout';
-import { api } from '../services/api';
+import { api, type AdminOrderListItem } from '../services/api';
 import styles from './page.module.css';
 
 interface DashboardStats {
@@ -12,7 +12,7 @@ interface DashboardStats {
   overdueOrders: number;
   lowStockItems: number;
   gmvTodayPaise: number;
-  recentOrders: any[];
+  recentOrders: AdminOrderListItem[];
 }
 
 function formatPaise(paise: number): string {
@@ -58,7 +58,7 @@ export default function DashboardPage() {
       // The API counts every order; counting the page here would miss the rest.
       // "Today" is the India day, worked out by the API, so it is the same whatever the browser's time zone.
       const pendingConfirmation =
-        allOrders.counts?.placed ?? orders.filter((o: any) => o.status === 'placed').length;
+        allOrders.counts?.placed ?? orders.filter((o) => o.status === 'placed').length;
       const overdueOrders = allOrders.counts?.overdue ?? 0;
       const todaysOrders = allOrders.counts?.today?.orders ?? 0;
       const gmvTodayPaise = allOrders.counts?.today?.gmvPaise ?? 0;
@@ -134,7 +134,7 @@ export default function DashboardPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {stats.recentOrders.map((order: any) => (
+                    {stats.recentOrders.map((order) => (
                       <tr key={order.id}>
                         <td className={styles.mono}>{order.publicNumber}</td>
                         <td>{order.customer?.name || order.customer?.phone || '—'}</td>

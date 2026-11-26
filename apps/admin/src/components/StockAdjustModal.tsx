@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { api, type StockChange, type StockReason } from '../services/api';
+import { api, type StockChange, type StockReason, messageOf } from '../services/api';
 import styles from './StockAdjustModal.module.css';
 
 type Mode = 'add' | 'remove' | 'set';
@@ -84,10 +84,10 @@ export default function StockAdjustModal({ target, onClose, onSaved }: {
       });
       await onSaved();
       onClose();
-    } catch (err: any) {
-      setError(/required role/i.test(err?.message || '')
+    } catch (err) {
+      setError(/required role/i.test(messageOf(err, ''))
         ? 'Your role cannot change stock. Ask an owner or a catalog editor.'
-        : err?.message || 'Could not change the stock. Please try again.');
+        : messageOf(err, 'Could not change the stock. Please try again.'));
       setSaving(false);
     }
   };

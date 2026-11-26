@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AdminLayout from '../../components/AdminLayout';
-import { api } from '../../services/api';
+import { api, messageOf } from '../../services/api';
 import styles from './categories.module.css';
 import { useOnMount } from '../../lib/hooks';
 
@@ -50,8 +50,8 @@ export default function CategoriesPage() {
       setFormData({ name: '', description: '', sortOrder: 0 });
       setShowForm(false);
       await loadCategories();
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(messageOf(err, 'Could not save the category'));
     } finally {
       setSaving(false);
     }

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { api } from '../../services/api';
+import { api, messageOf } from '../../services/api';
 import styles from './login.module.css';
 
 export default function LoginPage() {
@@ -54,8 +54,8 @@ export default function LoginPage() {
     try {
       await api.requestOtp('+91' + phoneNumber);
       setStep('otp');
-    } catch (err: any) {
-      setError(err.message || 'Failed to send OTP');
+    } catch (err) {
+      setError(messageOf(err, 'Failed to send OTP'));
     } finally {
       setLoading(false);
     }
@@ -79,8 +79,8 @@ export default function LoginPage() {
       }
 
       router.push('/');
-    } catch (err: any) {
-      setError(err.message || 'Invalid OTP');
+    } catch (err) {
+      setError(messageOf(err, 'Invalid OTP'));
     } finally {
       setLoading(false);
     }

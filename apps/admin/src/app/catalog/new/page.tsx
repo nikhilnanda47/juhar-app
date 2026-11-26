@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AdminLayout from '../../../components/AdminLayout';
-import { api } from '../../../services/api';
+import { api, messageOf } from '../../../services/api';
 import styles from './new.module.css';
 import { BasicInfoSection, FabricSection, emptyProductFields, splitList, type ProductFields } from './ProductFields';
 
@@ -107,8 +107,8 @@ export default function CreateProductPage() {
       const created = await api.createProduct(body);
       // photos need the product to exist, so the next step is its page, at the Photos section
       router.push(`/catalog/${created.id}?created=1`);
-    } catch (err: any) {
-      setError(err.message || 'Failed to create product');
+    } catch (err) {
+      setError(messageOf(err, 'Failed to create product'));
     } finally {
       setSaving(false);
     }

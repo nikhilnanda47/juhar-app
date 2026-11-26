@@ -135,7 +135,7 @@ export class ApiClient {
 
   // ── Categories ──
   async getCategories() {
-    return this.request<any[]>('/api/v1/admin/categories');
+    return this.request<AdminCategory[]>('/api/v1/admin/categories');
   }
 
   async createCategory(data: { name: string; slug?: string; description?: string; sortOrder?: number }) {
@@ -156,7 +156,7 @@ export class ApiClient {
   async getProducts(params?: Record<string, string>) {
     const query = params ? '?' + new URLSearchParams(params).toString() : '';
     return this.request<{
-      items: any[];
+      items: AdminProductListItem[];
       cursor: string | null;
       hasMore: boolean;
       /** Counts over the whole catalog (not just this page or filter) */
@@ -234,7 +234,7 @@ export class ApiClient {
   async getOrders(params?: Record<string, string>) {
     const query = params ? '?' + new URLSearchParams(params).toString() : '';
     return this.request<{
-      items: any[];
+      items: AdminOrderListItem[];
       cursor: string | null;
       hasMore: boolean;
       /**
@@ -302,7 +302,60 @@ export class ApiError extends Error {
   }
 }
 
+/** The sentence to show for a failed call: the error's own message, or `fallback` when it has none. */
+export function messageOf(error: unknown, fallback: string): string {
+  return (error instanceof Error && error.message) || fallback;
+}
+
 export const api = new ApiClient();
+
+/** A category as the admin lists it */
+export interface AdminCategory {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  sortOrder: number;
+  active: boolean;
+}
+
+/** One product in the admin's product list (and the inventory page, which reads the same list) */
+export interface AdminProductListItem {
+  id: string;
+  slug: string;
+  title: string;
+  publishStatus: string;
+  fabric: string | null;
+  createdAt: string;
+  category: { id: string; name: string } | null;
+  variants: {
+    id: string;
+    sku: string;
+    name: string | null;
+    color: string | null;
+    pricePaise: number;
+    inventory: { onHand: number; reserved: number; unavailable: number } | null;
+  }[];
+  /** the cover photo (small copy), null when there is none yet */
+  primaryImage?: { url: string; alt: string | null } | null;
+}
+
+/** One order in the admin's list of orders */
+export interface AdminOrderListItem {
+  id: string;
+  publicNumber: string;
+  status: string;
+  paymentMode: string;
+  paymentStatus: string;
+  totalPaise: number;
+  itemCount: number;
+  items: { productTitle: string; variantName?: string | null; qty: number; totalPaise: number }[];
+  createdAt: string;
+  customer: { id: string; phone: string; name: string | null } | null;
+  /** minutes a "placed" order has waited for an admin; null for any other status */
+  waitingMinutes: number | null;
+  overdue: boolean;
+}
 
 export interface AdminOrderDetail {
   id: string;

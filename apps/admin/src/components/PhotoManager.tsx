@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { MEDIA } from '@juhar/shared';
-import { api, type AdminPhoto } from '../services/api';
+import { api, type AdminPhoto, messageOf } from '../services/api';
 import { checkPickedFiles, movePhoto, photoCountText } from '../lib/photos';
 import styles from './PhotoManager.module.css';
 
@@ -45,8 +45,8 @@ export default function PhotoManager({ productId, photos, colours, onChange, can
         try {
           latest = await api.uploadPhoto(productId, accepted[i]);
           onChange(latest);
-        } catch (e: any) {
-          failed.push(`${accepted[i].name}: ${e?.message || 'could not be uploaded.'}`);
+        } catch (e) {
+          failed.push(`${accepted[i].name}: ${messageOf(e, 'could not be uploaded.')}`);
         }
       }
       setUploading(null);
@@ -57,7 +57,7 @@ export default function PhotoManager({ productId, photos, colours, onChange, can
   const run = async (id: string, action: () => Promise<AdminPhoto[]>) => {
     setBusyId(id); setError(''); setProblems([]);
     try { onChange(await action()); }
-    catch (e: any) { setError(e?.message || 'That did not work. Please try again.'); }
+    catch (e) { setError(messageOf(e, 'That did not work. Please try again.')); }
     finally { setBusyId(null); }
   };
 
