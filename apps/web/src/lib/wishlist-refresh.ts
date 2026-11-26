@@ -11,7 +11,7 @@ export const WISHLIST_CHANNEL = 'juhar-wishlist';
 export const REFRESH_DEBOUNCE_MS = 250;
 export const SAFETY_REFRESH_MS = 30_000;
 
-type Listener = (event?: any) => void;
+type Listener = (event?: unknown) => void;
 
 interface Target {
   addEventListener(type: string, listener: Listener): void;
@@ -32,7 +32,7 @@ let sharedChannel: (Target & { postMessage(message: unknown): void }) | null | u
 
 function browserChannel() {
   if (sharedChannel === undefined) {
-    sharedChannel = typeof BroadcastChannel !== 'undefined' ? (new BroadcastChannel(WISHLIST_CHANNEL) as any) : null;
+    sharedChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel(WISHLIST_CHANNEL) : null;
   }
   return sharedChannel;
 }
@@ -70,7 +70,8 @@ export function startWishlistRefresh(
   };
   // the browser's storage event also fires for the cart and the login; only the guest list matters here
   const onStorage: Listener = (event) => {
-    if (!event || event.key === GUEST_WISHLIST_KEY || event.key === null) schedule();
+    const key = (event as { key?: string | null } | undefined)?.key;
+    if (!event || key === GUEST_WISHLIST_KEY || key === null) schedule();
   };
   const safety = setInterval(() => {
     if (doc.visibilityState === 'visible') refresh();

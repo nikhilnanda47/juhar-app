@@ -1,5 +1,5 @@
 export {}; // keeps this file a module
-import { CART_CHANGED_EVENT } from './cart-events';
+import { CART_CHANGED_EVENT, type LocalCartItem } from './cart-events';
 
 let store: Record<string, string> = {};
 let events: string[] = [];
@@ -18,6 +18,12 @@ beforeEach(() => {
     setItem: (k: string, v: string) => { store[k] = v; },
     removeItem: (k: string) => { delete store[k]; },
   };
+});
+
+// a complete guest-cart line (the cart stores the whole saree's details)
+const line = (variantId: string, quantity: number): LocalCartItem => ({
+  variantId, quantity, productId: 'p1', productTitle: 'Saree', productSlug: 'saree', variantName: null, color: null,
+  sku: 'SKU-1', pricePaise: 100000, compareAtPaise: null, available: 5,
 });
 
 describe('cart events', () => {
@@ -43,14 +49,14 @@ describe('cart events', () => {
 
     it('saving stores the items AND tells the badge', () => {
       const { saveLocalCart, readLocalCart } = load();
-      saveLocalCart([{ variantId: 'v1', quantity: 2 }]);
-      expect(readLocalCart()).toEqual([{ variantId: 'v1', quantity: 2 }]);
+      saveLocalCart([line('v1', 2)]);
+      expect(readLocalCart()).toEqual([line('v1', 2)]);
       expect(events).toEqual([CART_CHANGED_EVENT]);
     });
 
     it('clearing empties the cart AND tells the badge', () => {
       const { saveLocalCart, clearLocalCart, readLocalCart } = load();
-      saveLocalCart([{ variantId: 'v1', quantity: 1 }]);
+      saveLocalCart([line('v1', 1)]);
       events.length = 0;
       clearLocalCart();
       expect(readLocalCart()).toEqual([]);

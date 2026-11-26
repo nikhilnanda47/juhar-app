@@ -42,7 +42,8 @@ export function savedVariantsOf(list: SavedEntry[], productId: string): string[]
 // ── Guest list: kept in this browser until the customer logs in ──
 
 function isEntry(value: unknown): value is SavedEntry {
-  return !!value && typeof (value as any).variantId === 'string' && typeof (value as any).productId === 'string';
+  const entry = value as { variantId?: unknown; productId?: unknown } | null;
+  return !!entry && typeof entry.variantId === 'string' && typeof entry.productId === 'string';
 }
 
 export function readGuestWishlist(): SavedEntry[] {

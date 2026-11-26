@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Phone, Package, Handshake } from 'lucide-react';
-import { loadToken, getAddresses, getCart, placeOrder, formatPaise, referenceOf, type Address, type CartResponse } from '@/lib/api';
+import { loadToken, getAddresses, getCart, placeOrder, formatPaise, referenceOf, type Address, type CartResponse, messageOf } from '@/lib/api';
 import ErrorReference from '@/components/ErrorReference';
 import { shippingFor, useShippingRule } from '@/lib/shipping';
 import ProductImage from '@/components/ProductImage';
@@ -39,7 +39,7 @@ function OrderReviewContent() {
       const idempotencyKey = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
       const order = await placeOrder({ addressId: addressId!, paymentMode: 'cod', idempotencyKey });
       router.push(`/order-success?orderId=${order.id}`);
-    } catch (e: any) { setError(e.message || 'Failed to place order'); setErrorRef(referenceOf(e)); }
+    } catch (e) { setError(messageOf(e, 'Failed to place order')); setErrorRef(referenceOf(e)); }
     finally { setPlacing(false); }
   };
 

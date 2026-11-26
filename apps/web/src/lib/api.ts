@@ -61,6 +61,11 @@ export class ApiError extends Error {
 /** What a customer reads when the server could not be reached at all. */
 export const NETWORK_ERROR_MESSAGE = 'We could not reach the server. Please check your internet connection and try again.';
 
+/** The sentence to show for a failed call: the error's own message, or `fallback` when it has none. */
+export function messageOf(error: unknown, fallback: string): string {
+  return (error instanceof Error && error.message) || fallback;
+}
+
 /** The request reference of an error, or '' (a network failure has none). */
 export function referenceOf(error: unknown): string {
   return error instanceof ApiError ? error.requestId : '';
@@ -343,10 +348,82 @@ export async function deleteAddress(id: string): Promise<void> {
 }
 
 // ── Orders ──
-// Order payloads are still loosely typed (screens treat them as `any`).
+
+/** The address the customer chose at checkout, frozen on the order */
+export interface OrderAddress {
+  recipientName: string;
+  recipientPhone: string;
+  line1: string;
+  line2?: string | null;
+  landmark?: string | null;
+  city: string;
+  district: string;
+  state: string;
+  pinCode: string;
+}
+
+export interface OrderItem {
+  id: string;
+  productTitle: string;
+  variantName: string | null;
+  sku: string;
+  qty: number;
+  unitPricePaise: number;
+  totalPaise: number;
+  /** the small photo of the saree; the reply to placing an order has none, the order page does */
+  imageUrl?: string | null;
+}
+
+export interface OrderShipment {
+  id: string;
+  carrier: string | null;
+  trackingId: string | null;
+  status: string;
+  dispatchedAt: string | null;
+  deliveredAt: string | null;
+}
+
+/** One order in full (the order page, and the reply to placing an order, which has fewer parts) */
+export interface Order {
+  id: string;
+  publicNumber: string;
+  status: string;
+  paymentMode: string;
+  paymentStatus: string;
+  subtotalPaise: number;
+  shippingPaise: number;
+  taxPaise: number;
+  discountPaise: number;
+  totalPaise: number;
+  addressSnapshot: OrderAddress;
+  notes: string | null;
+  estimatedDelivery: string;
+  items: OrderItem[];
+  shipments?: OrderShipment[];
+  confirmedAt?: string | null;
+  packedAt?: string | null;
+  shippedAt?: string | null;
+  deliveredAt?: string | null;
+  cancelledAt?: string | null;
+  cancellationReason?: string | null;
+  createdAt: string;
+}
+
+/** One order in the list of orders */
+export interface OrderSummary {
+  id: string;
+  publicNumber: string;
+  status: string;
+  paymentMode: string;
+  paymentStatus: string;
+  totalPaise: number;
+  itemCount: number;
+  items: { productTitle: string; variantName: string | null; qty: number; totalPaise: number; imageUrl: string | null }[];
+  createdAt: string;
+}
 
 export interface OrdersPage {
-  items: any[];
+  items: OrderSummary[];
   /** pass this back as `cursor` to get the next page; null on the last page */
   cursor: string | null;
   hasMore: boolean;
@@ -376,16 +453,16 @@ export async function getOrders(
   };
 }
 
-export async function getOrder(id: string): Promise<any> {
+export async function getOrder(id: string): Promise<Order> {
   loadToken();
-  return request<any>(`/api/v1/orders/${id}`);
+  return request<Order>(`/api/v1/orders/${id}`);
 }
 
 export async function placeOrder(input: {
   addressId: string; paymentMode: string; idempotencyKey: string; notes?: string;
-}): Promise<any> {
+}): Promise<Order> {
   loadToken();
-  const order = await request<any>('/api/v1/orders', { method: 'POST', body: JSON.stringify(input) });
+  const order = await request<Order>('/api/v1/orders', { method: 'POST', body: JSON.stringify(input) });
   notifyCartChanged(); // placing an order empties the cart
   return order;
 }

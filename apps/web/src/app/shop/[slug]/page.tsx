@@ -18,7 +18,7 @@ import {
   MapPin,
   Search,
 } from 'lucide-react';
-import { getProductBySlug, getProducts, formatPaise, isLoggedIn, addToCart, checkDelivery, referenceOf, type DeliveryCheck, type Product, type ProductVariant } from '@/lib/api';
+import { getProductBySlug, getProducts, formatPaise, isLoggedIn, addToCart, checkDelivery, referenceOf, type DeliveryCheck, type Product, type ProductVariant, messageOf } from '@/lib/api';
 import ErrorReference from '@/components/ErrorReference';
 import LoadFailed from '@/components/LoadFailed';
 import StatusPage from '@/components/StatusPage';
@@ -116,9 +116,9 @@ export default function ProductDetailPage() {
     try {
       const answer = await checkDelivery(pinCode);
       if (mine === pinRequest.current) setDelivery(answer);
-    } catch (e: any) {
+    } catch (e) {
       if (mine === pinRequest.current) {
-        setPinError(e?.message || 'Could not check this PIN code right now. Please try again.');
+        setPinError(messageOf(e, 'Could not check this PIN code right now. Please try again.'));
         setPinErrorRef(referenceOf(e));
       }
     } finally {
@@ -135,7 +135,7 @@ export default function ProductDetailPage() {
         await addToCart(selectedVariant.id, 1);
       } else {
         const localCart = readLocalCart();
-        const existing = localCart.find((c: any) => c.variantId === selectedVariant.id);
+        const existing = localCart.find((c) => c.variantId === selectedVariant.id);
         if (existing) { existing.quantity += 1; }
         else {
           localCart.push({
@@ -152,9 +152,9 @@ export default function ProductDetailPage() {
       setAddedToCart(true);
       setShowToast(true);
       setTimeout(() => setShowToast(false), 2500);
-    } catch (e: any) {
+    } catch (e) {
       // used to fail without a word: say so, with the reference for support
-      setCartError(e?.message || 'Could not add this saree to your bag. Please try again.');
+      setCartError(messageOf(e, 'Could not add this saree to your bag. Please try again.'));
       setCartErrorRef(referenceOf(e));
     }
     setAddingToCart(false);

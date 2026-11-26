@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Check, Truck, MapPin, Phone, MessageCircle, ArrowRight, Copy, Package, ShieldCheck } from 'lucide-react';
-import { loadToken, getOrder, formatPaise } from '@/lib/api';
+import { loadToken, getOrder, formatPaise, type Order } from '@/lib/api';
 import LoadFailed from '@/components/LoadFailed';
 import ProductImage from '@/components/ProductImage';
 import { describeLoadFailure, type LoadFailure } from '@/lib/load-failure';
@@ -23,7 +23,7 @@ const STEP_DESC: Record<string, string> = {
 
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const [order, setOrder] = useState<any>(null);
+  const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [failure, setFailure] = useState<LoadFailure | null>(null); // why the order could not be loaded
 
@@ -161,11 +161,11 @@ export default function OrderDetailPage() {
           </>)}
 
           {/* Tracking */}
-          {order.shipments?.length > 0 && (
+          {(order.shipments?.length ?? 0) > 0 && (
             <>
               <h2 className="font-sans text-title-sm text-text-primary mb-4">Tracking Information</h2>
               <div className="card mb-6">
-                {order.shipments.map((s: any) => (
+                {order.shipments?.map((s) => (
                   <div key={s.id}>
                     <div className="flex items-center gap-3 mb-3">
                       <div className="w-10 h-10 rounded-full bg-surface-container-low flex items-center justify-center">
@@ -181,7 +181,7 @@ export default function OrderDetailPage() {
                         <p className="label-upper">TRACKING NO.</p>
                         <p className="font-sans text-title-sm text-text-primary tracking-wider mt-0.5">{s.trackingId}</p>
                       </div>
-                      <button onClick={() => { navigator.clipboard?.writeText(s.trackingId); }}
+                      <button onClick={() => { navigator.clipboard?.writeText(s.trackingId ?? ''); }}
                         className="flex items-center gap-1 bg-surface px-3 py-2 rounded-lg shadow-sm hover:shadow transition-shadow">
                         <Copy size={14} className="text-primary" />
                         <span className="font-sans text-label-md text-primary">Copy</span>
@@ -196,7 +196,7 @@ export default function OrderDetailPage() {
           {/* Items */}
           <h2 className="font-sans text-title-sm text-text-primary mb-4">Items ({order.items?.length || 0})</h2>
           <div className="card mb-6">
-            {order.items?.map((item: any, idx: number) => (
+            {order.items?.map((item, idx) => (
               <div key={item.id}>
                 <div className="flex gap-4 py-3">
                   <div className="relative w-16 h-20 lg:w-20 lg:h-[106px] rounded-lg bg-surface-container-low overflow-hidden shrink-0">

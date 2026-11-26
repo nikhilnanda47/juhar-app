@@ -4,7 +4,7 @@ import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Package, User, ArrowRight, ShieldCheck } from 'lucide-react';
-import { loadToken, getOrders, formatPaise } from '@/lib/api';
+import { loadToken, getOrders, formatPaise, type OrderSummary } from '@/lib/api';
 import { appendUnique } from '@/lib/paging';
 import ProductImage from '@/components/ProductImage';
 import { useOnMount } from '@/lib/hooks';
@@ -28,7 +28,7 @@ const FILTERS = ['All', 'Placed', 'Confirmed', 'Shipped', 'Delivered', 'Cancelle
 
 export default function OrdersPage() {
   const router = useRouter();
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -181,7 +181,7 @@ export default function OrdersPage() {
 
         {/* Table rows */}
         <div className="border border-border rounded-b-xl overflow-hidden divide-y divide-border">
-          {filteredOrders.map((order: any) => {
+          {filteredOrders.map((order) => {
             const sc = STATUS_STYLES[order.status] || STATUS_STYLES.placed;
             const firstItem = order.items?.[0];
             const moreCount = (order.itemCount || order.items?.length || 0) - 1;
@@ -241,7 +241,7 @@ export default function OrdersPage() {
 
       {/* Mobile/Tablet: card layout */}
       <div className="lg:hidden grid gap-3 md:grid-cols-2">
-        {orders.map((order: any) => {
+        {orders.map((order) => {
           const sc = STATUS_STYLES[order.status] || STATUS_STYLES.placed;
           const firstItem = order.items?.[0];
           const moreCount = (order.itemCount || order.items?.length || 0) - 1;

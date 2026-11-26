@@ -16,8 +16,7 @@ import {
   getAddresses,
   getOrders,
   referenceOf,
-  type UserProfile,
-} from '@/lib/api';
+  type UserProfile, messageOf } from '@/lib/api';
 import { useWishlist } from '@/lib/wishlist-context';
 import { readLocalCart, clearLocalCart } from '@/lib/cart-events';
 import { useTheme } from '@/lib/theme-context';
@@ -93,7 +92,7 @@ export default function AccountPage() {
       const t = Date.now(); setNow(t); setResendAt(resendAvailableAt(t)); setResentNote(false);
       setScreen('otp');
     }
-    catch (e: any) { setError(e.message || 'Failed to send OTP'); setErrorRef(referenceOf(e)); }
+    catch (e) { setError(messageOf(e, 'Failed to send OTP')); setErrorRef(referenceOf(e)); }
     finally { setBusy(false); }
   };
 
@@ -105,7 +104,7 @@ export default function AccountPage() {
       await requestOtp('+91' + phone);
       const t = Date.now(); setNow(t); setResendAt(resendAvailableAt(t));
       setOtp(''); setResentNote(true);
-    } catch (e: any) { setError(e.message || 'Could not send a new code'); setErrorRef(referenceOf(e)); }
+    } catch (e) { setError(messageOf(e, 'Could not send a new code')); setErrorRef(referenceOf(e)); }
     finally { setResending(false); }
   };
 
@@ -126,7 +125,7 @@ export default function AccountPage() {
       fetchCounts();
       if (result.isNewUser || !p.name) { setEditName(''); setScreen('editName'); }
       else setScreen('profile');
-    } catch (e: any) { setError(e.message || 'Invalid OTP'); setErrorRef(referenceOf(e)); }
+    } catch (e) { setError(messageOf(e, 'Invalid OTP')); setErrorRef(referenceOf(e)); }
     finally { setBusy(false); }
   };
 
@@ -134,7 +133,7 @@ export default function AccountPage() {
     if (!editName.trim() || editName.trim().length < 2) return;
     setBusy(true); setError(''); setErrorRef('');
     try { const p = await updateProfile({ name: editName.trim() }); setProfile(p); setScreen('profile'); }
-    catch (e: any) { setError(e.message || 'Failed to save name'); setErrorRef(referenceOf(e)); }
+    catch (e) { setError(messageOf(e, 'Failed to save name')); setErrorRef(referenceOf(e)); }
     finally { setBusy(false); }
   };
 

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Truck, Check, MapPin, ShieldCheck, Home, Briefcase, MoreHorizontal } from 'lucide-react';
-import { createAddress, updateAddress, referenceOf, type Address } from '@/lib/api';
+import { createAddress, updateAddress, referenceOf, type Address, messageOf } from '@/lib/api';
 import ErrorReference from '@/components/ErrorReference';
 
 const LABEL_OPTIONS = [
@@ -54,9 +54,9 @@ export default function AddressForm({ address }: { address?: Address }) {
     try {
       const data = { ...form, recipientPhone: '+91' + form.recipientPhone };
       if (address) await updateAddress(address.id, data);
-      else await createAddress(data as any);
+      else await createAddress(data);
       router.back();
-    } catch (e: any) { setError(e.message || 'Failed to save'); setErrorRef(referenceOf(e)); }
+    } catch (e) { setError(messageOf(e, 'Failed to save')); setErrorRef(referenceOf(e)); }
     finally { setSaving(false); }
   };
 
