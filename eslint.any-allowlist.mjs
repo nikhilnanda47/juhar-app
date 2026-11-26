@@ -19,12 +19,6 @@ export const filesStillUsingAny = [
   'apps/admin/src/components/PhotoManager.tsx', // 2
   'apps/admin/src/components/StockAdjustModal.tsx', // 1
   'apps/admin/src/services/api.ts', // 3
-  'apps/api/src/modules/checkout/checkout.service.ts', // 3
-  'apps/api/src/modules/inventory/inventory.service.ts', // 8
-  'apps/api/src/modules/media/media.service.ts', // 7
-  'apps/api/src/modules/orders/orders.service.ts', // 22
-  'apps/api/src/modules/products/products.service.ts', // 23
-  'apps/api/src/modules/users/users.service.ts', // 1
   'apps/mobile/src/navigation/types.ts', // 1
   'apps/mobile/src/screens/AddAddressScreen.tsx', // 3
   'apps/mobile/src/screens/CartScreen.tsx', // 1

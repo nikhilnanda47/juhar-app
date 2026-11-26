@@ -1,6 +1,8 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
+import { Prisma } from '@prisma/client';
+import { asJson } from '../../common/audit/json';
 import { MEDIA } from '@juhar/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { processImage } from './image-processor';
@@ -109,7 +111,7 @@ export class MediaService {
   }
 
   /** One product at a time while its photos change, so two uploads cannot both take the last place or the same position */
-  private lockProduct(tx: any, productId: string) {
+  private lockProduct(tx: Prisma.TransactionClient, productId: string) {
     return tx.$queryRaw`SELECT id FROM products WHERE id = ${productId}::uuid FOR UPDATE`;
   }
 
@@ -164,7 +166,7 @@ export class MediaService {
             entityId: productId,
             actorType: 'admin',
             actorId: adminId,
-            afterState: { mediaId: created.id, position: sortOrder + 1, altText, variantId: options.variantId ?? null } as any,
+            afterState: asJson({ mediaId: created.id, position: sortOrder + 1, altText, variantId: options.variantId ?? null }),
           },
         });
       });
@@ -204,7 +206,7 @@ export class MediaService {
         await tx.auditEvent.create({
           data: {
             action: 'product.photo_updated', entityType: 'product', entityId: productId, actorType: 'admin', actorId: adminId,
-            beforeState: { mediaId, ...before } as any, afterState: { mediaId, ...after } as any,
+            beforeState: asJson({ mediaId, ...before }), afterState: asJson({ mediaId, ...after }),
           },
         });
       });
@@ -227,7 +229,7 @@ export class MediaService {
       await tx.auditEvent.create({
         data: {
           action: 'product.photos_reordered', entityType: 'product', entityId: productId, actorType: 'admin', actorId: adminId,
-          beforeState: { order: current } as any, afterState: { order: ids } as any,
+          beforeState: asJson({ order: current }), afterState: asJson({ order: ids }),
         },
       });
     });
@@ -247,7 +249,7 @@ export class MediaService {
       await tx.auditEvent.create({
         data: {
           action: 'product.photo_removed', entityType: 'product', entityId: productId, actorType: 'admin', actorId: adminId,
-          beforeState: { mediaId, altText: media.altText, variantId: media.variantId, position: media.sortOrder + 1 } as any,
+          beforeState: asJson({ mediaId, altText: media.altText, variantId: media.variantId, position: media.sortOrder + 1 }),
         },
       });
       keys.push(media.objectKey);
