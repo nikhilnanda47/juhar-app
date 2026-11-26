@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Check, Truck, MapPin, Phone, MessageCircle, ArrowRight, Copy, Package, ShieldCheck } from 'lucide-react';
 import { loadToken, getOrder, formatPaise } from '@/lib/api';
+import LoadFailed from '@/components/LoadFailed';
+import { describeLoadFailure, type LoadFailure } from '@/lib/load-failure';
 
 const STEPS = ['placed', 'confirmed', 'packed', 'shipped', 'delivered'];
 const STEP_LABELS: Record<string, string> = {
@@ -22,16 +24,19 @@ export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [failure, setFailure] = useState<LoadFailure | null>(null); // why the order could not be loaded
 
-  useEffect(() => {
+  const load = useCallback(async () => {
     loadToken();
-    getOrder(id)
-      .then(setOrder)
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    try { setOrder(await getOrder(id)); setFailure(null); }
+    catch (e) { setFailure(describeLoadFailure(e, 'Could not load this order.')); }
+    setLoading(false);
   }, [id]);
 
+  useEffect(() => { load(); }, [load]);
+
   if (loading) return <div className="flex items-center justify-center min-h-[60vh]"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
+  if (!order && failure && failure.kind !== 'not_found') return <LoadFailed failure={failure} onRetry={load} />;
   if (!order) return <div className="flex items-center justify-center min-h-[60vh]"><p className="text-text-secondary">Order not found</p></div>;
 
   const isCancelled = order.status === 'cancelled';

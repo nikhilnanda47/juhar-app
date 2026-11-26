@@ -23,8 +23,10 @@ import { readLocalCart, clearLocalCart } from '@/lib/cart-events';
 import { useTheme } from '@/lib/theme-context';
 import ErrorReference from '@/components/ErrorReference';
 import { resendAvailableAt, secondsLeft, resendLabel } from '@/lib/resend';
+import LoadFailed from '@/components/LoadFailed';
+import { describeLoadFailure, isNetworkError, type LoadFailure } from '@/lib/load-failure';
 
-type Screen = 'loading' | 'login' | 'otp' | 'profile' | 'editName';
+type Screen = 'loading' | 'loadFailed' | 'login' | 'otp' | 'profile' | 'editName';
 
 export default function AccountPage() {
   const { isDark, toggleTheme } = useTheme();
@@ -36,6 +38,7 @@ export default function AccountPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [errorRef, setErrorRef] = useState(''); // the API's reference for the failed request
+  const [failure, setFailure] = useState<LoadFailure | null>(null); // why the account could not be read at start
   const [resendAt, setResendAt] = useState(0);   // when "Resend code" works again (ms)
   const [now, setNow] = useState(() => Date.now());
   const [resending, setResending] = useState(false);
@@ -61,7 +64,12 @@ export default function AccountPage() {
         setProfile(await getProfile());
         setScreen('profile');
         fetchCounts();
-      } catch { clearTokens(); setScreen('login'); }
+      } catch (e) {
+        // No signal is not a logout: keep the login and offer to try again. (A rejected login is already cleared by
+        // the API client when it fails to refresh.)
+        if (isNetworkError(e)) { setFailure(describeLoadFailure(e)); setScreen('loadFailed'); return; }
+        clearTokens(); setScreen('login');
+      }
     } else setScreen('login');
   };
 
@@ -131,6 +139,8 @@ export default function AccountPage() {
       clearTokens(); setProfile(null); setPhone(''); setOtp(''); setScreen('login');
     }
   };
+
+  if (screen === 'loadFailed' && failure) return <LoadFailed failure={failure} onRetry={async () => { setScreen('loading'); await checkAuth(); }} />;
 
   if (screen === 'loading') return <div className="flex items-center justify-center min-h-[60vh]"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
 

@@ -18,6 +18,8 @@ import {
 } from '../services/shopList';
 import { FadeInUp } from '../components/AnimatedUI';
 import RefreshButton from '../components/RefreshButton';
+import LoadFailed from '../components/LoadFailed';
+import { describeLoadFailure, type LoadFailure } from '../services/loadFailure';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - spacing.margin * 2 - spacing.gutter) / 2;
@@ -53,6 +55,7 @@ export default function ExploreScreen({ navigation }: Props) {
   const [listLoading, setListLoading] = useState(false); // a new category, sort, search or filter is loading
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+  const [failure, setFailure] = useState<LoadFailure | null>(null); // the same failure, for the offline screen
   // Only the newest request may change the list (a slow answer for an old choice is dropped)
   const requestId = useRef(0);
 
@@ -74,9 +77,9 @@ export default function ExploreScreen({ navigation }: Props) {
       setCursor(page.cursor);
       setHasMore(page.hasMore);
       setTotal(page.total);
-      setError('');
+      setError(''); setFailure(null);
     } catch (err: any) {
-      if (mine === requestId.current) setError(err.message || 'Failed to load catalog');
+      if (mine === requestId.current) { setError(err.message || 'Failed to load catalog'); setFailure(describeLoadFailure(err)); }
     } finally {
       if (mine === requestId.current) {
         setLoading(false);
@@ -301,7 +304,13 @@ export default function ExploreScreen({ navigation }: Props) {
         </View>
       )}
 
-      {products.length === 0 && !loading && !listLoading && (
+      {products.length === 0 && !loading && !listLoading && failure?.kind === 'offline' && (
+        <View style={styles.offlineWrap}>
+          <LoadFailed failure={failure} onRetry={loadFirstPage} />
+        </View>
+      )}
+
+      {products.length === 0 && !loading && !listLoading && failure?.kind !== 'offline' && (
         <View style={styles.emptyState}>
           <SearchIcon size={48} color={colors.textTertiary} strokeWidth={1.5} />
           <Text style={styles.emptyTitle}>
@@ -673,6 +682,7 @@ const createStyles = (colors: ColorPalette) => StyleSheet.create({
     borderColor: colors.primary,
   },
   loadMoreText: { fontFamily: 'DMSans-SemiBold', fontSize: 14, color: colors.primary },
+  offlineWrap: { minHeight: 360 },
   loadErrorText: { fontFamily: 'DMSans-Regular', fontSize: 13, color: colors.error, textAlign: 'center' },
   shownText: { fontFamily: 'DMSans-Regular', fontSize: 12, color: colors.textTertiary },
 

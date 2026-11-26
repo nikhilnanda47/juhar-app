@@ -28,6 +28,8 @@ import { useWishlist } from '../contexts/WishlistContext';
 import { showAlert } from '../utils/showAlert';
 import * as Clipboard from 'expo-clipboard';
 import { shareProduct, resolveWebBase } from '../services/share';
+import LoadFailed from '../components/LoadFailed';
+import { describeLoadFailure, type LoadFailure } from '../services/loadFailure';
 import ErrorReference from '../components/ErrorReference';
 
 
@@ -46,6 +48,7 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [errorRef, setErrorRef] = useState(''); // the API's reference for the failed request
+  const [failure, setFailure] = useState<LoadFailure | null>(null); // why the saree could not be loaded
   const [addingToCart, setAddingToCart] = useState(false);
   const [addedToCart, setAddedToCart] = useState(false);
   const { loaded: wishlistLoaded, isSaved, savedVariantOf, toggleVariant } = useWishlist();
@@ -89,7 +92,7 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
 
   const loadProduct = async () => {
     try {
-      setError(''); setErrorRef('');
+      setError(''); setErrorRef(''); setFailure(null);
       const data = await getProductBySlug(slug);
       setProduct(data);
       pickedVariant.current = false;
@@ -101,6 +104,7 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
     } catch (err: any) {
       setError(err.message || 'Product not found');
       setErrorRef(referenceOf(err));
+      setFailure(describeLoadFailure(err));
     } finally {
       setLoading(false);
     }
@@ -108,6 +112,17 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
 
   if (loading) {
     return <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>;
+  }
+
+  // The phone is offline, or the server failed: say so, with a way to try again (a missing saree is shown below)
+  if (failure && failure.kind !== 'not_found') {
+    return (
+      <LoadFailed
+        failure={failure}
+        onRetry={loadProduct}
+        secondary={{ label: 'Go Back', onPress: () => navigation.goBack() }}
+      />
+    );
   }
 
   if (error || !product) {

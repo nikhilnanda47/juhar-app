@@ -7,6 +7,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Package, User, ArrowRight } from 'lucide-react-native';
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
 import RefreshButton from '../components/RefreshButton';
+import LoadFailed from '../components/LoadFailed';
+import { describeLoadFailure, type LoadFailure } from '../services/loadFailure';
 import { loadToken, getOrders, formatPaise } from '../services/api';
 import { appendUnique } from '../services/paging';
 
@@ -34,6 +36,7 @@ export default function OrdersScreen({ navigation }: Props) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
+  const [failure, setFailure] = useState<LoadFailure | null>(null); // why the first page could not be loaded
 
   useFocusEffect(useCallback(() => { checkAndLoad(); }, []));
 
@@ -48,11 +51,12 @@ export default function OrdersScreen({ navigation }: Props) {
         setCursor(page.cursor);
         setHasMore(page.hasMore);
         setTotal(page.total);
-        setLoadError('');
-      } catch {
+        setLoadError(''); setFailure(null);
+      } catch (err) {
         setOrders([]);
         setHasMore(false);
         setTotal(0);
+        setFailure(describeLoadFailure(err, 'Could not load your orders.'));
       }
     }
     setLoading(false);
@@ -90,6 +94,11 @@ export default function OrdersScreen({ navigation }: Props) {
         </TouchableOpacity>
       </View>
     );
+  }
+
+  // Could not load the orders: do not say "No orders yet" to someone who has some
+  if (orders.length === 0 && failure) {
+    return <LoadFailed failure={failure} onRetry={checkAndLoad} />;
   }
 
   if (orders.length === 0) {

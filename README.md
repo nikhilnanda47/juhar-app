@@ -105,7 +105,8 @@ Juhar is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce pl
 | Wishlist (saved items: heart on cards and product pages, Wishlist page, "Save to Wishlist" from the bag, guest hearts kept until login) | ✅ |
 | Push notifications / SMS updates | Phase 5 |
 | WhatsApp support integration | Phase 5 |
-| No internet / force update screens | Phase 5 |
+| "You're offline" / "Something went wrong" screens with Try again (app), our own 404 and error pages (website) | ✅ |
+| Force update screen | Phase 5 |
 
 ## Known Issues & Technical Debt
 

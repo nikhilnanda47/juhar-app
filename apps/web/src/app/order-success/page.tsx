@@ -1,23 +1,30 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Check, Truck, ShieldCheck, ArrowRight } from 'lucide-react';
 import { loadToken, getOrder } from '@/lib/api';
+import LoadFailed from '@/components/LoadFailed';
+import { describeLoadFailure, type LoadFailure } from '@/lib/load-failure';
 
 function OrderSuccessContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const orderId = searchParams.get('orderId');
   const [order, setOrder] = useState<any>(null);
+  const [failure, setFailure] = useState<LoadFailure | null>(null);
 
-  useEffect(() => {
+  const load = useCallback(async () => {
     if (!orderId) return;
     loadToken();
-    getOrder(orderId)
-      .then(setOrder)
-      .catch(() => {});
+    try { setOrder(await getOrder(orderId)); setFailure(null); }
+    catch (e) { setFailure(describeLoadFailure(e, 'Could not load your order.')); }
   }, [orderId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  // The order was placed; only showing it failed. Say so instead of spinning forever.
+  if (!order && failure) return <LoadFailed failure={failure} onRetry={load} />;
 
   if (!order) return <div className="flex items-center justify-center min-h-[60vh]"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
 

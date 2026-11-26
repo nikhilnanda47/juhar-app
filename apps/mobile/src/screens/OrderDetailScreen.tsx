@@ -15,6 +15,8 @@ import {
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
 import { getOrder, formatPaise } from '../services/api';
 import { useCopyToClipboard } from '../utils/useCopyToClipboard';
+import LoadFailed from '../components/LoadFailed';
+import { describeLoadFailure, type LoadFailure } from '../services/loadFailure';
 
 const TIMELINE_STEPS = ['placed', 'confirmed', 'packed', 'shipped', 'delivered'];
 const STEP_LABELS: Record<string, string> = {
@@ -31,14 +33,16 @@ export default function OrderDetailScreen({ route }: Props) {
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [failure, setFailure] = useState<LoadFailure | null>(null); // why the order could not be loaded
 
   useEffect(() => { load(); }, [orderId]);
   const load = async () => {
-    try { setOrder(await getOrder(orderId)); } catch {}
+    try { setOrder(await getOrder(orderId)); setFailure(null); } catch (err) { setFailure(describeLoadFailure(err, 'Could not load this order.')); }
     setLoading(false);
   };
 
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>;
+  if (!order && failure && failure.kind !== 'not_found') return <LoadFailed failure={failure} onRetry={load} />;
   if (!order) return <View style={styles.center}><Text style={styles.errorText}>Order not found</Text></View>;
 
   const currentIdx = TIMELINE_STEPS.indexOf(order.status);

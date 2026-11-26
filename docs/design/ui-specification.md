@@ -555,6 +555,16 @@ Reusable refresh icon (`RefreshCw`) with spin animation on press. Used on Home, 
 
 ---
 
+### Website: missing pages and load failures (item 63)
+
+- **Page not found** (`apps/web/src/app/not-found.tsx`, status 404): compass icon, "This page could not be found", "The link may be old or mistyped...", buttons **Continue shopping** (filled) and **Back to home** (outline). The header and bottom bar stay.
+- **Something went wrong** (`app/error.tsx`): shown when a page crashes while being drawn; "Try again" re-draws it, "Back to home" leaves. `app/global-error.tsx` is the last resort when the page frame itself crashes (plain, self-styled, no header).
+- **A saree that does not exist** (removed, or an old shared link): the saree page says "This saree is not available" with **Continue shopping**, instead of spinning forever.
+- **Could not load** (`components/LoadFailed.tsx`, used on the saree page, an order's page, the order-placed page and Account): "You're offline" with **Try again** when the browser cannot reach the server, "Something went wrong" plus the API's message and Reference line for other failures. A customer who is signed in and loses the signal on the Account page is **no longer signed out**.
+- All of them use `components/StatusPage.tsx` (icon in a soft circle, serif heading, text, buttons) and the theme colours, so they work in dark mode and at phone width.
+
+---
+
 ## 13. Screen-by-Screen Designs
 
 ### 13.1 Splash (Screen 1)
@@ -655,6 +665,8 @@ Reusable refresh icon (`RefreshCw`) with spin animation on press. Used on Home, 
 - Retry: re-checks, brief spinner inside button
 - No tab bar visible
 - If mid-flow: overlays current screen
+
+> **Implementation status (item 62):** built as one shared component, `LoadFailed` (`apps/mobile/src/components/LoadFailed.tsx`), shown **in place of a screen's content** when that screen's data could not be loaded, not as a separate full-app overlay. The tab bar stays. A phone that cannot reach the server (the API client's `NETWORK_ERROR`) sees the wifi-off icon, "You're offline", "We could not reach Juhar. Check your internet connection and try again." and a filled **Try again** button that shows a spinner while it retries; any other failure sees "Something went wrong", the API's message and its Reference line, with the same button. Used on **Home, Shop, a saree's page, Orders, an order's page, the Bag and Account**. Before this, an offline phone saw an empty Home, "No sarees found", "No orders yet" or "Your bag is empty", and **opening Account while offline signed the customer out**; now the login is kept and Account offers Try again. A saree or order the server says does not exist (404) still says "not found". The text of an error that did not come from the API is never shown. *Not built:* detecting that the signal came back and dismissing by itself (the customer taps Try again), and the full-app overlay for mid-flow (checkout keeps showing its own error under the button).
 
 ---
 

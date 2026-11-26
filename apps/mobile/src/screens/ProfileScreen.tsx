@@ -23,12 +23,14 @@ import {
 import { useWishlist } from '../contexts/WishlistContext';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import ErrorReference from '../components/ErrorReference';
+import LoadFailed from '../components/LoadFailed';
+import { describeLoadFailure, isNetworkError, type LoadFailure } from '../services/loadFailure';
 import { FadeInUp } from '../components/AnimatedUI';
 import RefreshButton from '../components/RefreshButton';
 import { syncLocalCartToServer } from '../services/localCart';
 import { resendAvailableAt, secondsLeft, resendLabel } from '../services/resend';
 
-type Screen = 'loading' | 'login' | 'otp' | 'profile' | 'editName';
+type Screen = 'loading' | 'loadFailed' | 'login' | 'otp' | 'profile' | 'editName';
 
 export default function ProfileScreen() {
   const navigation = useNavigation<any>();
@@ -43,6 +45,7 @@ export default function ProfileScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [errorRef, setErrorRef] = useState(''); // the API's reference for the failed request
+  const [failure, setFailure] = useState<LoadFailure | null>(null); // why the account could not be read at start
   const [resendAt, setResendAt] = useState(0);   // when "Resend code" works again (ms)
   const [now, setNow] = useState(() => Date.now());
   const [resending, setResending] = useState(false);
@@ -70,10 +73,14 @@ export default function ProfileScreen() {
       try {
         const p = await getProfile();
         setProfile(p);
+        setFailure(null);
         setScreen('profile');
         // Fetch counts
         fetchCounts();
-      } catch {
+      } catch (err) {
+        // No signal is not a logout: keep the login and offer to try again. (A rejected login is already cleared by
+        // the API client when it fails to refresh.)
+        if (isNetworkError(err)) { setFailure(describeLoadFailure(err)); setScreen('loadFailed'); return; }
         await clearTokens();
         setScreen('login');
       }
@@ -185,6 +192,10 @@ export default function ProfileScreen() {
 
   if (screen === 'loading') {
     return <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>;
+  }
+
+  if (screen === 'loadFailed' && failure) {
+    return <LoadFailed failure={failure} onRetry={async () => { setScreen('loading'); await checkAuth(); }} />;
   }
 
   // ── Not Logged In ──

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -15,9 +15,13 @@ import {
   Banknote,
   ShieldCheck,
   MapPin,
+  Search,
 } from 'lucide-react';
 import { getProductBySlug, getProducts, formatPaise, isLoggedIn, addToCart, checkDelivery, referenceOf, type DeliveryCheck, type Product, type ProductVariant } from '@/lib/api';
 import ErrorReference from '@/components/ErrorReference';
+import LoadFailed from '@/components/LoadFailed';
+import StatusPage from '@/components/StatusPage';
+import { describeLoadFailure, type LoadFailure } from '@/lib/load-failure';
 import { useWishlist } from '@/lib/wishlist-context';
 import { readLocalCart, saveLocalCart } from '@/lib/cart-events';
 import { shareProduct } from '@/lib/share';
@@ -26,6 +30,7 @@ export default function ProductDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const router = useRouter();
   const [product, setProduct] = useState<Product | null>(null);
+  const [failure, setFailure] = useState<LoadFailure | null>(null); // why the saree could not be loaded
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
   const [addingToCart, setAddingToCart] = useState(false);
   const [cartError, setCartError] = useState('');
@@ -45,19 +50,25 @@ export default function ProductDetailPage() {
   const [shareNote, setShareNote] = useState(''); // a short message after Share: "Link copied" or what went wrong
   const shareTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    if (slug) {
-      getProductBySlug(slug).then((p) => {
-        pickedVariant.current = false;
-        setProduct(p);
-        setSelectedVariant(p.variants[0] || null);
-        // Fetch related
-        getProducts({ limit: '4', sortBy: 'newest' }).then(d => {
-          setRelatedProducts(d.items.filter(item => item.slug !== slug).slice(0, 4));
-        }).catch(() => {});
+  const loadProduct = useCallback(async () => {
+    if (!slug) return;
+    setFailure(null);
+    try {
+      const p = await getProductBySlug(slug);
+      pickedVariant.current = false;
+      setProduct(p);
+      setSelectedVariant(p.variants[0] || null);
+      // Fetch related
+      getProducts({ limit: '4', sortBy: 'newest' }).then(d => {
+        setRelatedProducts(d.items.filter(item => item.slug !== slug).slice(0, 4));
       }).catch(() => {});
+    } catch (e) {
+      setProduct(null);
+      setFailure(describeLoadFailure(e));
     }
   }, [slug]);
+
+  useEffect(() => { loadProduct(); }, [loadProduct]);
 
   // Arriving from a saved item (or a heart on the shop): open on the colour that is saved, so the
   // heart reads "saved" instead of showing another colour as not saved
@@ -133,6 +144,20 @@ export default function ProductDetailPage() {
     }
     setAddingToCart(false);
   };
+
+  // A saree that does not exist (a removed one, or an old shared link), or one that could not be loaded
+  if (!product && failure?.kind === 'not_found') {
+    return (
+      <StatusPage
+        icon={<Search size={36} strokeWidth={1.5} />}
+        title="This saree is not available"
+        actions={<Link href="/shop" className="btn-primary px-8">Continue shopping</Link>}
+      >
+        It may have been sold out and taken down, or the link may be old. Have a look at the rest of the collection.
+      </StatusPage>
+    );
+  }
+  if (!product && failure) return <LoadFailed failure={failure} onRetry={loadProduct} />;
 
   if (!product) {
     return <div className="flex items-center justify-center min-h-[60vh]">
