@@ -104,8 +104,9 @@ export default function CreateProductPage() {
       if (occasion.trim()) body.occasion = splitList(occasion);
       if (tags.trim()) body.tags = splitList(tags);
 
-      await api.createProduct(body);
-      router.push('/catalog');
+      const created = await api.createProduct(body);
+      // photos need the product to exist, so the next step is its page, at the Photos section
+      router.push(`/catalog/${created.id}?created=1`);
     } catch (err: any) {
       setError(err.message || 'Failed to create product');
     } finally {
@@ -289,7 +290,7 @@ export default function CreateProductPage() {
                 <circle cx="8.5" cy="8.5" r="1.5" />
                 <polyline points="21 15 16 10 5 21" />
               </svg>
-              <span>No images yet</span>
+              <span>Photos come next</span>
             </div>
 
             <div className={styles.previewName}>{title || 'Product Title'}</div>

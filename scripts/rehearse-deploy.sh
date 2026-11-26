@@ -79,6 +79,7 @@ OUT="$(curl -s -X POST "http://localhost:$PORT/api/v1/auth/otp/request" -H 'cont
 if echo "$OUT" | grep -q LOGIN_NOT_OPEN; then ok "a number not on the pilot list is refused"; else fail "an outsider was not refused: $OUT"; fi
 OUT="$(curl -s -X POST "http://localhost:$PORT/api/v1/auth/otp/request" -H 'content-type: application/json' -d '{"phone":"+919000012345"}')"
 if echo "$OUT" | grep -q '"success":true'; then ok "a listed number can ask for a code"; else fail "a listed number was refused: $OUT"; fi
+if grep -q "Uploading product photos is refused" "$WORK/api.log"; then ok "with no photo storage set, a live API starts and says photo uploads are refused (nothing is lost to a wiped disk)"; else fail "the API did not report the missing photo storage"; fi
 CORS="$(curl -s -D - -o /dev/null -H 'Origin: https://shop.example.com' "http://localhost:$PORT/health" | tr -d '\r' | grep -i '^access-control-allow-origin' || true)"
 if echo "$CORS" | grep -q "https://shop.example.com"; then ok "the website's address is allowed by CORS"; else fail "CORS did not allow the website address"; fi
 CORS="$(curl -s -D - -o /dev/null -H 'Origin: https://evil.example.com' "http://localhost:$PORT/health" | tr -d '\r' | grep -i '^access-control-allow-origin' || true)"

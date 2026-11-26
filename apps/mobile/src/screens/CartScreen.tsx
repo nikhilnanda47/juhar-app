@@ -12,6 +12,7 @@ import {
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
 import RefreshButton from '../components/RefreshButton';
 import LoadFailed from '../components/LoadFailed';
+import ProductImage from '../components/ProductImage';
 import { describeLoadFailure, type LoadFailure } from '../services/loadFailure';
 import {
   loadToken,
@@ -269,7 +270,9 @@ function CartItemCard({
       <View style={styles.itemRow}>
         {/* Thumbnail */}
         <View style={styles.itemThumb}>
-          <View style={styles.thumbPlaceholder} />
+          <View style={styles.thumbPlaceholder}>
+            <ProductImage uri={item.variant.imageUrl} alt={item.variant.productTitle} />
+          </View>
         </View>
 
         {/* Details */}

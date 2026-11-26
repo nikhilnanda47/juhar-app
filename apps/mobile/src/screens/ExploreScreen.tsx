@@ -19,6 +19,7 @@ import {
 import { FadeInUp } from '../components/AnimatedUI';
 import RefreshButton from '../components/RefreshButton';
 import LoadFailed from '../components/LoadFailed';
+import ProductImage from '../components/ProductImage';
 import { describeLoadFailure, type LoadFailure } from '../services/loadFailure';
 
 const { width } = Dimensions.get('window');
@@ -419,7 +420,9 @@ function ProductCard({ product, onPress }: { product: any; onPress: () => void }
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.9}>
       {/* Image */}
       <View style={styles.cardImageWrap}>
-        <View style={styles.cardImage} />
+        <View style={styles.cardImage}>
+          <ProductImage uri={product.primaryImage?.url} alt={product.primaryImage?.alt || product.title} />
+        </View>
 
         {/* Wishlist Button */}
         <TouchableOpacity
@@ -717,6 +720,7 @@ const createStyles = (colors: ColorPalette) => StyleSheet.create({
   },
   cardImage: {
     ...StyleSheet.absoluteFill,
+    overflow: 'hidden',
     backgroundColor: colors.placeholder,
   },
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import ProductImage from '@/components/ProductImage';
 import { Search, SlidersHorizontal, Heart, ChevronDown, X } from 'lucide-react';
 import { getProducts, getCategories, getProductFilters, formatPaise, type Product, type Category, type ProductFilterOptions } from '@/lib/api';
 import { appendUnique } from '@/lib/paging';
@@ -263,6 +264,7 @@ export default function ShopPage() {
               className="group"
             >
               <div className="relative aspect-[3/4] rounded-xl bg-surface-container-low overflow-hidden mb-2 shadow-[0_1px_4px_rgba(0,0,0,0.03)] group-hover:shadow-md transition-shadow">
+                <ProductImage src={product.primaryImage?.url} alt={product.primaryImage?.alt || product.title} />
                 {/* Wishlist */}
                 {/* the heart is for the whole saree: filled when any colour of it is saved */}
                 {(() => {

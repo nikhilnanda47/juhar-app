@@ -1,7 +1,7 @@
 // Friendly wording for the errors the API throws as a plain code (`throw new ConflictException('INSUFFICIENT_STOCK')`).
 // Without this the code itself reached the customer as the message ("INSUFFICIENT_STOCK").
 // The reply now carries the code as `error.code` and a sentence as `error.message`.
-import { CART } from '@juhar/shared';
+import { CART, MEDIA } from '@juhar/shared';
 
 type Wording = string | ((detail?: string) => string);
 
@@ -18,6 +18,16 @@ const CATALOG: Record<string, Wording> = {
 
   // Signing in
   LOGIN_NOT_OPEN: 'Juhar is not open to the public yet. Sign-in is limited to the pilot team for now.',
+
+  // Product photos (admin side)
+  PHOTO_NOT_AN_IMAGE: 'That file is not a photo we can use. Please choose a JPG, PNG or WebP picture.',
+  PHOTO_TOO_LARGE: `That photo is too big. Please choose one under ${MEDIA.MAX_FILE_BYTES / (1024 * 1024)} MB.`,
+  PHOTO_TOO_SMALL: `That photo is too small and would look blurry. Please choose one that is at least ${MEDIA.MIN_SIDE_PX} pixels on its shorter side.`,
+  PHOTO_LIMIT_REACHED: `A saree can have at most ${MEDIA.MAX_PER_PRODUCT} photos. Remove one before adding another.`,
+  MEDIA_NOT_FOUND: 'We could not find that photo. It may have been removed already.',
+  MEDIA_VARIANT_MISMATCH: 'That colour does not belong to this saree.',
+  MEDIA_ORDER_MISMATCH: 'The photos changed while you were arranging them. Please reload the page and try again.',
+  MEDIA_STORAGE_NOT_CONFIGURED: 'Photo storage is not set up on this server yet, so photos cannot be uploaded. Ask whoever runs the server to set it up.',
 
   // Delivery area
   PIN_NOT_VALID: 'That PIN code does not look right. Please check the 6 digits.',

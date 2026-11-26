@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import ProductImage from '@/components/ProductImage';
 import { Heart, ShoppingBag, Trash2, ArrowLeft } from 'lucide-react';
 import { isLoggedIn, addToCart, getCart, formatPaise, referenceOf } from '@/lib/api';
 import { CART_CHANGED_EVENT } from '@/lib/cart-events';
@@ -115,6 +116,7 @@ export default function WishlistPage() {
           const card = (
             <>
               <div className="relative aspect-[3/4] rounded-xl bg-surface-container-low overflow-hidden mb-2 group-hover:shadow-md transition-shadow">
+                <ProductImage src={v.imageUrl} alt={v.product.title} />
                 {discount && v.isListed && (
                   <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-primary text-white font-sans text-label-sm font-semibold">
                     {discount}% off

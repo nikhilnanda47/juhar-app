@@ -1,4 +1,5 @@
 import { ValidationPipe } from '@nestjs/common';
+import { testMedia } from '../media/test-media';
 import { AdminOrderQueryDto } from './dto';
 import { OrdersService } from './orders.service';
 
@@ -25,7 +26,7 @@ function setup(rows: any[], counts = { placed: 7, overdue: 3 }) {
   const findMany = jest.fn(async () => rows);
   const count = jest.fn(async ({ where }: any) => (where.createdAt ? counts.overdue : counts.placed));
   const aggregate = jest.fn(async () => ({ _count: { _all: 0 }, _sum: { totalPaise: null } }));
-  const service = new OrdersService({ order: { findMany, count, aggregate } } as any, {} as any);
+  const service = new OrdersService({ order: { findMany, count, aggregate } } as any, {} as any, testMedia());
   return { service, findMany, count };
 }
 

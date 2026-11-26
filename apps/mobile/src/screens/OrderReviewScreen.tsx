@@ -7,6 +7,7 @@ import { Truck, Phone, ArrowRight, Package, Handshake } from 'lucide-react-nativ
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
 import { getAddresses, getCart, placeOrder, formatPaise, referenceOf, type Address, type CartResponse } from '../services/api';
 import ErrorReference from '../components/ErrorReference';
+import ProductImage from '../components/ProductImage';
 import { shippingFor, useShippingRule } from '../services/shipping';
 
 interface Props {
@@ -107,7 +108,9 @@ export default function OrderReviewScreen({ navigation, route }: Props) {
           {cart.items.map((item, idx) => (
             <View key={item.id}>
               <View style={styles.itemRow}>
-                <View style={styles.itemThumb} />
+                <View style={styles.itemThumb}>
+                  <ProductImage uri={item.variant.imageUrl} alt={item.variant.productTitle} />
+                </View>
                 <View style={styles.itemDetails}>
                   <View style={styles.itemNameRow}>
                     <Text style={styles.itemName} numberOfLines={1}>{item.variant.productTitle}</Text>
@@ -254,7 +257,7 @@ const createStyles = (colors: ColorPalette) => StyleSheet.create({
 
   // Items
   itemRow: { flexDirection: 'row', gap: 12, paddingVertical: 8 },
-  itemThumb: { width: 60, height: 80, borderRadius: 8, backgroundColor: colors.placeholder },
+  itemThumb: { width: 60, height: 80, borderRadius: 8, overflow: 'hidden', backgroundColor: colors.placeholder },
   itemDetails: { flex: 1 },
   itemNameRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 4 },
   itemName: { fontFamily: 'DMSans-SemiBold', fontSize: 16, color: colors.textPrimary, flex: 1, letterSpacing: -0.2 },

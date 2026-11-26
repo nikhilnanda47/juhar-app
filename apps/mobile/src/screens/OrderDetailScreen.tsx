@@ -16,6 +16,7 @@ import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
 import { getOrder, formatPaise } from '../services/api';
 import { useCopyToClipboard } from '../utils/useCopyToClipboard';
 import LoadFailed from '../components/LoadFailed';
+import ProductImage from '../components/ProductImage';
 import { describeLoadFailure, type LoadFailure } from '../services/loadFailure';
 
 const TIMELINE_STEPS = ['placed', 'confirmed', 'packed', 'shipped', 'delivered'];
@@ -163,7 +164,9 @@ export default function OrderDetailScreen({ route }: Props) {
         {order.items?.map((item: any, idx: number) => (
           <View key={item.id}>
             <View style={styles.itemRow}>
-              <View style={styles.itemThumb} />
+              <View style={styles.itemThumb}>
+                <ProductImage uri={item.imageUrl} alt={item.productTitle} />
+              </View>
               <View style={styles.itemDetails}>
                 <Text style={styles.itemName} numberOfLines={1}>{item.productTitle}</Text>
                 <Text style={styles.itemMeta}>{item.variantName || item.sku}</Text>
@@ -332,7 +335,7 @@ const createStyles = (colors: ColorPalette) => StyleSheet.create({
   copyBtnText: { fontFamily: 'DMSans-Medium', fontSize: 13, color: colors.primary },
 
   itemRow: { flexDirection: 'row', gap: 12, paddingVertical: 10 },
-  itemThumb: { width: 60, height: 80, borderRadius: 8, backgroundColor: colors.placeholder },
+  itemThumb: { width: 60, height: 80, borderRadius: 8, overflow: 'hidden', backgroundColor: colors.placeholder },
   itemDetails: { flex: 1, justifyContent: 'space-between' },
   itemName: { fontFamily: 'DMSans-Medium', fontSize: 16, color: colors.textPrimary },
   itemMeta: { fontFamily: 'DMSans-Regular', fontSize: 12, color: colors.textTertiary, marginTop: 2 },

@@ -1,11 +1,12 @@
 import { OrdersService } from './orders.service';
+import { testMedia } from '../media/test-media';
 
 // The dashboard's "Today's Orders" and "GMV Today": counted by the database over the whole
 // India day, not worked out from the first page of orders.
 function setup(totals: { count: number; sum: number | null }) {
   const aggregate = jest.fn(async () => ({ _count: { _all: totals.count }, _sum: { totalPaise: totals.sum } }));
   const prisma = { order: { findMany: jest.fn(async () => []), count: jest.fn(async () => 0), aggregate } };
-  return { service: new OrdersService(prisma as any, {} as any), aggregate };
+  return { service: new OrdersService(prisma as any, {} as any, testMedia()), aggregate };
 }
 
 describe('OrdersService.findAllAdmin: today in India', () => {

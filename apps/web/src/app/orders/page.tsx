@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Package, User, ArrowRight, ShieldCheck } from 'lucide-react';
 import { loadToken, getOrders, formatPaise } from '@/lib/api';
 import { appendUnique } from '@/lib/paging';
+import ProductImage from '@/components/ProductImage';
 
 const STATUS_STYLES: Record<string, { bgClass: string; textClass: string; label: string }> = {
   placed: { bgClass: 'bg-surface-container-high', textClass: 'text-primary', label: 'Placed' },
@@ -198,7 +199,9 @@ export default function OrdersPage() {
 
                 {/* Items preview */}
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-14 rounded-lg bg-surface-container-low shrink-0" />
+                  <div className="relative w-10 h-14 rounded-lg bg-surface-container-low overflow-hidden shrink-0">
+                    <ProductImage src={firstItem?.imageUrl} alt={firstItem?.productTitle || 'Handloom saree'} />
+                  </div>
                   <div className="min-w-0">
                     <p className="font-sans text-body-sm text-text-primary truncate">{firstItem?.productTitle || 'Handloom Saree'}</p>
                     {moreCount > 0 && <p className="font-sans text-label-sm text-primary">+{moreCount} more</p>}
@@ -254,7 +257,9 @@ export default function OrdersPage() {
                 </span>
               </div>
               <div className="flex items-center gap-3 bg-surface-container-low/50 p-1.5 rounded-lg mt-3">
-                <div className="w-12 h-16 rounded-lg bg-surface-container-high shrink-0" />
+                <div className="relative w-12 h-16 rounded-lg bg-surface-container-high overflow-hidden shrink-0">
+                  <ProductImage src={firstItem?.imageUrl} alt={firstItem?.productTitle || 'Handloom saree'} />
+                </div>
                 <div className="min-w-0">
                   <p className="font-sans text-body-md text-text-primary font-medium truncate">{firstItem?.productTitle || 'Handloom Saree'}</p>
                   {moreCount > 0 && <p className="font-sans text-label-sm text-primary mt-0.5">+{moreCount} more</p>}

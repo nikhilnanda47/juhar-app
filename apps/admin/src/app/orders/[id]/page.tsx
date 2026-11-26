@@ -131,8 +131,18 @@ export default function OrderDetailPage() {
                 {order.items.map((i) => (
                   <tr key={i.id}>
                     <td>
-                      <div className={styles.itemTitle}>{i.productTitle}</div>
-                      <div className={styles.muted}>{[i.color, i.variantName].filter(Boolean).join(' · ') || '—'}</div>
+                      <div className={styles.itemCell}>
+                        <div className={styles.itemThumb}>
+                          {i.imageUrl && (
+                            <img src={i.imageUrl} alt={i.productTitle} loading="lazy"
+                              onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                          )}
+                        </div>
+                        <div>
+                          <div className={styles.itemTitle}>{i.productTitle}</div>
+                          <div className={styles.muted}>{[i.color, i.variantName].filter(Boolean).join(' · ') || '—'}</div>
+                        </div>
+                      </div>
                     </td>
                     <td className={styles.mono}>{i.sku}</td>
                     <td className={styles.num}><strong>{i.qty}</strong></td>

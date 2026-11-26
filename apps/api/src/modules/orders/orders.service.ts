@@ -3,6 +3,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { MediaService } from '../media/media.service';
 import { indiaDayBounds } from '../../common/time/india-day';
 import { resolveActors, type ActorName } from '../../common/audit/actor-names';
 import { InventoryService } from '../inventory/inventory.service';
@@ -29,6 +30,7 @@ export class OrdersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly inventoryService: InventoryService,
+    private readonly media: MediaService,
   ) {}
 
   // ─────────────────────────────────────────
@@ -52,7 +54,7 @@ export class OrdersService {
       include: {
         items: {
           select: {
-            id: true, productTitle: true, variantName: true, sku: true,
+            id: true, variantId: true, productTitle: true, variantName: true, sku: true,
             qty: true, unitPricePaise: true, totalPaise: true,
           },
         },
@@ -75,8 +77,10 @@ export class OrdersService {
     const hasMore = orders.length > limit;
     const items = hasMore ? orders.slice(0, limit) : orders;
 
+    // a small photo for each saree in the list
+    const photos = await this.media.thumbnailsForVariants(items.flatMap((o: any) => (o.items ?? []).map((i: any) => i.variantId)));
     return {
-      items: items.map((o) => this.toOrderSummary(o)),
+      items: items.map((o) => this.toOrderSummary(o, photos)),
       cursor: hasMore ? items[items.length - 1].id : null,
       hasMore,
       total,
@@ -96,7 +100,10 @@ export class OrdersService {
       },
     });
     if (!order) throw new NotFoundException('Order not found');
-    return this.toOrderDetail(order);
+    const detail = this.toOrderDetail(order);
+    // a small photo next to each saree (the colour's own photo when there is one)
+    const photos = await this.media.thumbnailsForVariants(order.items.map((i: any) => i.variantId));
+    return { ...detail, items: detail.items.map((item: any, n: number) => ({ ...item, imageUrl: photos.get(order.items[n].variantId) ?? null })) };
   }
 
   /**
@@ -241,6 +248,7 @@ export class OrdersService {
       orderBy: { createdAt: 'asc' },
     });
     const actors = await resolveActors(this.prisma, audit.map((a: any) => a.actorId));
+    const photos = await this.media.thumbnailsForVariants(order.items.map((i: any) => i.variantId));
     return {
       id: order.id,
       publicNumber: order.publicNumber,
@@ -263,6 +271,7 @@ export class OrdersService {
         productTitle: i.productTitle,
         variantName: i.variantName,
         color: i.variant?.color ?? null,
+        imageUrl: photos.get(i.variantId) ?? null,
         sku: i.sku,
         qty: i.qty,
         unitPricePaise: i.unitPricePaise,
@@ -444,7 +453,7 @@ export class OrdersService {
   // RESPONSE FORMATTERS
   // ─────────────────────────────────────────
 
-  private toOrderSummary(order: any) {
+  private toOrderSummary(order: any, photos: Map<string, string> = new Map()) {
     return {
       id: order.id,
       publicNumber: order.publicNumber,
@@ -458,6 +467,7 @@ export class OrdersService {
         variantName: i.variantName,
         qty: i.qty,
         totalPaise: i.totalPaise,
+        imageUrl: photos.get(i.variantId) ?? null,
       })) || [],
       createdAt: order.createdAt,
     };

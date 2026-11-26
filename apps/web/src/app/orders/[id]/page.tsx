@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { Check, Truck, MapPin, Phone, MessageCircle, ArrowRight, Copy, Package, ShieldCheck } from 'lucide-react';
 import { loadToken, getOrder, formatPaise } from '@/lib/api';
 import LoadFailed from '@/components/LoadFailed';
+import ProductImage from '@/components/ProductImage';
 import { describeLoadFailure, type LoadFailure } from '@/lib/load-failure';
 
 const STEPS = ['placed', 'confirmed', 'packed', 'shipped', 'delivered'];
@@ -198,7 +199,9 @@ export default function OrderDetailPage() {
             {order.items?.map((item: any, idx: number) => (
               <div key={item.id}>
                 <div className="flex gap-4 py-3">
-                  <div className="w-16 h-20 lg:w-20 lg:h-[106px] rounded-lg bg-surface-container-low shrink-0" />
+                  <div className="relative w-16 h-20 lg:w-20 lg:h-[106px] rounded-lg bg-surface-container-low overflow-hidden shrink-0">
+                    <ProductImage src={item.imageUrl} alt={item.productTitle} />
+                  </div>
                   <div className="flex-1 flex flex-col justify-between">
                     <div>
                       <p className="font-sans text-body-md lg:text-title-sm text-text-primary font-medium">{item.productTitle}</p>

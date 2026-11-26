@@ -8,9 +8,8 @@ info:
 
     ## Implementation status
     Operations marked `x-status: planned` are part of the target design but are **not implemented yet**
-    (Phase 4: payments, webhooks, returns, refunds; Phase 5: media uploads, reports, admin users,
-    admin inventory list). This spec lists **39 implemented** and
-    **13 planned** operations (52 in total). Unmarked operations match the code in `apps/api`.
+    (Phase 4: payments, webhooks, returns, refunds; Phase 5: reports, admin users, admin inventory list).
+    This spec lists **51 implemented** and **10 planned** operations (61 in total). Unmarked operations match the code in `apps/api`.
 
     ## Conventions
     - All monetary values are in **integer paise** (1 INR = 100 paise)
@@ -491,11 +490,14 @@ components:
           example: heritage
         primaryImage:
           type: object
+          nullable: true
+          description: The cover photo (the first of the product's photos, small copy); null when the product has no photo yet
           properties:
             url:
               type: string
             alt:
               type: string
+              nullable: true
         startingPricePaise:
           type: integer
           example: 350000
@@ -558,6 +560,10 @@ components:
             isAvailable:
               type: boolean
               description: Listed and in stock
+            imageUrl:
+              type: string
+              nullable: true
+              description: The small photo of this colour (else of the whole saree, else the first photo); null when there is none
             product:
               type: object
               properties:
@@ -689,24 +695,40 @@ components:
 
     MediaItem:
       type: object
+      description: |
+        One product photo. The database keeps object keys; the API turns them into public addresses
+        (Cloudflare R2 on a live system, the API's own `/media` folder in development).
       properties:
         id:
           type: string
           format: uuid
         url:
           type: string
-          description: CDN URL for display
+          description: Address of the large copy (WebP, at most 1600 px on the long side) for the product page
         thumbnailUrl:
           type: string
-          nullable: true
+          description: Address of the small copy (WebP, at most 600 x 800) for cards and lists
         type:
           type: string
-          enum: [image, video]
+          enum: [image]
         altText:
           type: string
           nullable: true
+          description: Short description for screen readers; the product title is used when empty
         sortOrder:
           type: integer
+          description: Position in the gallery, from 0. The first photo is the cover.
+        variantId:
+          type: string
+          format: uuid
+          nullable: true
+          description: The colour the photo shows; null means the whole saree
+        width:
+          type: integer
+          nullable: true
+        height:
+          type: integer
+          nullable: true
 
     CreateProductBody:
       type: object
@@ -850,46 +872,32 @@ components:
         active:
           type: boolean
 
-    # ── Media Upload ──
-    RequestUploadBody:
+    UpdateMediaBody:
       type: object
-      required: [productId, mimeType]
       properties:
-        productId:
+        altText:
           type: string
-          format: uuid
+          nullable: true
+          maxLength: 255
+          description: Send an empty text or null to clear it
         variantId:
           type: string
           format: uuid
           nullable: true
-        mimeType:
-          type: string
-          enum: [image/jpeg, image/png, image/webp, video/mp4]
-        altText:
-          type: string
-          maxLength: 255
+          description: A colour of the same product; null shows the photo for the whole saree
 
-    RequestUploadResponse:
+    ReorderMediaBody:
       type: object
+      required: [ids]
       properties:
-        uploadUrl:
-          type: string
-          description: Signed S3 PUT URL (expires in 5 min)
-        objectKey:
-          type: string
-          description: S3 object key to use in confirm call
-
-    ConfirmUploadBody:
-      type: object
-      required: [productId, objectKey]
-      properties:
-        productId:
-          type: string
-          format: uuid
-        objectKey:
-          type: string
-        altText:
-          type: string
+        ids:
+          type: array
+          minItems: 1
+          maxItems: 10
+          items:
+            type: string
+            format: uuid
+          description: Every photo id of the product in the new order (the first becomes the cover)
 
     # ── Cart ──
     CartResponse:
@@ -1140,6 +1148,11 @@ components:
         productImageUrl:
           type: string
           nullable: true
+          description: Not filled in. Use `imageUrl`, which is read from the product's current photos.
+        imageUrl:
+          type: string
+          nullable: true
+          description: The small photo of this colour (else of the whole saree, else the first photo), on the customer's and the admin's order replies; null when there is none
 
     OrderSummary:
       type: object
@@ -1161,6 +1174,7 @@ components:
         primaryImageUrl:
           type: string
           nullable: true
+          description: Not filled in. The list's `items[].imageUrl` carries each saree's photo.
         createdAt:
           type: string
           format: date-time
@@ -3078,85 +3092,174 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  # ── Media Upload ──
-  /api/v1/admin/media/upload-url:
-    post:
+  # ── Product photos ──
+  # Photos are uploaded THROUGH the API (multipart), not straight to storage: the API checks the real content of the
+  # file, turns it the right way up, shrinks it, strips camera and location data, and keeps a large and a small
+  # WebP copy. Every call answers with the product's whole photo list, in order.
+  /api/v1/admin/products/{id}/media:
+    get:
       tags: ["Admin: Catalog"]
-      summary: Request signed upload URL
-      x-status: planned
-      description: |
-        **Planned (Phase 5)** — not implemented yet.
-
-        Returns a signed S3 PUT URL for direct image/video upload.
-      operationId: adminRequestUploadUrl
-      security:
-        - BearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/RequestUploadBody'
-      responses:
-        "200":
-          description: Signed upload URL
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/SuccessResponse'
-                  - properties:
-                      data:
-                        $ref: '#/components/schemas/RequestUploadResponse'
-
-  /api/v1/admin/media/confirm:
-    post:
-      tags: ["Admin: Catalog"]
-      summary: Confirm upload and create media record
-      x-status: planned
-      description: |
-        **Planned (Phase 5)** — not implemented yet.
-
-        Verifies the upload exists, generates thumbnails, and saves the media record.
-      operationId: adminConfirmUpload
-      security:
-        - BearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ConfirmUploadBody'
-      responses:
-        "201":
-          description: Media record created
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/SuccessResponse'
-                  - properties:
-                      data:
-                        $ref: '#/components/schemas/MediaItem'
-
-  /api/v1/admin/media/{id}:
-    delete:
-      tags: ["Admin: Catalog"]
-      summary: Delete media
-      x-status: planned
-      description: "**Planned (Phase 5)** — not implemented yet."
-      operationId: adminDeleteMedia
+      summary: A product's photos, in order (the first is the cover)
+      operationId: adminListMedia
       security:
         - BearerAuth: []
       parameters:
         - $ref: '#/components/parameters/IdParam'
       responses:
         "200":
-          description: Media deleted
+          description: The photos
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/MediaItem'
+    post:
+      tags: ["Admin: Catalog"]
+      summary: Upload a photo
+      description: |
+        `multipart/form-data` with the picture in the part named `file` (JPEG, PNG or WebP, at most 10 MB, shorter side at
+        least 600 px) and optional text parts `altText` and `variantId`. The photo goes last in the order.
+        A product can have at most 10 photos. Roles: owner, catalog_editor.
+
+        Refusals (each has a plain-language `error.message`): `PHOTO_NOT_AN_IMAGE` (400), `PHOTO_TOO_SMALL` (400),
+        `PHOTO_TOO_LARGE` (413), `PHOTO_LIMIT_REACHED` (409), `MEDIA_VARIANT_MISMATCH` (400),
+        `MEDIA_STORAGE_NOT_CONFIGURED` (503, a live API with no Cloudflare R2 settings).
+      operationId: adminUploadMedia
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                altText:
+                  type: string
+                  maxLength: 255
+                variantId:
+                  type: string
+                  format: uuid
+      responses:
+        "201":
+          description: The product's photos after the upload
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/MediaItem'
+
+  /api/v1/admin/products/{id}/media/order:
+    patch:
+      tags: ["Admin: Catalog"]
+      summary: Put the photos in a new order
+      description: |
+        The list must be exactly the product's photos (`MEDIA_ORDER_MISMATCH`, 400, when the page was out of date).
+        The first becomes the cover. Recorded in the audit trail. Roles: owner, catalog_editor.
+      operationId: adminReorderMedia
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReorderMediaBody'
+      responses:
+        "200":
+          description: The photos in their new order
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/MediaItem'
+
+  /api/v1/admin/products/{id}/media/{mediaId}:
+    patch:
+      tags: ["Admin: Catalog"]
+      summary: Change a photo's description or the colour it shows
+      description: "Only what really differs is written, and recorded in the audit trail. Roles: owner, catalog_editor."
+      operationId: adminUpdateMedia
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+        - name: mediaId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateMediaBody'
+      responses:
+        "200":
+          description: The product's photos
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/MediaItem'
+    delete:
+      tags: ["Admin: Catalog"]
+      summary: Remove a photo and its files
+      description: "The other photos close up so the order has no gaps. Recorded in the audit trail. Roles: owner, catalog_editor."
+      operationId: adminDeleteMedia
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+        - name: mediaId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: The product's remaining photos
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/MediaItem'
 
   # ────────────────────────────────────────────
   # ADMIN: INVENTORY
@@ -3241,7 +3344,7 @@ paths:
     get:
       tags: ["Admin: Inventory"]
       summary: Recent manual stock changes of one variant
-      description: The last 20 changes, newest first: when, how much, before and after, reason, note, and who made them. Any admin role.
+      description: "The last 20 changes, newest first: when, how much, before and after, reason, note, and who made them. Any admin role."
       operationId: adminStockHistory
       security:
         - BearerAuth: []

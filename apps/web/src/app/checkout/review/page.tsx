@@ -6,6 +6,7 @@ import { Phone, Package, Handshake } from 'lucide-react';
 import { loadToken, getAddresses, getCart, placeOrder, formatPaise, referenceOf, type Address, type CartResponse } from '@/lib/api';
 import ErrorReference from '@/components/ErrorReference';
 import { shippingFor, useShippingRule } from '@/lib/shipping';
+import ProductImage from '@/components/ProductImage';
 
 function OrderReviewContent() {
   const router = useRouter();
@@ -72,7 +73,9 @@ function OrderReviewContent() {
         {cart.items.map((item, idx) => (
           <div key={item.id}>
             <div className="flex gap-3 py-2">
-              <div className="w-[60px] h-20 rounded-lg bg-surface-container-low shrink-0" />
+              <div className="relative w-[60px] h-20 rounded-lg bg-surface-container-low overflow-hidden shrink-0">
+                <ProductImage src={item.variant.imageUrl} alt={item.variant.productTitle} />
+              </div>
               <div className="flex-1">
                 <div className="flex justify-between">
                   <p className="font-sans text-title-sm text-text-primary truncate">{item.variant.productTitle}</p>

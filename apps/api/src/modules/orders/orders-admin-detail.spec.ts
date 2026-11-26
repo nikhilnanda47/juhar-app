@@ -1,4 +1,5 @@
 import { NotFoundException } from '@nestjs/common';
+import { testMedia } from '../media/test-media';
 import { OrdersService } from './orders.service';
 
 // The admin's order page: what to pack, where to send it, who to call, what to collect, and the history.
@@ -34,7 +35,7 @@ function setup(o: any, events: any[] = [], people: [string, string, string | nul
     user: { findMany: jest.fn(async () => people.map(([id, phone, name]) => ({ id, phone, name }))) },
     adminUser: { findMany: jest.fn(async () => admins.map(([phone, name, role]) => ({ phone, name, role }))) },
   };
-  return { service: new OrdersService(prisma as any, {} as any), prisma };
+  return { service: new OrdersService(prisma as any, {} as any, testMedia()), prisma };
 }
 const NOW = T('2026-11-25T10:00:00Z');
 

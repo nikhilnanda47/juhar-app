@@ -180,8 +180,8 @@ Images and optional video for products/variants.
 | id | UUID | PK | |
 | product_id | UUID | FK → products.id, NOT NULL | ON DELETE CASCADE |
 | variant_id | UUID | FK → product_variants.id, NULL | NULL = applies to all variants |
-| object_key | VARCHAR(500) | NOT NULL | S3 key: "products/{product_id}/{uuid}.jpg" |
-| thumbnail_key | VARCHAR(500) | NULL | S3 key for generated thumbnail |
+| object_key | VARCHAR(500) | NOT NULL | Storage key of the large copy: "products/{product_id}/{uuid}.webp" |
+| thumbnail_key | VARCHAR(500) | NULL | Storage key of the small copy: "products/{product_id}/{uuid}-thumb.webp" |
 | type | VARCHAR(20) | NOT NULL | "image", "video" |
 | mime_type | VARCHAR(50) | NOT NULL | "image/jpeg", "image/webp", "video/mp4" |
 | alt_text | VARCHAR(255) | NULL | Accessibility description |
@@ -192,6 +192,8 @@ Images and optional video for products/variants.
 | created_at | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | |
 
 **Indexes:** `product_id + sort_order`, `variant_id`
+
+> **How it is used today (item 51, no schema change):** only `type = 'image'` rows exist (no video yet). `object_key` is the large copy and `thumbnail_key` the small one, both WebP under `products/{product_id}/{uuid}.webp` and `...-thumb.webp` (the columns hold keys, never addresses: the API builds the public address from the key and the storage setting, so moving from a local folder to Cloudflare R2 changes the setting and the files, not the rows). `mime_type` is always `image/webp`; `width`/`height` are those of the large copy; `sort_order` runs 0, 1, 2... with no gaps (the first photo is the cover) and is kept gap-free by the API under a row lock on the product; at most 10 photos per product (enforced by the API, not by a database rule). Deleting a product deletes its rows (CASCADE) but not the files. Changes are audited as `product.photo_added`, `product.photo_updated`, `product.photos_reordered` and `product.photo_removed` (entity = the product).
 
 ---
 

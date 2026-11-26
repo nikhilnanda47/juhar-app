@@ -1,4 +1,5 @@
 import { INestApplication } from '@nestjs/common';
+import { testMedia } from '../media/test-media';
 import { Test } from '@nestjs/testing';
 import { TransformInterceptor } from '../../common/interceptors/transform.interceptor';
 import { ProductsController } from './products.controller';
@@ -28,7 +29,7 @@ describe('ProductsService.findFilterOptions', () => {
       min: 120000,
       max: 1490000,
     });
-    const options = await new ProductsService(prisma as any).findFilterOptions();
+    const options = await new ProductsService(prisma as any, testMedia()).findFilterOptions();
     expect(options).toEqual({
       fabrics: ['Handloom Cotton', 'Pure Silk', 'Tussar Silk'],
       weaveMethods: ['Bomkai', 'Pasapalli'],
@@ -40,17 +41,17 @@ describe('ProductsService.findFilterOptions', () => {
 
   it('treats "Maroon" and "maroon" as one filter (the list filters ignore capitals) and drops blanks', async () => {
     const prisma = fakePrisma({ colors: ['Maroon', 'maroon', ' MAROON ', '', '   ', null, 'Teal'] });
-    expect((await new ProductsService(prisma as any).findFilterOptions()).colors).toEqual(['Maroon', 'Teal']);
+    expect((await new ProductsService(prisma as any, testMedia()).findFilterOptions()).colors).toEqual(['Maroon', 'Teal']);
   });
 
   it('has empty lists and a null price range when nothing is for sale', async () => {
-    const options = await new ProductsService(fakePrisma({}) as any).findFilterOptions();
+    const options = await new ProductsService(fakePrisma({}) as any, testMedia()).findFilterOptions();
     expect(options).toEqual({ fabrics: [], weaveMethods: [], colors: [], minPricePaise: null, maxPricePaise: null });
   });
 
   it('only looks at what customers can see: published products, active variants', async () => {
     const prisma = fakePrisma({});
-    await new ProductsService(prisma as any).findFilterOptions();
+    await new ProductsService(prisma as any, testMedia()).findFilterOptions();
     const fabricWhere = (prisma.product.groupBy.mock.calls[0] as any[])[0].where;
     expect(fabricWhere).toMatchObject({ publishStatus: 'published', variants: { some: { active: true } } });
     const colorWhere = (prisma.productVariant.groupBy.mock.calls[0] as any[])[0].where;

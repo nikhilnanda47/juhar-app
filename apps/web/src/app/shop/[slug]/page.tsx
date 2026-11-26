@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   ChevronLeft,
+  ChevronRight,
   Heart,
   Share2,
   Check,
@@ -21,6 +22,8 @@ import { getProductBySlug, getProducts, formatPaise, isLoggedIn, addToCart, chec
 import ErrorReference from '@/components/ErrorReference';
 import LoadFailed from '@/components/LoadFailed';
 import StatusPage from '@/components/StatusPage';
+import ProductImage from '@/components/ProductImage';
+import { firstPhotoIndexOfVariant, stepPhoto, thumbnailForVariant } from '@/lib/photos';
 import { describeLoadFailure, type LoadFailure } from '@/lib/load-failure';
 import { useWishlist } from '@/lib/wishlist-context';
 import { readLocalCart, saveLocalCart } from '@/lib/cart-events';
@@ -46,6 +49,8 @@ export default function ProductDetailPage() {
   const [pinErrorRef, setPinErrorRef] = useState('');
   const pinRequest = useRef(0); // only the newest question may show its answer
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
+  const [photoIndex, setPhotoIndex] = useState(0); // which photo of the gallery is showing
+  const swipeStart = useRef<number | null>(null);
   const [showToast, setShowToast] = useState(false);
   const [shareNote, setShareNote] = useState(''); // a short message after Share: "Link copied" or what went wrong
   const shareTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -78,6 +83,15 @@ export default function ProductDetailPage() {
     const variant = savedId ? product.variants.find((v) => v.id === savedId) : null;
     if (variant) setSelectedVariant(variant);
   }, [product, wishlistLoaded, savedVariantOf]);
+
+  // A new saree opens on its first photo; picking a colour that has its own photo shows it
+  const photos = (product?.media ?? []).filter((m) => m.type === 'image');
+  useEffect(() => { setPhotoIndex(0); }, [slug]);
+  useEffect(() => {
+    const own = firstPhotoIndexOfVariant(photos, selectedVariant?.id);
+    if (own >= 0) setPhotoIndex(own);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- photos only changes with the product, which the variant follows
+  }, [selectedVariant?.id]);
 
   // Reset addedToCart when slug changes (navigating to different product)
   useEffect(() => {
@@ -130,6 +144,7 @@ export default function ProductDetailPage() {
             variantName: selectedVariant.name, color: selectedVariant.color,
             sku: selectedVariant.sku, pricePaise: selectedVariant.pricePaise,
             compareAtPaise: selectedVariant.compareAtPaise, available: selectedVariant.available,
+            imageUrl: thumbnailForVariant(photos, selectedVariant.id), // so the bag shows the photo without asking again
           });
         }
         saveLocalCart(localCart);
@@ -219,7 +234,42 @@ export default function ProductDetailPage() {
           {/* Left — Image gallery */}
           <div className="lg:sticky lg:top-20">
             {/* Main image */}
-            <div className="relative aspect-[3/4] lg:aspect-[4/5] lg:rounded-2xl overflow-hidden bg-surface-container-low">
+            <div
+              className="relative aspect-[3/4] lg:aspect-[4/5] lg:rounded-2xl overflow-hidden bg-surface-container-low"
+              onTouchStart={(e) => { swipeStart.current = e.touches[0].clientX; }}
+              onTouchEnd={(e) => {
+                if (swipeStart.current === null || photos.length < 2) return;
+                const moved = e.changedTouches[0].clientX - swipeStart.current;
+                swipeStart.current = null;
+                if (Math.abs(moved) > 40) setPhotoIndex((i) => stepPhoto(i, photos.length, moved < 0 ? 1 : -1));
+              }}
+            >
+              <ProductImage
+                key={photos[photoIndex]?.id}
+                src={photos[photoIndex]?.url}
+                alt={photos[photoIndex]?.altText || product.title}
+                eager
+              />
+              {photos.length > 1 && (
+                <>
+                  <button type="button" aria-label="Previous photo" onClick={() => setPhotoIndex((i) => stepPhoto(i, photos.length, -1))}
+                    className="hidden lg:flex absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-surface/80 backdrop-blur items-center justify-center hover:bg-surface transition-colors">
+                    <ChevronLeft size={20} className="text-text-primary" />
+                  </button>
+                  <button type="button" aria-label="Next photo" onClick={() => setPhotoIndex((i) => stepPhoto(i, photos.length, 1))}
+                    className="hidden lg:flex absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-surface/80 backdrop-blur items-center justify-center hover:bg-surface transition-colors">
+                    <ChevronRight size={20} className="text-text-primary" />
+                  </button>
+                  {/* dots: the phone's way to see where you are (it swipes) */}
+                  <div className="lg:hidden absolute bottom-4 right-4 flex gap-1.5" role="tablist" aria-label="Photos">
+                    {photos.map((m, i) => (
+                      <button key={m.id} type="button" role="tab" aria-selected={i === photoIndex} aria-label={`Photo ${i + 1} of ${photos.length}`}
+                        onClick={() => setPhotoIndex(i)}
+                        className={`h-2 rounded-full transition-all ${i === photoIndex ? 'w-5 bg-primary' : 'w-2 bg-surface/80'}`} />
+                    ))}
+                  </div>
+                </>
+              )}
               <div className="absolute bottom-4 left-4 px-3 py-1.5 rounded-full bg-surface/90 backdrop-blur shadow-sm flex items-center gap-1.5">
                 <ShieldCheck size={14} className="text-accent" strokeWidth={2} />
                 <span className="font-sans text-label-sm text-text-primary font-semibold tracking-wide">GI CERTIFIED LOOM</span>
@@ -236,11 +286,16 @@ export default function ProductDetailPage() {
               </div>
             </div>
             {/* Thumbnail strip — desktop only */}
-            <div className="hidden lg:flex gap-3 mt-3">
-              {[0, 1, 2, 3].map((i) => (
-                <div key={i} className={`flex-1 aspect-square rounded-xl bg-surface-container-low overflow-hidden cursor-pointer ${i === 0 ? 'ring-2 ring-primary' : 'hover:ring-2 hover:ring-border'} transition-all`} />
-              ))}
-            </div>
+            {photos.length > 1 && (
+              <div className="hidden lg:flex gap-3 mt-3 overflow-x-auto" role="tablist" aria-label="Photos">
+                {photos.map((m, i) => (
+                  <button key={m.id} type="button" role="tab" aria-selected={i === photoIndex} aria-label={`Show photo ${i + 1}`} onClick={() => setPhotoIndex(i)}
+                    className={`relative shrink-0 w-24 aspect-square rounded-xl bg-surface-container-low overflow-hidden ${i === photoIndex ? 'ring-2 ring-primary' : 'hover:ring-2 hover:ring-border'} transition-all`}>
+                    <ProductImage src={m.thumbnailUrl || m.url} alt={m.altText || `${product.title}, photo ${i + 1}`} />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Right — Product info */}
@@ -455,7 +510,9 @@ export default function ProductDetailPage() {
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-gutter">
               {relatedProducts.map((p) => (
                 <Link key={p.id} href={`/shop/${p.slug}`} className="group">
-                  <div className="aspect-[3/4] rounded-xl bg-surface-container-low overflow-hidden mb-2 group-hover:shadow-md transition-shadow" />
+                  <div className="relative aspect-[3/4] rounded-xl bg-surface-container-low overflow-hidden mb-2 group-hover:shadow-md transition-shadow">
+                    <ProductImage src={p.primaryImage?.url} alt={p.primaryImage?.alt || p.title} />
+                  </div>
                   <p className="font-sans text-body-sm text-text-secondary">{p.origin || 'Handloom'}</p>
                   <p className="font-sans text-body-md text-text-primary font-medium truncate">{p.title}</p>
                   <span className="font-sans text-price-md text-accent">{formatPaise(p.startingPricePaise)}</span>

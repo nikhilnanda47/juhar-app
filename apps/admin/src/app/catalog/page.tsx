@@ -25,6 +25,8 @@ interface Product {
   category: { id: string; name: string } | null;
   fabric: string | null;
   variants: Variant[];
+  /** the cover photo (small copy), null when there is none yet */
+  primaryImage?: { url: string; alt: string | null } | null;
   createdAt: string;
 }
 
@@ -178,9 +180,17 @@ export default function CatalogPage() {
                 return (
                   <tr key={product.id}>
                     <td>
-                      <div className={styles.productCell}>
-                        <span className={styles.productTitle}>{product.title}</span>
-                        <span className={styles.slug}>{product.slug}</span>
+                      <div className={styles.productRow}>
+                        <div className={styles.productThumb}>
+                          {product.primaryImage && (
+                            <img src={product.primaryImage.url} alt={product.primaryImage.alt || product.title} loading="lazy"
+                              onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                          )}
+                        </div>
+                        <div className={styles.productCell}>
+                          <span className={styles.productTitle}>{product.title}</span>
+                          <span className={styles.slug}>{product.slug}</span>
+                        </div>
                       </div>
                     </td>
                     <td>{product.category?.name || '—'}</td>

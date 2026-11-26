@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { getProducts, getCategories, formatPaise, type Product, type Category } from '@/lib/api';
+import ProductImage from '@/components/ProductImage';
 
 export default function HomePage() {
   const [newArrivals, setNewArrivals] = useState<Product[]>([]);
@@ -80,7 +81,9 @@ export default function HomePage() {
                 href={`/shop/${product.slug}`}
                 className="flex-shrink-0 w-[160px] lg:w-auto snap-start group"
               >
-                <div className="aspect-[3/4] rounded-xl bg-surface-container-low overflow-hidden mb-2 group-hover:shadow-md transition-shadow" />
+                <div className="relative aspect-[3/4] rounded-xl bg-surface-container-low overflow-hidden mb-2 group-hover:shadow-md transition-shadow">
+                  <ProductImage src={product.primaryImage?.url} alt={product.primaryImage?.alt || product.title} />
+                </div>
                 <p className="font-sans text-body-sm text-text-secondary truncate">{(product as any).fabric || 'Handloom'}</p>
                 <p className="font-sans text-body-md text-text-primary font-medium truncate">{product.title}</p>
                 <div className="flex items-baseline gap-1 mt-0.5">

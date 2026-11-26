@@ -77,12 +77,19 @@ export interface Product {
   variants: ProductVariant[];
   /** shop list cards only: the colour the card's price and its heart belong to */
   firstVariantId?: string | null;
+  /** the cover for cards and lists: the small copy of the first photo (null when the saree has no photo yet) */
+  primaryImage?: { url: string; alt: string | null } | null;
+  /** every photo, in order: `url` is the large copy, `thumbnailUrl` the small one; `variantId` is the colour it shows (null: the whole saree) */
   media: Array<{
     id: string;
     url: string;
+    thumbnailUrl?: string | null;
     altText: string | null;
-    mediaType: string;
+    type?: string;
     sortOrder: number;
+    variantId?: string | null;
+    width?: number | null;
+    height?: number | null;
   }>;
   createdAt: string;
 }
@@ -497,6 +504,8 @@ export interface WishlistVariant {
   isListed: boolean;
   /** listed and in stock */
   isAvailable: boolean;
+  /** the small photo of this colour (or of the saree); null when there is none yet */
+  imageUrl: string | null;
   product: {
     id: string;
     slug: string;

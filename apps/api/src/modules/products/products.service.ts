@@ -6,13 +6,23 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { MediaService } from '../media/media.service';
 import { ProductQueryDto, AdminProductQueryDto, CreateProductDto, UpdateProductDto, UpdateVariantDto } from './dto';
 import { CreateVariantDto } from './dto/create-product.dto';
 import { generateSlug, ProductSortBy, PublishStatus, PAGINATION, INVENTORY } from '@juhar/shared';
 
 @Injectable()
 export class ProductsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly media: MediaService,
+  ) {}
+
+  /** A product from the admin side with its photos as addresses (the database holds keys) and the cover for lists */
+  private withPhotos<T extends { media?: any[] }>(product: T) {
+    const photos = (product.media ?? []).filter((m) => m.type === 'image');
+    return { ...product, media: photos.map((m) => this.media.present(m)), primaryImage: this.media.card(photos[0]) };
+  }
 
   // ─────────────────────────────────────
   // PUBLIC ENDPOINTS
@@ -128,9 +138,7 @@ export class ProductsService {
         title: product.title,
         shortDescription: product.shortDescription,
         categorySlug: product.category.slug,
-        primaryImage: product.media[0]
-          ? { url: product.media[0].thumbnailKey || product.media[0].objectKey, alt: product.media[0].altText }
-          : null,
+        primaryImage: this.media.card(product.media[0]),
         startingPricePaise: lowestVariant?.pricePaise ?? 0,
         compareAtPaise: lowestVariant?.compareAtPaise ?? null,
         isAvailable: totalAvailable > 0,
@@ -288,14 +296,7 @@ export class ProductsService {
       weight: product.weight,
       occasion: product.occasion,
       tags: product.tags,
-      media: product.media.map((m) => ({
-        id: m.id,
-        url: m.thumbnailKey || m.objectKey,
-        thumbnailUrl: m.thumbnailKey,
-        type: m.type,
-        altText: m.altText,
-        sortOrder: m.sortOrder,
-      })),
+      media: product.media.filter((m) => m.type === 'image').map((m) => this.media.present(m)),
       variants,
       createdAt: product.createdAt,
     };
@@ -358,7 +359,7 @@ export class ProductsService {
       byStatus.find((row) => row.publishStatus === status)?._count._all ?? 0;
 
     return {
-      items,
+      items: items.map((item: any) => this.withPhotos(item)),
       cursor: nextCursor,
       hasMore,
       counts: {
@@ -477,7 +478,7 @@ export class ProductsService {
       }
 
       // Return full product with relations
-      return tx.product.findUnique({
+      const created = await tx.product.findUnique({
         where: { id: product.id },
         include: {
           category: true,
@@ -485,6 +486,7 @@ export class ProductsService {
           media: { orderBy: { sortOrder: 'asc' } },
         },
       });
+      return created ? this.withPhotos(created) : created;
     });
   }
 
@@ -502,7 +504,7 @@ export class ProductsService {
       },
     });
     if (!product) throw new NotFoundException({ code: 'PROD_001', message: 'Product not found' });
-    return product;
+    return this.withPhotos(product);
   }
 
   /**
@@ -559,7 +561,7 @@ export class ProductsService {
       media: { orderBy: { sortOrder: 'asc' as const } },
     };
     if (Object.keys(after).length === 0) {
-      return this.prisma.product.findUniqueOrThrow({ where: { id }, include });
+      return this.withPhotos(await this.prisma.product.findUniqueOrThrow({ where: { id }, include }));
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -575,7 +577,7 @@ export class ProductsService {
           afterState: after as any,
         },
       });
-      return updated;
+      return this.withPhotos(updated);
     });
   }
 

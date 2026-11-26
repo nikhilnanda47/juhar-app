@@ -15,6 +15,7 @@ import { getProducts, getCategories, formatPaise, type Product } from '../servic
 import { FadeInUp, ScalePress } from '../components/AnimatedUI';
 import RefreshButton from '../components/RefreshButton';
 import LoadFailed from '../components/LoadFailed';
+import ProductImage from '../components/ProductImage';
 import { describeLoadFailure, type LoadFailure } from '../services/loadFailure';
 
 const { width } = Dimensions.get('window');
@@ -149,7 +150,9 @@ export default function HomeScreen() {
                     params: { slug: product.slug },
                   })}
                 >
-                  <View style={styles.arrivalImage} />
+                  <View style={styles.arrivalImage}>
+                    <ProductImage uri={product.primaryImage?.url} alt={product.primaryImage?.alt || product.title} />
+                  </View>
                   <View style={styles.arrivalMeta}>
                     <Text style={styles.arrivalTitle} numberOfLines={1}>{product.title}</Text>
                     <View style={styles.priceRow}>
@@ -342,6 +345,7 @@ const createStyles = (colors: ColorPalette) => StyleSheet.create({
     width: '100%',
     aspectRatio: 3 / 4,
     borderRadius: borderRadius.md,
+    overflow: 'hidden',
     backgroundColor: colors.placeholder,
     marginBottom: spacing.xs,
   },

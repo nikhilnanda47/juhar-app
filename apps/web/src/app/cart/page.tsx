@@ -7,6 +7,7 @@ import { loadToken, getCart, getProductBySlug, updateCartItem, removeCartItem, f
 import { readLocalCart, saveLocalCart } from '@/lib/cart-events';
 import { remainingForFreeShipping, shippingFor, shippingProgressPercent, useShippingRule } from '@/lib/shipping';
 import { useWishlist } from '@/lib/wishlist-context';
+import ProductImage from '@/components/ProductImage';
 
 
 const getLocalCart = readLocalCart;
@@ -18,7 +19,7 @@ function localToCartResponse(items: any[]): CartResponse {
       id: item.variantId, sku: item.sku, name: item.variantName,
       color: item.color, pricePaise: item.pricePaise,
       compareAtPaise: item.compareAtPaise, available: item.available,
-      productId: item.productId, productTitle: item.productTitle, productSlug: item.productSlug, imageUrl: null,
+      productId: item.productId, productTitle: item.productTitle, productSlug: item.productSlug, imageUrl: item.imageUrl ?? null,
     },
     quantity: item.quantity,
     lineTotalPaise: item.pricePaise * item.quantity,
@@ -143,7 +144,9 @@ export default function CartPage() {
           return (
             <div key={item.id} className="card mb-3">
               <div className="flex gap-3">
-                <div className="w-20 h-[106px] rounded-lg bg-surface-container-low shrink-0" />
+                <div className="relative w-20 h-[106px] rounded-lg bg-surface-container-low overflow-hidden shrink-0">
+                  <ProductImage src={item.variant.imageUrl} alt={item.variant.productTitle} />
+                </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between gap-2">
                     <p className="font-sans text-body-md text-text-primary font-semibold truncate">{item.variant.productTitle}</p>

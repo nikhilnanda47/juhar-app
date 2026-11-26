@@ -74,8 +74,10 @@ export class ApiClient {
   }
 
   private async request<T>(path: string, options: RequestInit = {}, retried = false): Promise<T> {
+    // A file upload (FormData) must not be given a JSON type: the browser adds its own, with the boundary
+    const isUpload = typeof FormData !== 'undefined' && options.body instanceof FormData;
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
+      ...(isUpload ? {} : { 'Content-Type': 'application/json' }),
       ...((options.headers as Record<string, string>) || {}),
     };
 
@@ -163,10 +165,41 @@ export class ApiClient {
   }
 
   async createProduct(data: Record<string, unknown>) {
-    return this.request('/api/v1/admin/products', {
+    return this.request<{ id: string; slug: string }>('/api/v1/admin/products', {
       method: 'POST',
       body: JSON.stringify(data),
     });
+  }
+
+  // ── Photos (every call answers with the product's whole photo list, in order; the first is the cover) ──
+
+  /** Upload one photo. The server shrinks it and keeps a large and a small copy. */
+  async uploadPhoto(productId: string, file: File, details: { altText?: string; variantId?: string } = {}) {
+    const form = new FormData();
+    form.append('file', file);
+    if (details.altText) form.append('altText', details.altText);
+    if (details.variantId) form.append('variantId', details.variantId);
+    return this.request<AdminPhoto[]>(`/api/v1/admin/products/${productId}/media`, { method: 'POST', body: form });
+  }
+
+  /** Change a photo's description, or the colour it shows (null: the whole saree). */
+  async updatePhoto(productId: string, photoId: string, data: { altText?: string | null; variantId?: string | null }) {
+    return this.request<AdminPhoto[]>(`/api/v1/admin/products/${productId}/media/${photoId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  /** Put the photos in a new order: every photo id of the product, the first becomes the cover. */
+  async reorderPhotos(productId: string, ids: string[]) {
+    return this.request<AdminPhoto[]>(`/api/v1/admin/products/${productId}/media/order`, {
+      method: 'PATCH',
+      body: JSON.stringify({ ids }),
+    });
+  }
+
+  async removePhoto(productId: string, photoId: string) {
+    return this.request<AdminPhoto[]>(`/api/v1/admin/products/${productId}/media/${photoId}`, { method: 'DELETE' });
   }
 
   async updateProduct(id: string, data: Record<string, unknown>) {
@@ -294,6 +327,8 @@ export interface AdminOrderDetail {
   customer: { id: string; phone: string; name: string | null } | null;
   items: {
     id: string; productTitle: string; variantName: string | null; color: string | null; sku: string;
+    /** the small photo of this colour (or of the saree), to pick the right one off the shelf; null when there is none */
+    imageUrl?: string | null;
     qty: number; unitPricePaise: number; totalPaise: number;
   }[];
   shipments: { id: string; carrier: string | null; trackingId: string | null; status: string; dispatchedAt: string | null; deliveredAt: string | null }[];
@@ -316,6 +351,19 @@ export interface StockChange {
   by: { name: string; role: string } | null;
 }
 
+/** One product photo as the admin sees it: `url` is the large copy, `thumbnailUrl` the small one */
+export interface AdminPhoto {
+  id: string;
+  url: string;
+  thumbnailUrl: string;
+  altText: string | null;
+  sortOrder: number;
+  /** the colour it shows, or null for the whole saree */
+  variantId: string | null;
+  width: number | null;
+  height: number | null;
+}
+
 export interface AdminProductDetail {
   id: string;
   slug: string;
@@ -335,6 +383,7 @@ export interface AdminProductDetail {
   weight: string | null;
   occasion: string[];
   tags: string[];
+  media: AdminPhoto[];
   variants: {
     id: string;
     sku: string;

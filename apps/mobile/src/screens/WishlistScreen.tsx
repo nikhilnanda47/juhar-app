@@ -9,6 +9,7 @@ import { addToCart, getCart, formatPaise, isLoggedIn, referenceOf } from '../ser
 import { onCartChanged } from '../services/cartEvents';
 import { useWishlist } from '../contexts/WishlistContext';
 import { showAlert } from '../utils/showAlert';
+import ProductImage from '../components/ProductImage';
 
 interface Props {
   navigation: any;
@@ -101,7 +102,9 @@ export default function WishlistScreen({ navigation }: Props) {
                 activeOpacity={v.isListed ? 0.8 : 1}
                 onPress={() => v.isListed && navigation.navigate('Shop', { screen: 'ProductDetail', params: { slug: p.slug } })}
               >
-                <View style={styles.rowImage} />
+                <View style={styles.rowImage}>
+                  <ProductImage uri={v.imageUrl} alt={p.title} />
+                </View>
                 <View style={styles.rowInfo}>
                   <Text style={styles.rowTitle} numberOfLines={2}>{p.title}</Text>
                   <Text style={styles.rowSub}>{v.color || v.name || p.origin || ''}</Text>
@@ -192,7 +195,7 @@ function createStyles(colors: ColorPalette) {
       padding: 12, borderWidth: 1, borderColor: colors.border,
     },
     rowImage: {
-      width: 80, aspectRatio: 0.75, borderRadius: borderRadius.md,
+      width: 80, aspectRatio: 0.75, borderRadius: borderRadius.md, overflow: 'hidden',
       backgroundColor: colors.surfaceMuted,
     },
     rowInfo: { flex: 1 },

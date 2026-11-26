@@ -3,6 +3,7 @@
 //   (cd apps/api && npx prisma migrate deploy && DB_TESTS=1 npm test -- today-orders)
 // The test creates its own user and orders and deletes them afterwards.
 import { PrismaClient } from '@prisma/client';
+import { testMedia } from '../modules/media/test-media';
 import { randomUUID } from 'crypto';
 import { OrdersService } from '../modules/orders/orders.service';
 
@@ -10,7 +11,7 @@ const describeDb = process.env.DB_TESTS === '1' ? describe : describe.skip;
 
 describeDb('today in India: order count and GMV (real Postgres)', () => {
   const prisma = new PrismaClient();
-  const service = new OrdersService(prisma as any, {} as any);
+  const service = new OrdersService(prisma as any, {} as any, testMedia());
   const tag = randomUUID().replace(/-/g, '').slice(0, 8);
   const phone = `+9${tag}`;
   // A fixed moment in 2020 so no real order interferes: 1:30 am on 11 Jan 2020 in India.

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
 } from 'react-native';
@@ -6,6 +6,8 @@ import { Check, Truck, Package, ShieldCheck, ArrowRight, Copy } from 'lucide-rea
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
 import { BounceIn, FadeInUp } from '../components/AnimatedUI';
 import { useCopyToClipboard } from '../utils/useCopyToClipboard';
+import { getOrder } from '../services/api';
+import ProductImage from '../components/ProductImage';
 
 interface Props {
   navigation: any;
@@ -17,6 +19,12 @@ export default function OrderSuccessScreen({ navigation, route }: Props) {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { order } = route.params;
   const firstItem = order.items?.[0];
+  // The reply to placing the order has no photos; the order itself does
+  const [photo, setPhoto] = useState<string | null>(firstItem?.imageUrl ?? null);
+  useEffect(() => {
+    if (photo || !order.id) return;
+    getOrder(order.id).then((o: any) => setPhoto(o?.items?.[0]?.imageUrl ?? null)).catch(() => {});
+  }, [order.id, photo]);
 
   const { copiedKey, copy } = useCopyToClipboard();
   const handleCopy = () => copy('order', order.publicNumber);
@@ -55,7 +63,9 @@ export default function OrderSuccessScreen({ navigation, route }: Props) {
         <FadeInUp delay={700} duration={500}>
         <View style={styles.previewCard}>
           <View style={styles.previewTop}>
-            <View style={styles.previewThumb} />
+            <View style={styles.previewThumb}>
+              <ProductImage uri={photo} alt={firstItem?.productTitle || 'Handloom saree'} />
+            </View>
             <View style={styles.previewInfo}>
               <Text style={styles.previewLabel}>MASTERPIECE RESERVED</Text>
               <Text style={styles.previewName} numberOfLines={1}>
@@ -164,7 +174,7 @@ const createStyles = (colors: ColorPalette) => StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
   },
   previewTop: { flexDirection: 'row', gap: 12, marginBottom: spacing.md },
-  previewThumb: { width: 56, height: 72, borderRadius: 8, backgroundColor: colors.placeholder },
+  previewThumb: { width: 56, height: 72, borderRadius: 8, overflow: 'hidden', backgroundColor: colors.placeholder },
   previewInfo: { flex: 1, justifyContent: 'center' },
   previewLabel: {
     fontFamily: 'DMSans-SemiBold', fontSize: 11, color: colors.accent,

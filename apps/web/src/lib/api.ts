@@ -168,7 +168,10 @@ export interface Product {
   // Detail view fields
   variants: ProductVariant[];
   category: Category | null;
-  media: { id: string; url: string; thumbnailUrl: string | null; type: string; altText: string | null; sortOrder: number }[];
+  /** the cover for cards and lists: the small copy of the first photo (null when the saree has no photo yet) */
+  primaryImage?: { url: string; alt: string | null } | null;
+  /** every photo, in order: `url` is the large copy, `thumbnailUrl` the small one; `variantId` is the colour it shows (null: the whole saree) */
+  media: { id: string; url: string; thumbnailUrl: string | null; type: string; altText: string | null; sortOrder: number; variantId?: string | null; width?: number | null; height?: number | null }[];
   // Compat aliases
   material?: string | null; technique?: string | null; weaveType?: string | null;
   images?: { id: string; url: string; alt: string | null; sortOrder: number }[];
@@ -404,6 +407,8 @@ export interface WishlistVariant {
   isListed: boolean;
   /** listed and in stock */
   isAvailable: boolean;
+  /** the small photo of this colour (or of the saree); null when there is none yet */
+  imageUrl: string | null;
   product: { id: string; slug: string; title: string; origin: string | null; fabric: string | null; weaveMethod: string | null };
 }
 

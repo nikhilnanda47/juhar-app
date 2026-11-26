@@ -4,6 +4,7 @@
 //   (cd apps/api && npx prisma migrate deploy && DB_TESTS=1 npm test -- paging)
 // The test creates its own user, orders, category and products and deletes them afterwards.
 import { PrismaClient } from '@prisma/client';
+import { testMedia } from '../modules/media/test-media';
 import { randomUUID } from 'crypto';
 import { OrdersService } from '../modules/orders/orders.service';
 import { ProductsService } from '../modules/products/products.service';
@@ -12,8 +13,8 @@ const describeDb = process.env.DB_TESTS === '1' ? describe : describe.skip;
 
 describeDb('paging long lists (real Postgres)', () => {
   const prisma = new PrismaClient();
-  const orders = new OrdersService(prisma as any, {} as any);
-  const products = new ProductsService(prisma as any);
+  const orders = new OrdersService(prisma as any, {} as any, testMedia());
+  const products = new ProductsService(prisma as any, testMedia());
   const tag = randomUUID().replace(/-/g, '').slice(0, 8);
   const phone = `+9${tag}`;
   const ORDERS = 45;

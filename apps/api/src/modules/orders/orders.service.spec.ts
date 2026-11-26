@@ -1,4 +1,5 @@
 import { BadRequestException, ConflictException, Logger, NotFoundException } from '@nestjs/common';
+import { testMedia } from '../media/test-media';
 import { OrdersService } from './orders.service';
 
 function setup(currentStatus: string) {
@@ -21,7 +22,7 @@ function setup(currentStatus: string) {
     settleShipment: jest.fn().mockResolvedValue(undefined),
     releaseReservation: jest.fn().mockResolvedValue(undefined),
   };
-  return { tx, prisma, inventory, service: new OrdersService(prisma as any, inventory as any) };
+  return { tx, prisma, inventory, service: new OrdersService(prisma as any, inventory as any, testMedia()) };
 }
 
 const changeTo = (service: OrdersService, status: string, extra: Record<string, unknown> = {}) =>
