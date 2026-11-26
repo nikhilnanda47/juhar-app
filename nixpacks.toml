@@ -1,0 +1,18 @@
+# How Railway builds and starts the API (the one service that runs from this repo's root).
+# The website and the admin panel are built by Vercel instead (see apps/web/vercel.json and apps/admin/vercel.json).
+#
+# Install with the dev tools even when NODE_ENV=production is set as a variable: the build needs TypeScript and the
+# Nest and Prisma command line tools, and `npm ci` would otherwise leave them out. (The install also builds
+# packages/shared through the root "postinstall".)
+[phases.install]
+cmds = ["npm ci --include=dev"]
+
+# Generate the database client, then build only the API (not the website, admin or mobile app).
+[phases.build]
+cmds = [
+  "npm run db:generate -w apps/api",
+  "npm run build -w apps/api"
+]
+
+[start]
+cmd = "npm run start:prod -w apps/api"

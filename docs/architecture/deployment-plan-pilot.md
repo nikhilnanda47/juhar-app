@@ -101,7 +101,7 @@
 
 **Setup:**
 1. Create a new Vercel project, connect GitHub repo
-2. Set root directory to `apps/web`
+2. Set root directory to `apps/web` and keep "Include source files outside of the Root Directory" on (`apps/web/vercel.json` sets the install and build commands for the monorepo)
 3. Set env variable: `NEXT_PUBLIC_API_URL=https://api.juhar.co.in`
 4. Add custom domain `juhar.co.in` and `www.juhar.co.in`
 5. Every push to `main` auto-deploys
@@ -125,7 +125,7 @@
 
 **Setup:**
 1. Create a second Vercel project (same account), connect GitHub repo
-2. Set root directory to `apps/admin`
+2. Set root directory to `apps/admin` and keep "Include source files outside of the Root Directory" on (`apps/admin/vercel.json` sets the install and build commands)
 3. Set env variable: `NEXT_PUBLIC_API_URL=https://api.juhar.co.in`
 4. Add custom domain `admin.juhar.co.in`
 5. Every push to `main` auto-deploys
@@ -155,12 +155,13 @@
 - Built-in env variable management
 - Easy to scale (just increase plan)
 
-**Setup:**
-1. Connect GitHub repo to Railway
-2. Set root directory to `apps/api`
-3. Add build command: `npm run build`
-4. Add start command: `node dist/main.js`
-5. Set env variables (DATABASE_URL, JWT secrets, etc.)
+**Setup** (full step-by-step in the [runbook](../operations/runbook-pilot.md)):
+1. Connect the GitHub repo to Railway and **leave the root directory empty** (the repo root; setting it to `apps/api` would break the workspace install of `@juhar/shared`).
+2. Nothing to type for the build: `railway.json` and `nixpacks.toml` in the repo root say how to install (with the dev tools), generate the database client, build the API, **apply the migrations before each release** (`npm run db:migrate:deploy -w apps/api`, through `DIRECT_URL`), start it, and check `/health`.
+3. Set the env variables from section 5 (`DATABASE_URL` ending `?pgbouncer=true`, `DIRECT_URL`, two JWT secrets of at least 32 characters, `CORS_ORIGINS`, `TRUST_PROXY=1`, the closed pilot list).
+4. Turn on **Wait for CI**, so a deploy only goes ahead when the GitHub checks pass.
+
+> **Deploy-prep note:** `npm run rehearse:deploy` rehearses these steps on your own computer from a clean copy (install, build, migrate an empty database twice, start with live settings, health, closed login, CORS, create admin, build the website and the admin). A live API refuses to start with weak secrets or a pooler address without `pgbouncer=true`, and its Swagger page is off unless `ENABLE_API_DOCS=true`.
 
 > **Monorepo install note (2026-11-22):** The API imports `@juhar/shared`, which resolves to `packages/shared/dist/`. The repo root `package.json` has a `postinstall` script (`npm run build -w packages/shared`), so any install run from the **repository root** (`npm ci`) builds the shared package automatically and no separate build step is needed for it. If a host installs only inside `apps/api`, the workspace link and `dist/` will be missing, so keep the install at the repo root. CI also runs `npx prisma generate` in `apps/api` before typechecking and building; the production build should do the same, since no install hook generates the Prisma client. The same root-install rule applies to the Vercel projects for `apps/web` and `apps/admin`.
 
@@ -190,9 +191,10 @@
 
 **Setup:**
 1. Create project on supabase.com (select Mumbai region)
-2. Copy connection string from Settings → Database
-3. Set as `DATABASE_URL` in Railway env vars
-4. Run `npx prisma migrate deploy` from local machine
+2. Copy two connection strings from Settings → Database: the **transaction pooler** (port 6543) and the **direct** one (port 5432)
+3. Set the pooler string, with `?pgbouncer=true` on the end, as `DATABASE_URL` in Railway, and the direct string as `DIRECT_URL` (if Railway cannot reach the direct host because it is IPv6-only, use the session pooler address, port 5432). The API refuses to start with the pooler address and no `pgbouncer=true`.
+4. Migrations are applied by Railway before every release (they go through `DIRECT_URL`); there is nothing to run by hand
+5. Create the first admin from your computer: `DATABASE_URL="<direct string>" npm run db:create-admin -w apps/api -- --phone +91… --name "…"`. Do not run the sample seeds on this database: they refuse to run against a database that is not on your computer.
 
 ---
 
@@ -327,7 +329,8 @@ DATABASE_URL=postgresql://postgres.[project-ref]:[password]@aws-0-ap-south-1.poo
 # ── Auth ──
 JWT_SECRET=<random-64-char-string>                    # REQUIRED
 JWT_REFRESH_SECRET=<different-random-64-char-string>  # REQUIRED
-OTP_PROVIDER=msg91                                    # read at startup, but only "mock" is supported yet; the API refuses to start in production with "mock" or unset, so production cannot go live until a real provider is built
+OTP_PROVIDER=mock                                     # until real SMS is built: "mock" is allowed in production ONLY as a closed pilot (the list below); then OTP_PROVIDER=msg91
+MOCK_OTP_ALLOWED_PHONES=+919876543210,+919123456789   # the team's numbers, comma separated; include the admin's. Everyone else is refused. Remove it when real SMS is on
 MSG91_AUTH_KEY=<msg91-auth-key>                       # not read by the code yet
 MSG91_TEMPLATE_ID=<msg91-template-id>                 # not read by the code yet
 
@@ -354,7 +357,7 @@ PAYMENT_GATEWAY=mock
 > **Implementation status (2026-11-22):** The API reads only `DATABASE_URL`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, `CORS_ORIGINS` and `PORT`.
 > - **Required at startup:** `DATABASE_URL`, `JWT_SECRET` and `JWT_REFRESH_SECRET` are checked when the API boots (`apps/api/src/config/env.validation.ts`). If any is missing or blank, the process exits and the error names the missing variables. A missing refresh secret used to be silently replaced by `JWT_SECRET`; that is no longer possible.
 > - **CORS:** when `CORS_ORIGINS` is set, it **replaces** the built-in list of local origins (`localhost:3001`, `3002` and `8081`), it does not add to it. Production must therefore list every browser origin that calls the API (customer website, `www`, admin panel, and any others).
-> - **OTP:** `OTP_PROVIDER` is read at startup but only `mock` (fixed code `123456`) is supported yet; the `MSG91_*` values have no effect. With `NODE_ENV=production` the API refuses to start while the provider is `mock` or unset, so production cannot go live until a real provider is built (see HLD section 9).
+> - **OTP:** `OTP_PROVIDER` is read at startup but only `mock` (fixed code `123456`) is supported yet; the `MSG91_*` values have no effect. With `NODE_ENV=production` the API refuses to start while the provider is `mock` or unset, **unless `MOCK_OTP_ALLOWED_PHONES` lists the closed pilot's numbers** (only those can sign in). So the one pilot environment can be live and tested by the team before launch; opening it to customers needs a real provider (see HLD section 9).
 > - **Storage and payments:** the `R2_*`, `PAYMENT_GATEWAY` and `RAZORPAY_*` values belong to modules that are not built yet.
 > - **Web and admin:** `NEXT_PUBLIC_API_URL` (set in the Vercel projects, see 2.2 and 2.3) is the only variable these apps read.
 
@@ -375,16 +378,17 @@ PAYMENT_GATEWAY=mock
 - [ ] Create MSG91 account, register DLT template
 - [ ] Create Expo EAS project (`eas init`)
 - [ ] Generate production JWT secrets
-- [ ] Run `prisma migrate deploy` against Supabase DB
-- [ ] Run seed script for initial admin user
+- [ ] Migrations run by themselves before each Railway release (`railway.json`); check the first deploy log
+- [ ] Create the first admin with `npm run db:create-admin` (not the sample seed)
 - [ ] Configure CORS origins for production domains
 
 > **CI note (2026-11-22):** GitHub Actions already typechecks and builds the API, web, admin and mobile apps on every push to `main` or `develop-*` and on pull requests into `main`. It does not deploy. The `build` gate job is a required check on `main` through the `main-protection` ruleset (which also requires a pull request with 1 approving review). See HLD section 8 for the job details. Before each release, confirm the latest CI run on the commit is green.
 
 ### Per-Release Deployment
 
-- [ ] Push code to `main` branch
+- [ ] Push code to `main` branch (small pull requests, one reviewed merge at a time)
 - [ ] Railway auto-deploys API (verify health check)
+- [ ] After each deploy run `npm run smoke -- --api … --web … --admin …` (see the runbook, section 4)
 - [ ] Vercel auto-deploys customer website
 - [ ] Vercel auto-deploys admin panel
 - [ ] For mobile changes: `npx eas build --platform android`
@@ -414,7 +418,7 @@ PAYMENT_GATEWAY=mock
 - [ ] Webhook signatures verified (when payments added)
 
 > **Implementation status (2026-11-22):** Two items above are **not yet true in the code** and block a real launch (rate limiting is now enforced):
-> - **OTP login:** the mock provider accepts the fixed code `123456` for any phone number, including admin numbers. The API now refuses to start in production with it, so the mock cannot be deployed by accident, but no real provider exists yet.
+> - **OTP login:** the mock provider accepts the fixed code `123456` for any phone number, including admin numbers. The API refuses to start in production with it unless `MOCK_OTP_ALLOWED_PHONES` limits sign-in to the team's numbers (closed pilot), so the mock cannot be deployed open by accident. No real provider exists yet, so the site must stay closed until one does.
 > - **Sessions:** the admin, web and mobile apps all renew their login automatically with the refresh token, so sessions last up to 7 days. After that, or if the refresh token is rejected, the user signs in again.
 >
 > Required secrets are now enforced at startup: the API will not boot without `DATABASE_URL`, `JWT_SECRET` and `JWT_REFRESH_SECRET` (the 64+ character guidance above is still advice only; length is not checked).

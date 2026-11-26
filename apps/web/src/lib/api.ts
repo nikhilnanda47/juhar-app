@@ -207,6 +207,20 @@ export async function getCategories(): Promise<Category[]> {
   return request<Category[]>('/api/v1/categories');
 }
 
+/** The answer to "can we deliver to this PIN code?" (the API owns the rule) */
+export interface DeliveryCheck {
+  pin: string;
+  serviceable: boolean;
+  codAvailable: boolean;
+  days: { min: number; max: number } | null;
+  reason: 'ok' | 'invalid' | 'not_served';
+  message: string;
+}
+
+export async function checkDelivery(pin: string): Promise<DeliveryCheck> {
+  return request<DeliveryCheck>(`/api/v1/delivery/check?pin=${encodeURIComponent(pin)}`);
+}
+
 export interface ProductsPage {
   items: Product[];
   /** pass this back as `cursor` to get the next page; null on the last page */

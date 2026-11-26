@@ -58,7 +58,7 @@
 > - **Payments:** not integrated. Only Cash on Delivery works.
 > - **Object storage / CDN:** not integrated. Products use placeholder images; there is no Media module.
 > - **Notifications / WhatsApp:** not built. WhatsApp integration is pending, and the web order page still contains a placeholder support number.
-> - **CI/CD:** GitHub Actions runs typecheck/test/build for API, web, admin and mobile (section 8). A **Lint** job runs ESLint over all four apps (`eslint.config.mjs`; section 8) and there is no automated deploy.
+> - **CI/CD:** GitHub Actions runs typecheck/test/build for API, web, admin and mobile (section 8). A **Lint** job runs ESLint over all four apps (`eslint.config.mjs`; section 8) and there is no automated deploy in the workflow: Railway and Vercel deploy `main` themselves once connected (see the [runbook](../operations/runbook-pilot.md)); the repo carries their settings (`railway.json`, `nixpacks.toml`, `vercel.json`) and `npm run rehearse:deploy` rehearses a deploy on a developer's computer.
 
 ---
 
@@ -410,7 +410,7 @@ Key constraints: integer paise for money, UTC timestamps, UUID PKs, indexes on S
 | **Media Storage** | S3 signed uploads | Admin uploads images; generate thumbnails on upload via Sharp |
 | **CDN** | CloudFront in front of S3 | Cache product images with long TTL |
 | **WhatsApp** | API for notifications | Order confirmation + shipping updates (via aggregator) |
-| **Shipping** | Manual (no API) | Admin enters carrier name + tracking ID; no automated serviceability |
+| **Shipping** | Manual (no API) | Admin enters carrier name + tracking ID. Delivery area: a fixed rule for the pilot (all of India except army post offices, 5 to 7 days, COD everywhere), checked by `GET /delivery/check`, when an address is saved and at checkout; no courier serviceability API yet |
 
 ---
 
@@ -495,7 +495,7 @@ Push → Lint + Typecheck + Test (parallel) → Build → Deploy Staging (auto) 
 | Audit | All admin mutations logged in audit_events table |
 
 > **Implementation status (2026-11-22):** The rows above are the design target. Gaps in the code today:
-> - **OTP provider:** `AuthModule` builds the provider from `OTP_PROVIDER`; only `MockOtpProvider` exists (fixed OTP `123456`, logged to the console), so anyone can log in as any phone number, including the seeded admin. The API refuses to start with `NODE_ENV=production` while the provider is `mock` or unset, so the mock cannot reach customers by accident. A real SMS provider must still be built before any real use.
+> - **OTP provider:** `AuthModule` builds the provider from `OTP_PROVIDER`; only `MockOtpProvider` exists (fixed OTP `123456`, logged to the console), so anyone can log in as any phone number, including the seeded admin. The API refuses to start with `NODE_ENV=production` while the provider is `mock` or unset, so the mock cannot reach customers by accident. **Closed pilot:** with `NODE_ENV=production` the mock is allowed only when `MOCK_OTP_ALLOWED_PHONES` names the team's numbers; every other number is refused at request, verify and refresh (`LOGIN_NOT_OPEN`). A real SMS provider must still be built before the site is opened to customers.
 > - **OTP store:** hashed OTPs and attempt counts live in an in-memory map, so they reset on restart and do not work across multiple instances.
 > - **Rate limiting:** enforced since 2026-11-22 by a global `AppThrottlerGuard`. OTP request: 3/phone and 10/IP per 10 minutes; OTP verify: 5/phone and 20/IP per 10 minutes; all other endpoints: 100 req/min per logged-in user (per IP when logged out). Blocked calls get 429 `RATE_LIMITED`. Behind a proxy the API needs `TRUST_PROXY`. Counters are in memory (per instance, reset on restart). Details are in LLD section 5.3.
 > - **Refresh tokens:** the API issues and verifies them (`POST /auth/refresh`), and the admin, web and mobile clients all use it (on a 401 the client refreshes once and repeats the request; a rejected refresh token ends the session and shows the login screen), so sessions last up to 7 days. Refresh tokens cannot be revoked.

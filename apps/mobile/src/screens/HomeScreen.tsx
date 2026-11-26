@@ -14,6 +14,8 @@ import { spacing, borderRadius } from '../theme';
 import { getProducts, getCategories, formatPaise, type Product } from '../services/api';
 import { FadeInUp, ScalePress } from '../components/AnimatedUI';
 import RefreshButton from '../components/RefreshButton';
+import LoadFailed from '../components/LoadFailed';
+import { describeLoadFailure, type LoadFailure } from '../services/loadFailure';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - spacing.margin * 2 - spacing.gutter) / 2;
@@ -25,6 +27,7 @@ export default function HomeScreen() {
   const [newArrivals, setNewArrivals] = useState<Product[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [failure, setFailure] = useState<LoadFailure | null>(null); // why the first load failed
 
   const fetchData = async () => {
     try {
@@ -34,7 +37,8 @@ export default function HomeScreen() {
       ]);
       setNewArrivals(productsData.items || []);
       setCategories((catsData || []).filter((c: any) => c.active !== false).slice(0, 4));
-    } catch {}
+      setFailure(null);
+    } catch (err) { setFailure(describeLoadFailure(err, 'Could not load the collection.')); }
   };
 
   useEffect(() => { fetchData(); }, []);
@@ -44,6 +48,11 @@ export default function HomeScreen() {
     await fetchData();
     setRefreshing(false);
   };
+
+  // Nothing could be loaded (offline, or the server is down): say so, with a way to try again, instead of an empty page
+  if (failure && newArrivals.length === 0 && categories.length === 0) {
+    return <LoadFailed failure={failure} onRetry={fetchData} />;
+  }
 
   return (
     <ScrollView

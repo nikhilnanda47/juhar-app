@@ -36,6 +36,25 @@ describe('validateEnv', () => {
 
     it('the production error says how to fix it', () => {
       expect(() => validateEnv({ ...base, NODE_ENV: 'production' })).toThrow(/Set OTP_PROVIDER to a real SMS provider/);
+      expect(() => validateEnv({ ...base, NODE_ENV: 'production' })).toThrow(/MOCK_OTP_ALLOWED_PHONES/);
+    });
+
+    describe('closed pilot (mock provider with an allow-list)', () => {
+      const pilot = { ...base, JWT_SECRET: 'a'.repeat(40), JWT_REFRESH_SECRET: 'b'.repeat(40), NODE_ENV: 'production', OTP_PROVIDER: 'mock' }; // a live API also needs real secrets
+
+      it('is allowed in production when the allow-list names the numbers', () => {
+        expect(() => validateEnv({ ...pilot, MOCK_OTP_ALLOWED_PHONES: '+919876543210,+919123456789' })).not.toThrow();
+      });
+
+      it('an empty or blank list is not a closed pilot: it still refuses to start', () => {
+        expect(() => validateEnv({ ...pilot, MOCK_OTP_ALLOWED_PHONES: '' })).toThrow(/Refusing to start/);
+        expect(() => validateEnv({ ...pilot, MOCK_OTP_ALLOWED_PHONES: '  ,  ' })).toThrow(/Refusing to start/);
+      });
+
+      it('a badly written number stops the start, naming it, in any environment', () => {
+        expect(() => validateEnv({ ...pilot, MOCK_OTP_ALLOWED_PHONES: '9876543210' })).toThrow(/9876543210/);
+        expect(() => validateEnv({ ...base, MOCK_OTP_ALLOWED_PHONES: '+911234567890' })).toThrow(/\+911234567890/);
+      });
     });
 
     it('refuses an unknown provider name, in any environment', () => {

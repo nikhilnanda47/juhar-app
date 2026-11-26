@@ -11,6 +11,8 @@ import {
 } from 'lucide-react-native';
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
 import RefreshButton from '../components/RefreshButton';
+import LoadFailed from '../components/LoadFailed';
+import { describeLoadFailure, type LoadFailure } from '../services/loadFailure';
 import {
   loadToken,
   getCart,
@@ -33,6 +35,7 @@ export default function CartScreen() {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [cart, setCart] = useState<CartResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [failure, setFailure] = useState<LoadFailure | null>(null); // why the bag could not be loaded
   const [refreshing, setRefreshing] = useState(false);
   const [updating, setUpdating] = useState<string | null>(null);
   const [loggedIn, setLoggedIn] = useState(false);
@@ -56,7 +59,11 @@ export default function CartScreen() {
         const localItems = await getLocalCart();
         setCart(localCartToResponse(localItems));
       }
-    } catch { setCart({ items: [], subtotalPaise: 0, itemCount: 0 }); }
+      setFailure(null);
+    } catch (err) {
+      setCart({ items: [], subtotalPaise: 0, itemCount: 0 });
+      setFailure(describeLoadFailure(err, 'Could not load your bag.'));
+    }
     finally { setLoading(false); setRefreshing(false); }
   };
 
@@ -94,6 +101,11 @@ export default function CartScreen() {
 
   if (loading || !ruleLoaded) {
     return <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>;
+  }
+
+  // Could not read the bag: do not say "Your bag is empty" to someone who has things in it
+  if ((!cart || cart.items.length === 0) && failure) {
+    return <LoadFailed failure={failure} onRetry={() => loadCart()} />;
   }
 
   if (!cart || cart.items.length === 0) {

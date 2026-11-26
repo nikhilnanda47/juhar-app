@@ -1,5 +1,7 @@
 import { LOG_LEVEL_NAMES, resolveLogLevel } from './log-level';
 import { SUPPORTED_OTP_PROVIDERS, resolveOtpProvider } from './otp-provider';
+import { parseAllowedPhones } from './otp-allowlist';
+import { productionProblems } from './production-checks';
 
 const REQUIRED_ENV = ['DATABASE_URL', 'JWT_SECRET', 'JWT_REFRESH_SECRET'] as const;
 
@@ -28,13 +30,26 @@ export function validateEnv(config: Record<string, unknown>): Record<string, unk
     );
   }
 
-  // The mock provider accepts the code 123456 for every phone number, including the admin's.
-  if (otpProvider === 'mock' && config.NODE_ENV === 'production') {
+  // A badly written number is a typo that would lock someone out (or let the wrong person in): stop at start-up.
+  const allowedPhones = parseAllowedPhones(config.MOCK_OTP_ALLOWED_PHONES);
+
+  // The mock provider accepts the code 123456, so on a live environment it is only allowed as a CLOSED pilot:
+  // MOCK_OTP_ALLOWED_PHONES names the few numbers that may sign in and everyone else is refused.
+  if (otpProvider === 'mock' && config.NODE_ENV === 'production' && allowedPhones.length === 0) {
     throw new Error(
       'Refusing to start: NODE_ENV is "production" but the OTP provider is "mock" (OTP_PROVIDER is unset or "mock"). ' +
         'The mock provider accepts the code 123456 for any phone number, so anyone could sign in as any user, ' +
-        'including the admin. Set OTP_PROVIDER to a real SMS provider.',
+        'including the admin. Set OTP_PROVIDER to a real SMS provider, or, for a closed pilot, list the only ' +
+        'phone numbers allowed to sign in in MOCK_OTP_ALLOWED_PHONES (for example +919876543210,+919123456789).',
     );
+  }
+
+  // On a live API, weak secrets or a database address Prisma cannot use are stopped here, with the fix
+  if (config.NODE_ENV === 'production') {
+    const problems = productionProblems(config);
+    if (problems.length > 0) {
+      throw new Error(`Refusing to start in production: ${problems.join('; ')}.`);
+    }
   }
 
   return config;

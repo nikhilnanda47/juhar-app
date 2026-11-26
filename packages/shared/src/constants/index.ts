@@ -34,6 +34,7 @@ export const AUTH = {
   ACCESS_TOKEN_EXPIRY: '15m',
   REFRESH_TOKEN_EXPIRY: '7d',
   OTP_EXPIRY_SECONDS: 300, // 5 minutes
+  OTP_RESEND_SECONDS: 30, // the API refuses a new code for the same number until this long after the last one
   OTP_LENGTH: 6,
 } as const;
 
@@ -43,6 +44,15 @@ export const AUTH = {
 export const SHIPPING = {
   FLAT_PAISE: 9900, // ₹99
   FREE_ABOVE_PAISE: 500000, // free when the subtotal is ₹5,000 or more
+} as const;
+
+// ── Delivery ──
+// The ONE place the delivery rule is written (see utils/delivery.ts). The pilot delivers all over India,
+// takes 5 to 7 days, and offers cash on delivery everywhere it delivers.
+export const DELIVERY = {
+  DAYS_MIN: 5,
+  DAYS_MAX: 7,
+  COD_AVAILABLE: true,
 } as const;
 
 // ── Inventory ──

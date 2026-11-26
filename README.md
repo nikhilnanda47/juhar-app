@@ -7,7 +7,7 @@ Juhar is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce pl
 ## Pilot Scope (P0)
 
 - **Catalog**: Browse, search, filter sarees by fabric/weave/price/color
-- **Cart & Checkout**: Server-calculated pricing, address capture, serviceability check
+- **Cart & Checkout**: Server-calculated pricing, address capture, delivery check (all of India for the pilot; checkout and address forms hold to the same rule as the product page)
 - **Payments**: Cash on Delivery (COD); UPI planned for Phase 4
 - **Inventory**: Atomic stock reservations with row-level locking, expiry cron
 - **Orders**: Full lifecycle — placed → confirmed → packed → shipped → delivered + cancellation
@@ -27,7 +27,7 @@ Juhar is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce pl
 | 3 | Home screen — hero, collections grid, new arrivals from API | ✅ |
 | 4 | Explore catalog — category chips, 2-column product grid | ✅ |
 | 5 | Filter products by category | ✅ |
-| 6 | Product detail — price, variants, PIN check, specs, delivery info | ✅ |
+| 6 | Product detail — price, variants, delivery PIN check (real: all over India, 5–7 days, COD), Share (the phone's share sheet with a link to the saree), specs, delivery info | ✅ |
 | 7 | Variant selection (color) | ✅ |
 | 8 | Login via phone OTP | ✅ |
 | 9 | Name capture for new users | ✅ |
@@ -54,7 +54,7 @@ Juhar is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce pl
 |---|---------|--------|
 | 1 | Home — hero banner, collections, new arrivals | ✅ |
 | 2 | Shop — search, category filters, product grid (responsive 2–5 cols) | ✅ |
-| 3 | Product detail — variants, PIN check, add to bag, related products | ✅ |
+| 3 | Product detail — variants, delivery PIN check (real, same rule as checkout), Share (share sheet on a phone, copies the link on a desktop), add to bag, related products | ✅ |
 | 4 | Guest cart — add items without login (localStorage) | ✅ |
 | 5 | Cart — stepper, price breakdown, checkout redirect | ✅ |
 | 6 | Cart badge count on header + bottom nav | ✅ |
@@ -105,14 +105,15 @@ Juhar is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce pl
 | Wishlist (saved items: heart on cards and product pages, Wishlist page, "Save to Wishlist" from the bag, guest hearts kept until login) | ✅ |
 | Push notifications / SMS updates | Phase 5 |
 | WhatsApp support integration | Phase 5 |
-| No internet / force update screens | Phase 5 |
+| "You're offline" / "Something went wrong" screens with Try again (app), our own 404 and error pages (website) | ✅ |
+| Force update screen | Phase 5 |
 
 ## Known Issues & Technical Debt
 
 Open items as of 2026-11-22, grouped by urgency. The team tracker holds owners and deadlines; this list is the code-level summary.
 
 ### Security and reliability — fix before real users
-- **Mock login.** OTP login uses a mock provider that always accepts `123456`, so anyone can sign in as any phone number, including the seeded admin. The `OTP_PROVIDER` setting is read (only `mock` is supported until a real SMS provider is built), and the API **refuses to start with `NODE_ENV=production`** while it is `mock` or unset, so the mock cannot reach customers by accident. OTP codes are kept in server memory (lost on restart, not shared across instances).
+- **Mock login.** OTP login uses a mock provider that always accepts `123456`, so anyone can sign in as any phone number, including the seeded admin. The `OTP_PROVIDER` setting is read (only `mock` is supported until a real SMS provider is built), and the API **refuses to start with `NODE_ENV=production`** while it is `mock` or unset, so the mock cannot reach customers by accident. **Closed pilot:** with `OTP_PROVIDER=mock` the API does start in production when `MOCK_OTP_ALLOWED_PHONES` lists the team's numbers (`+919876543210,+919123456789`); only those numbers can request a code, verify, or refresh a session, and every other number gets "Juhar is not open to the public yet" (403 `LOGIN_NOT_OPEN`). A badly written number stops the start. With a real SMS provider the list is ignored, and clearing it is how the site opens. OTP codes are kept in server memory (lost on restart, not shared across instances).
 
 ### Orders and catalog
 - **Cash-on-delivery stock holds do not expire.** A COD order reserves its units until an admin confirms, ships or cancels it, so an order nobody acts on keeps that stock locked. The admin panel flags these: a COD order still `placed` after 24 hours gets an **Overdue** badge and its waiting time on the Orders page, an **Overdue (n)** filter, and an "n overdue" link under the dashboard's Pending count. Nothing is cancelled automatically. Unpaid UPI holds still expire after 30 minutes, but that does not cancel the order (payments are Phase 4).
@@ -189,6 +190,8 @@ juhar-app/
 │   │   ├── LLD.md           # Low-Level Design (modules, DTOs, state machines)
 │   │   ├── database-design.md  # 18 tables, ER diagram, constraints
 │   │   └── deployment-plan-pilot.md  # Hosting, costs, environment variables
+│   └── operations/
+│       └── runbook-pilot.md      # Deploy, undo, change the database, troubleshoot (the one pilot environment)
 │   ├── design/
 │   │   └── ui-specification.md  # Design system, components, screens, theming
 │   └── api/
@@ -510,7 +513,7 @@ cd apps/api && npx prisma studio
 
 The API, website and admin panel are covered by the root `npm install` in step 3; the mobile app needs its own (`apps/mobile`).
 
-> **Mobile app:** it runs in the browser preview at `localhost:8081`. A phone or Expo Go cannot reach `localhost` on your computer, and the API address is fixed in `apps/mobile/src/services/api.ts`, so testing on a real device needs that address changed first.
+> **Mobile app:** it runs in the browser preview at `localhost:8081`. A phone or Expo Go cannot reach `localhost` on your computer, and the API address is a setting of the build, `EXPO_PUBLIC_API_URL` (see `apps/mobile/.env.example`): unset in development means `http://localhost:3000`, and a release build (the `pilot` and `production` profiles in `apps/mobile/eas.json`) refuses to run without a real `https://` address. To try the preview against another server, start it with `EXPO_PUBLIC_API_URL=https://your-api npx expo start --web`.
 
 ### 8. Test login
 
@@ -570,7 +573,11 @@ Check what changed (`git diff HEAD@{1} --stat`), then use this table. Dev server
 | `cd apps/api && npx prisma migrate deploy` | Root | Apply migrations that already exist (use this after `git pull`; no extra database permission needed) |
 | `cd apps/api && npx prisma migrate dev --name <name>` | Root | Create a new migration (needs the database user to be allowed to create databases, see the `P3014` note in step 5) |
 | `cd apps/api && npx prisma generate` | Root | Regenerate Prisma client |
-| `cd apps/api && npx ts-node prisma/seed.ts` | Root | Re-seed database |
+| `cd apps/api && npx ts-node prisma/seed.ts` | Root | Re-seed database (refuses unless the database is on this computer) |
+| `npm run db:create-admin -w apps/api -- --phone +91… --name "…"` | Root | Create or update an admin account (the way to make the first admin on a live database) |
+| `npm run db:migrate:deploy -w apps/api` | Root | What a release runs: apply migrations through `DIRECT_URL` when it is set |
+| `npm run rehearse:deploy` | Root | Dry run of the Railway and Vercel steps from a clean copy (see the runbook) |
+| `npm run smoke -- --api https://… --web https://… --admin https://…` | Root | After-deploy check of a live environment: health, database, shop, closed login, pages, API address and CORS (reads only; see the runbook) |
 | `npm run db:seed:demo -- --products 60 --orders 55` | Root | Add demo sarees and orders for testing long lists (`-- --clean` removes them) |
 | `psql -U juhar -d juhar_dev` | Anywhere | Connect to database CLI |
 | `cd apps/mobile && npx expo start --web --clear` | Root | Mobile with cleared cache |
@@ -589,7 +596,7 @@ Check what changed (`git diff HEAD@{1} --stat`), then use this table. Dev server
 | Service | Port | URL | Description |
 |---------|------|-----|-------------|
 | API Backend | 3000 | http://localhost:3000 | NestJS REST API |
-| Swagger Docs | 3000 | http://localhost:3000/api/docs | Interactive API documentation |
+| Swagger Docs | 3000 | http://localhost:3000/api/docs | Interactive API documentation (off when `NODE_ENV=production`) |
 | Customer Website | 3001 | http://localhost:3001 | Next.js storefront |
 | Admin Panel | 3002 | http://localhost:3002 | Next.js admin dashboard |
 | Mobile App (Web) | 8081 | http://localhost:8081 | Expo web preview |
@@ -604,6 +611,7 @@ Check what changed (`git diff HEAD@{1} --stat`), then use this table. Dev server
 | [Database Design](docs/architecture/database-design.md) | 18 tables, ER diagram, constraints, indexes |
 | [LLD](docs/architecture/LLD.md) | Module designs, DTOs, state machines, navigation tree |
 | [Deployment Plan](docs/architecture/deployment-plan-pilot.md) | Hosting choices, costs, production environment variables |
+| [Pilot Runbook](docs/operations/runbook-pilot.md) | Where everything lives, first deploy step by step, every release, undoing a deploy, safe database changes, troubleshooting |
 | [UI Specification](docs/design/ui-specification.md) | Design system, components, screen designs, light/dark theming |
 | [OpenAPI Spec](docs/api/openapi.yaml) | 35 implemented + 14 planned REST operations with full schemas (planned ones are marked `x-status: planned`) |
 | [UI/UX Designs](https://drive.google.com/drive/folders/1VGF8a_wP-hkXg4s66_ixaiOxPvS10jpX?usp=sharing) | Mobile app screen designs |

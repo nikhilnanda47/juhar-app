@@ -555,6 +555,16 @@ Reusable refresh icon (`RefreshCw`) with spin animation on press. Used on Home, 
 
 ---
 
+### Website: missing pages and load failures (item 63)
+
+- **Page not found** (`apps/web/src/app/not-found.tsx`, status 404): compass icon, "This page could not be found", "The link may be old or mistyped...", buttons **Continue shopping** (filled) and **Back to home** (outline). The header and bottom bar stay.
+- **Something went wrong** (`app/error.tsx`): shown when a page crashes while being drawn; "Try again" re-draws it, "Back to home" leaves. `app/global-error.tsx` is the last resort when the page frame itself crashes (plain, self-styled, no header).
+- **A saree that does not exist** (removed, or an old shared link): the saree page says "This saree is not available" with **Continue shopping**, instead of spinning forever.
+- **Could not load** (`components/LoadFailed.tsx`, used on the saree page, an order's page, the order-placed page and Account): "You're offline" with **Try again** when the browser cannot reach the server, "Something went wrong" plus the API's message and Reference line for other failures. A customer who is signed in and loses the signal on the Account page is **no longer signed out**.
+- All of them use `components/StatusPage.tsx` (icon in a soft circle, serif heading, text, buttons) and the theme colours, so they work in dark mode and at phone width.
+
+---
+
 ## 13. Screen-by-Screen Designs
 
 ### 13.1 Splash (Screen 1)
@@ -655,6 +665,8 @@ Reusable refresh icon (`RefreshCw`) with spin animation on press. Used on Home, 
 - Retry: re-checks, brief spinner inside button
 - No tab bar visible
 - If mid-flow: overlays current screen
+
+> **Implementation status (item 62):** built as one shared component, `LoadFailed` (`apps/mobile/src/components/LoadFailed.tsx`), shown **in place of a screen's content** when that screen's data could not be loaded, not as a separate full-app overlay. The tab bar stays. A phone that cannot reach the server (the API client's `NETWORK_ERROR`) sees the wifi-off icon, "You're offline", "We could not reach Juhar. Check your internet connection and try again." and a filled **Try again** button that shows a spinner while it retries; any other failure sees "Something went wrong", the API's message and its Reference line, with the same button. Used on **Home, Shop, a saree's page, Orders, an order's page, the Bag and Account**. Before this, an offline phone saw an empty Home, "No sarees found", "No orders yet" or "Your bag is empty", and **opening Account while offline signed the customer out**; now the login is kept and Account offers Try again. A saree or order the server says does not exist (404) still says "not found". The text of an error that did not come from the API is never shown. *Not built:* detecting that the signal came back and dismissing by itself (the customer taps Try again), and the full-app overlay for mid-flow (checkout keeps showing its own error under the button).
 
 ---
 
@@ -761,7 +773,7 @@ Reusable refresh icon (`RefreshCw`) with spin animation on press. Used on Home, 
 │    │ 1 │ │ 2 │ │ 3 │ │ 4 │ │ 5 │ │ 6 │  ← 48×48px, 8px gap
 │    └───┘ └───┘ └───┘ └───┘ └───┘ └───┘
 │                             │
-│    Resend OTP in 0:28       │  ← 14px, #999999
+│    Resend code in 28s       │  ← 14px, #999999 (a link once the wait is over)
 │    Change number            │  ← Ghost, 14px, #8B3A4A
 │                             │
 └─────────────────────────────┘
@@ -770,7 +782,7 @@ Reusable refresh icon (`RefreshCw`) with spin animation on press. Used on Home, 
 - Auto-advance on digit entry, backspace moves back
 - Auto-submit on 6th digit (no button)
 - Error: shake animation, clear all, refocus first, "Invalid OTP" 12px `#C44A4A`
-- Resend timer: 30s countdown → "Resend OTP" tappable ghost `#8B3A4A`
+- Resend timer: 30s countdown ("Resend code in 28s", grey, not tappable) → "Resend code", a tappable ghost link `#8B3A4A`. **Implemented on the website and in the app** (`apps/web/src/lib/resend.ts`, `apps/mobile/src/services/resend.ts`): the 30 seconds start when the code was requested and match the API's own wait (`AUTH.OTP_RESEND_SECONDS`), so a tap never runs into "please wait". Tapping asks for a new code for the same number, clears the half-typed code, shows "New code sent." and starts the wait again. If the API refuses (for example "Too many attempts", 3 codes per number per 10 minutes) the reason is shown with its Reference line and the link stays available. "Change number" goes back to the phone screen.
 - Success → Home (existing) or Name Capture (new user)
 - Box border: `#EEEEEE`, focus: `#8B3A4A`
 
@@ -963,8 +975,8 @@ Reusable refresh icon (`RefreshCw`) with spin animation on press. Used on Home, 
 | Share `↗` | Right #2 | 24px | `#1A1A1A` | — |
 
 - Wishlist: requires login, scale animation (0.8→1.2→1.0, 200ms)
-- Share: native share sheet (WhatsApp, copy link), no login required
-- PIN check: 6-digit, numeric. Pilot: all PINs valid. Remembers in session.
+- Share: no login required. **App:** the phone's share sheet (WhatsApp, Messages, ...) with the link `https://juhar.co.in/shop/<saree>` and nothing else (no title, no line of text, and the link only once, so "Copy" in the sheet pastes just an address) (the website address is the build setting `EXPO_PUBLIC_WEB_URL`; the public address when unset); where there is no share sheet (the browser preview) the link is copied and "Link copied" is shown. **Website:** on a phone (a finger is the main pointer) the browser's share sheet gets only the link (no title); on a computer, even one whose browser has a share sheet, the link alone (this site's own address plus the saree page, one line) is copied and "Link copied" shows for a moment, so it can be pasted straight into an address bar. Closing the share sheet shows nothing. Both layouts of the website's product page have the button.
+- PIN check: 6-digit, numeric. Check asks the API (`GET /delivery/check`): a served PIN shows "Delivery in 5–7 days" and "Cash on delivery available"; a PIN with no real postal zone shows "That does not look like a valid PIN code" and an army post office PIN shows "We cannot deliver to …" (red, no delivery promise); a network failure shows the usual error with its Reference. Typing again clears the answer. The pilot delivers all over India. The same rule is applied when an address is saved and at checkout.
 - Variant change updates price/stock/images
 - Add to Bag: login check → checkmark animation (500ms) → text restores
 - Shimmer skeleton on load

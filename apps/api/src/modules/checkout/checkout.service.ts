@@ -4,7 +4,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { InventoryService } from '../inventory/inventory.service';
 import { CheckoutQuoteDto, PlaceOrderDto } from './dto';
-import { calculateShippingPaise, generateOrderNumber, PaymentMode } from '@juhar/shared';
+import { calculateShippingPaise, checkDelivery, generateOrderNumber, PaymentMode } from '@juhar/shared';
 
 @Injectable()
 export class CheckoutService {
@@ -16,6 +16,16 @@ export class CheckoutService {
   ) {}
 
   /**
+   * The product page tells a customer whether we deliver to a PIN code (`checkDelivery`); checkout holds to the same
+   * answer, so what was promised there is what is kept here. An address saved before a rule change is caught too.
+   */
+  private ensureDeliverable(pinCode: string, paymentMode: string) {
+    const delivery = checkDelivery(pinCode);
+    if (!delivery.serviceable) throw new BadRequestException('PIN_NOT_SERVICEABLE');
+    if (paymentMode === 'cod' && !delivery.codAvailable) throw new BadRequestException('COD_NOT_AVAILABLE_HERE');
+  }
+
+  /**
    * Calculate checkout quote — does NOT reserve stock.
    * Server-calculated totals: subtotal, shipping, tax, total.
    */
@@ -25,6 +35,7 @@ export class CheckoutService {
       where: { id: dto.addressId, userId },
     });
     if (!address) throw new NotFoundException('ADDRESS_NOT_FOUND');
+    this.ensureDeliverable(address.pinCode, dto.paymentMode);
 
     // Fetch cart with current prices
     const cartItems = await this.prisma.cartItem.findMany({
@@ -100,6 +111,7 @@ export class CheckoutService {
       where: { id: dto.addressId, userId },
     });
     if (!address) throw new NotFoundException('ADDRESS_NOT_FOUND');
+    this.ensureDeliverable(address.pinCode, dto.paymentMode);
 
     let replayed = false;
     const order = await this.prisma.$transaction(async (tx) => {

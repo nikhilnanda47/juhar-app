@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -15,16 +15,22 @@ import {
   Banknote,
   ShieldCheck,
   MapPin,
+  Search,
 } from 'lucide-react';
-import { getProductBySlug, getProducts, formatPaise, isLoggedIn, addToCart, referenceOf, type Product, type ProductVariant } from '@/lib/api';
+import { getProductBySlug, getProducts, formatPaise, isLoggedIn, addToCart, checkDelivery, referenceOf, type DeliveryCheck, type Product, type ProductVariant } from '@/lib/api';
 import ErrorReference from '@/components/ErrorReference';
+import LoadFailed from '@/components/LoadFailed';
+import StatusPage from '@/components/StatusPage';
+import { describeLoadFailure, type LoadFailure } from '@/lib/load-failure';
 import { useWishlist } from '@/lib/wishlist-context';
 import { readLocalCart, saveLocalCart } from '@/lib/cart-events';
+import { shareProduct } from '@/lib/share';
 
 export default function ProductDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const router = useRouter();
   const [product, setProduct] = useState<Product | null>(null);
+  const [failure, setFailure] = useState<LoadFailure | null>(null); // why the saree could not be loaded
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
   const [addingToCart, setAddingToCart] = useState(false);
   const [cartError, setCartError] = useState('');
@@ -33,23 +39,36 @@ export default function ProductDetailPage() {
   const { loaded: wishlistLoaded, isSaved, savedVariantOf, toggleVariant } = useWishlist();
   const pickedVariant = useRef(false); // true once the customer chose a colour themselves
   const [pinCode, setPinCode] = useState('');
-  const [pinChecked, setPinChecked] = useState(false);
+  // The delivery answer for the PIN code typed above. It belongs to that PIN code only: typing again clears it.
+  const [delivery, setDelivery] = useState<DeliveryCheck | null>(null);
+  const [checkingPin, setCheckingPin] = useState(false);
+  const [pinError, setPinError] = useState('');
+  const [pinErrorRef, setPinErrorRef] = useState('');
+  const pinRequest = useRef(0); // only the newest question may show its answer
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [showToast, setShowToast] = useState(false);
+  const [shareNote, setShareNote] = useState(''); // a short message after Share: "Link copied" or what went wrong
+  const shareTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    if (slug) {
-      getProductBySlug(slug).then((p) => {
-        pickedVariant.current = false;
-        setProduct(p);
-        setSelectedVariant(p.variants[0] || null);
-        // Fetch related
-        getProducts({ limit: '4', sortBy: 'newest' }).then(d => {
-          setRelatedProducts(d.items.filter(item => item.slug !== slug).slice(0, 4));
-        }).catch(() => {});
+  const loadProduct = useCallback(async () => {
+    if (!slug) return;
+    setFailure(null);
+    try {
+      const p = await getProductBySlug(slug);
+      pickedVariant.current = false;
+      setProduct(p);
+      setSelectedVariant(p.variants[0] || null);
+      // Fetch related
+      getProducts({ limit: '4', sortBy: 'newest' }).then(d => {
+        setRelatedProducts(d.items.filter(item => item.slug !== slug).slice(0, 4));
       }).catch(() => {});
+    } catch (e) {
+      setProduct(null);
+      setFailure(describeLoadFailure(e));
     }
   }, [slug]);
+
+  useEffect(() => { loadProduct(); }, [loadProduct]);
 
   // Arriving from a saved item (or a heart on the shop): open on the colour that is saved, so the
   // heart reads "saved" instead of showing another colour as not saved
@@ -64,6 +83,34 @@ export default function ProductDetailPage() {
   useEffect(() => {
     setAddedToCart(false);
   }, [slug]);
+
+  // Share this saree: the browser's share sheet on a phone, otherwise the link is copied
+  const onShare = async () => {
+    if (!product) return;
+    const { outcome, url } = await shareProduct(product);
+    if (outcome === 'shared' || outcome === 'cancelled') return;
+    setShareNote(outcome === 'copied' ? 'Link copied' : `Could not copy the link. It is ${url}`);
+    if (shareTimer.current) clearTimeout(shareTimer.current);
+    shareTimer.current = setTimeout(() => setShareNote(''), outcome === 'copied' ? 2500 : 8000);
+  };
+
+  // Ask the API whether we deliver to the PIN code typed in (the same rule checkout holds to)
+  const askDelivery = async () => {
+    if (pinCode.length !== 6 || checkingPin) return;
+    const mine = ++pinRequest.current;
+    setCheckingPin(true); setPinError(''); setPinErrorRef(''); setDelivery(null);
+    try {
+      const answer = await checkDelivery(pinCode);
+      if (mine === pinRequest.current) setDelivery(answer);
+    } catch (e: any) {
+      if (mine === pinRequest.current) {
+        setPinError(e?.message || 'Could not check this PIN code right now. Please try again.');
+        setPinErrorRef(referenceOf(e));
+      }
+    } finally {
+      if (mine === pinRequest.current) setCheckingPin(false);
+    }
+  };
 
   const handleAddToCart = async () => {
     if (!selectedVariant || !product) return;
@@ -98,6 +145,20 @@ export default function ProductDetailPage() {
     setAddingToCart(false);
   };
 
+  // A saree that does not exist (a removed one, or an old shared link), or one that could not be loaded
+  if (!product && failure?.kind === 'not_found') {
+    return (
+      <StatusPage
+        icon={<Search size={36} strokeWidth={1.5} />}
+        title="This saree is not available"
+        actions={<Link href="/shop" className="btn-primary px-8">Continue shopping</Link>}
+      >
+        It may have been sold out and taken down, or the link may be old. Have a look at the rest of the collection.
+      </StatusPage>
+    );
+  }
+  if (!product && failure) return <LoadFailed failure={failure} onRetry={loadProduct} />;
+
   if (!product) {
     return <div className="flex items-center justify-center min-h-[60vh]">
       <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
@@ -111,6 +172,13 @@ export default function ProductDetailPage() {
 
   return (
     <>
+      {/* After Share: "Link copied" */}
+      {shareNote && (
+        <div role="status" className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-toast-bg text-white px-5 py-3 rounded-xl shadow-lg text-sm font-semibold max-w-[90vw] break-words">
+          {shareNote}
+        </div>
+      )}
+
       {/* Toast notification */}
       {showToast && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 animate-[slideDown_0.3s_ease] bg-toast-bg text-white px-5 py-3 rounded-xl shadow-lg flex items-center gap-2.5 text-sm font-semibold">
@@ -131,7 +199,7 @@ export default function ProductDetailPage() {
           <button onClick={() => selectedVariant && product && toggleVariant(selectedVariant.id, product.id)} aria-label="Save this colour" aria-pressed={!!selectedVariant && isSaved(selectedVariant.id)} className="w-9 h-9 rounded-full bg-surface-container-low flex items-center justify-center">
             <Heart size={18} className={selectedVariant && isSaved(selectedVariant.id) ? 'text-primary fill-primary' : 'text-text-secondary'} strokeWidth={1.5} />
           </button>
-          <button className="w-9 h-9 rounded-full bg-surface-container-low flex items-center justify-center">
+          <button onClick={onShare} aria-label="Share this saree" className="w-9 h-9 rounded-full bg-surface-container-low flex items-center justify-center">
             <Share2 size={18} className="text-text-secondary" strokeWidth={1.5} />
           </button>
         </div>
@@ -162,7 +230,7 @@ export default function ProductDetailPage() {
                   className="w-10 h-10 rounded-full bg-surface/80 backdrop-blur flex items-center justify-center hover:bg-surface transition-colors">
                   <Heart size={20} className={selectedVariant && isSaved(selectedVariant.id) ? 'text-primary fill-primary' : 'text-text-secondary'} strokeWidth={1.5} />
                 </button>
-                <button className="w-10 h-10 rounded-full bg-surface/80 backdrop-blur flex items-center justify-center hover:bg-surface transition-colors">
+                <button onClick={onShare} aria-label="Share this saree" className="w-10 h-10 rounded-full bg-surface/80 backdrop-blur flex items-center justify-center hover:bg-surface transition-colors">
                   <Share2 size={20} className="text-text-secondary" strokeWidth={1.5} />
                 </button>
               </div>
@@ -246,31 +314,40 @@ export default function ProductDetailPage() {
                 <input
                   type="text"
                   value={pinCode}
-                  onChange={(e) => { setPinCode(e.target.value.replace(/\D/g, '')); setPinChecked(false); }}
+                  onChange={(e) => { setPinCode(e.target.value.replace(/\D/g, '')); pinRequest.current++; setDelivery(null); setPinError(''); setPinErrorRef(''); setCheckingPin(false); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') askDelivery(); }}
+                  aria-label="PIN code to check delivery for"
                   placeholder="Enter PIN code"
                   maxLength={6}
                   className="flex-1 lg:max-w-[200px] h-11 bg-surface rounded-xl border border-border px-4 font-sans text-body-md outline-none focus:border-primary"
                 />
                 <button
-                  onClick={() => pinCode.length === 6 && setPinChecked(true)}
-                  disabled={pinCode.length < 6}
+                  onClick={askDelivery}
+                  disabled={pinCode.length < 6 || checkingPin}
                   className="h-11 px-5 rounded-xl bg-surface-container-low font-sans text-label-md text-text-primary font-medium hover:bg-surface-container transition-colors disabled:opacity-40"
                 >
-                  Check
+                  {checkingPin ? 'Checking...' : 'Check'}
                 </button>
               </div>
-              {pinChecked && (
-                <div className="mt-3 space-y-2">
+              {delivery?.serviceable && delivery.days && (
+                <div className="mt-3 space-y-2" role="status">
                   <div className="flex items-center gap-2">
                     <CheckCircle size={16} className="text-success" strokeWidth={2} />
-                    <span className="font-sans text-body-md text-text-primary">Delivery in 5–7 days</span>
+                    <span className="font-sans text-body-md text-text-primary">Delivery in {delivery.days.min}–{delivery.days.max} days</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle size={16} className="text-success" strokeWidth={2} />
-                    <span className="font-sans text-body-md text-text-primary">Cash on delivery available</span>
-                  </div>
+                  {delivery.codAvailable && (
+                    <div className="flex items-center gap-2">
+                      <CheckCircle size={16} className="text-success" strokeWidth={2} />
+                      <span className="font-sans text-body-md text-text-primary">Cash on delivery available</span>
+                    </div>
+                  )}
                 </div>
               )}
+              {delivery && !delivery.serviceable && (
+                <p className="mt-3 font-sans text-body-md text-error" role="status">{delivery.message}</p>
+              )}
+              {pinError && <p className="mt-3 font-sans text-body-md text-error" role="alert">{pinError}</p>}
+              <ErrorReference id={pinErrorRef} className="mt-1" />
             </div>
 
             <div className="h-px bg-border mb-6" />

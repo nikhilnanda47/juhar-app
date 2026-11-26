@@ -12,6 +12,7 @@
 // changed or required; this script creates the categories it needs if they are missing.
 import { PrismaClient } from '@prisma/client';
 import { calculateShippingPaise } from '@juhar/shared';
+import { seedRefusal } from '../src/common/local-database-guard';
 
 const prisma = new PrismaClient();
 
@@ -280,8 +281,9 @@ async function clean() {
 }
 
 async function main() {
-  if (process.env.NODE_ENV === 'production') {
-    console.error('Refusing to add demo data with NODE_ENV=production.');
+  const refusal = seedRefusal(process.env, 'the demo seed');
+  if (refusal) {
+    console.error(refusal);
     process.exit(1);
   }
   const host = (process.env.DATABASE_URL || '').replace(/^.*@/, '').replace(/\?.*$/, '');

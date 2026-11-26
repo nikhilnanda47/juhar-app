@@ -3,12 +3,23 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateAddressDto, UpdateAddressDto } from './dto';
+import { checkDelivery } from '@juhar/shared';
 
 const MAX_ADDRESSES = 10;
 
 @Injectable()
 export class AddressesService {
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * A PIN code that cannot exist (000000, 123456) or that we cannot deliver to (army post offices) is refused when the
+   * address is saved, not later at checkout. The format itself is already checked by the request validation.
+   */
+  private ensureGoodPin(pinCode: string) {
+    const delivery = checkDelivery(pinCode);
+    if (delivery.reason === 'invalid') throw new BadRequestException('PIN_NOT_VALID');
+    if (!delivery.serviceable) throw new BadRequestException('PIN_NOT_SERVICEABLE');
+  }
 
   /**
    * List all addresses for a user, default first.
@@ -25,6 +36,7 @@ export class AddressesService {
    * Max 10 per user. If isDefault=true or first address, unset other defaults.
    */
   async create(userId: string, dto: CreateAddressDto) {
+    this.ensureGoodPin(dto.pinCode);
     const count = await this.prisma.address.count({ where: { userId } });
     if (count >= MAX_ADDRESSES) {
       throw new BadRequestException(`Maximum ${MAX_ADDRESSES} addresses allowed`);
@@ -71,6 +83,7 @@ export class AddressesService {
       where: { id, userId },
     });
     if (!address) throw new NotFoundException('Address not found');
+    if (dto.pinCode !== undefined) this.ensureGoodPin(dto.pinCode);
 
     // "not the default" for the address that is the default would leave the customer with none
     const isDefault = dto.isDefault === false && address.isDefault ? undefined : dto.isDefault;

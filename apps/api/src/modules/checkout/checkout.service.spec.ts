@@ -385,3 +385,39 @@ describe('CheckoutService', () => {
     it.todo('checks PIN code serviceability and cash-on-delivery eligibility');
   });
 });
+
+// The product page says whether we deliver to a PIN code (checkDelivery); checkout holds to the same answer.
+describe('CheckoutService delivery area', () => {
+  const at = (pinCode: string) => ({ address: { ...address, pinCode } });
+
+  it.each([
+    ['110001', 'Delhi'],
+    ['400001', 'Mumbai'],
+    ['682001', 'Kerala'],
+    ['781001', 'Assam'],
+    ['768001', 'Odisha'],
+  ])('quotes and places an order to %s (%s): the pilot delivers all over India', async (pin) => {
+    const { service } = setup([item()], at(pin));
+    await expect(service.getQuote('user-1', quoteDto)).resolves.toMatchObject({ paymentMode: 'cod' });
+    await expect(service.placeOrder('user-1', placeDto())).resolves.toBeDefined();
+  });
+
+  it.each([['000000'], ['350001'], ['999999x'], ['35 0001'], ['']])('refuses a PIN code that cannot exist (%p)', async (pin) => {
+    const { service, prisma } = setup([item()], at(pin));
+    await expect(service.getQuote('user-1', quoteDto)).rejects.toThrow('PIN_NOT_SERVICEABLE');
+    await expect(service.placeOrder('user-1', placeDto())).rejects.toThrow('PIN_NOT_SERVICEABLE');
+    expect(prisma.$transaction).not.toHaveBeenCalled(); // nothing was reserved or created
+  });
+
+  it('refuses an army post office PIN code', async () => {
+    const { service } = setup([item()], at('900001'));
+    await expect(service.placeOrder('user-1', placeDto())).rejects.toThrow('PIN_NOT_SERVICEABLE');
+  });
+
+  it('refuses before touching the cart or stock', async () => {
+    const { service, prisma, inventory } = setup([item()], at('000000'));
+    await expect(service.placeOrder('user-1', placeDto())).rejects.toThrow();
+    expect(prisma.cartItem.findMany).not.toHaveBeenCalled();
+    expect(inventory.reserve).not.toHaveBeenCalled();
+  });
+});
