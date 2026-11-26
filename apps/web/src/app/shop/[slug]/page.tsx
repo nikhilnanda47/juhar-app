@@ -20,6 +20,7 @@ import { getProductBySlug, getProducts, formatPaise, isLoggedIn, addToCart, chec
 import ErrorReference from '@/components/ErrorReference';
 import { useWishlist } from '@/lib/wishlist-context';
 import { readLocalCart, saveLocalCart } from '@/lib/cart-events';
+import { shareProduct } from '@/lib/share';
 
 export default function ProductDetailPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -41,6 +42,8 @@ export default function ProductDetailPage() {
   const pinRequest = useRef(0); // only the newest question may show its answer
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [showToast, setShowToast] = useState(false);
+  const [shareNote, setShareNote] = useState(''); // a short message after Share: "Link copied" or what went wrong
+  const shareTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (slug) {
@@ -69,6 +72,16 @@ export default function ProductDetailPage() {
   useEffect(() => {
     setAddedToCart(false);
   }, [slug]);
+
+  // Share this saree: the browser's share sheet on a phone, otherwise the link is copied
+  const onShare = async () => {
+    if (!product) return;
+    const { outcome, url } = await shareProduct(product);
+    if (outcome === 'shared' || outcome === 'cancelled') return;
+    setShareNote(outcome === 'copied' ? 'Link copied' : `Could not copy the link. It is ${url}`);
+    if (shareTimer.current) clearTimeout(shareTimer.current);
+    shareTimer.current = setTimeout(() => setShareNote(''), outcome === 'copied' ? 2500 : 8000);
+  };
 
   // Ask the API whether we deliver to the PIN code typed in (the same rule checkout holds to)
   const askDelivery = async () => {
@@ -134,6 +147,13 @@ export default function ProductDetailPage() {
 
   return (
     <>
+      {/* After Share: "Link copied" */}
+      {shareNote && (
+        <div role="status" className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-toast-bg text-white px-5 py-3 rounded-xl shadow-lg text-sm font-semibold max-w-[90vw] break-words">
+          {shareNote}
+        </div>
+      )}
+
       {/* Toast notification */}
       {showToast && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 animate-[slideDown_0.3s_ease] bg-toast-bg text-white px-5 py-3 rounded-xl shadow-lg flex items-center gap-2.5 text-sm font-semibold">
@@ -154,7 +174,7 @@ export default function ProductDetailPage() {
           <button onClick={() => selectedVariant && product && toggleVariant(selectedVariant.id, product.id)} aria-label="Save this colour" aria-pressed={!!selectedVariant && isSaved(selectedVariant.id)} className="w-9 h-9 rounded-full bg-surface-container-low flex items-center justify-center">
             <Heart size={18} className={selectedVariant && isSaved(selectedVariant.id) ? 'text-primary fill-primary' : 'text-text-secondary'} strokeWidth={1.5} />
           </button>
-          <button className="w-9 h-9 rounded-full bg-surface-container-low flex items-center justify-center">
+          <button onClick={onShare} aria-label="Share this saree" className="w-9 h-9 rounded-full bg-surface-container-low flex items-center justify-center">
             <Share2 size={18} className="text-text-secondary" strokeWidth={1.5} />
           </button>
         </div>
@@ -185,7 +205,7 @@ export default function ProductDetailPage() {
                   className="w-10 h-10 rounded-full bg-surface/80 backdrop-blur flex items-center justify-center hover:bg-surface transition-colors">
                   <Heart size={20} className={selectedVariant && isSaved(selectedVariant.id) ? 'text-primary fill-primary' : 'text-text-secondary'} strokeWidth={1.5} />
                 </button>
-                <button className="w-10 h-10 rounded-full bg-surface/80 backdrop-blur flex items-center justify-center hover:bg-surface transition-colors">
+                <button onClick={onShare} aria-label="Share this saree" className="w-10 h-10 rounded-full bg-surface/80 backdrop-blur flex items-center justify-center hover:bg-surface transition-colors">
                   <Share2 size={20} className="text-text-secondary" strokeWidth={1.5} />
                 </button>
               </div>

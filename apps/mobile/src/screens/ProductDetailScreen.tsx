@@ -3,7 +3,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, TextInput, RefreshControl,
-  Animated as RNAnimated, Platform,
+  Animated as RNAnimated, Platform, Share,
 } from 'react-native';
 import {
   ChevronLeft, Heart, Share as ShareIcon, Check, CheckCircle,
@@ -26,6 +26,8 @@ import {
 } from '../services/api';
 import { useWishlist } from '../contexts/WishlistContext';
 import { showAlert } from '../utils/showAlert';
+import * as Clipboard from 'expo-clipboard';
+import { shareProduct, resolveWebBase } from '../services/share';
 import ErrorReference from '../components/ErrorReference';
 
 
@@ -125,6 +127,19 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
     ? Math.round((1 - selectedVariant.pricePaise / selectedVariant.compareAtPaise) * 100)
     : null;
 
+  // Share this saree: the phone's share sheet with its title and the link to its page on the website.
+  // Where there is no share sheet (the browser preview), the link is copied instead.
+  const onShare = async () => {
+    if (!product) return;
+    const { outcome, url } = await shareProduct(product, {
+      share: (content) => Share.share(content),
+      copy: async (text) => { await Clipboard.setStringAsync(text); },
+      webBase: resolveWebBase(process.env.EXPO_PUBLIC_WEB_URL),
+    });
+    if (outcome === 'copied') showAlert('Link copied', url);
+    else if (outcome === 'failed') showAlert('Could not share', `You can copy the link yourself:\n${url}`);
+  };
+
   // Ask the API whether we deliver to the PIN code typed in (the same rule checkout holds to)
   const askDelivery = async () => {
     if (pinCode.length !== 6 || checkingPin) return;
@@ -200,7 +215,7 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
                 strokeWidth={2}
               />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.circleBtn}>
+            <TouchableOpacity style={styles.circleBtn} onPress={onShare} accessibilityLabel="Share this saree">
               <ShareIcon size={20} color={colors.textPrimary} strokeWidth={2} />
             </TouchableOpacity>
           </View>

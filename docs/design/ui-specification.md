@@ -963,7 +963,7 @@ Reusable refresh icon (`RefreshCw`) with spin animation on press. Used on Home, 
 | Share `↗` | Right #2 | 24px | `#1A1A1A` | — |
 
 - Wishlist: requires login, scale animation (0.8→1.2→1.0, 200ms)
-- Share: native share sheet (WhatsApp, copy link), no login required
+- Share: no login required. **App:** the phone's share sheet (WhatsApp, Messages, ...) with "<title> on Juhar" and the link `https://juhar.co.in/shop/<saree>` (the website address is the build setting `EXPO_PUBLIC_WEB_URL`; the public address when unset); where there is no share sheet (the browser preview) the link is copied and "Link copied" is shown. **Website:** the browser's share sheet on a phone; on a desktop the link (this site's own address plus the saree page) is copied and "Link copied" shows for a moment. Closing the share sheet shows nothing. Both layouts of the website's product page have the button.
 - PIN check: 6-digit, numeric. Check asks the API (`GET /delivery/check`): a served PIN shows "Delivery in 5–7 days" and "Cash on delivery available"; a PIN with no real postal zone shows "That does not look like a valid PIN code" and an army post office PIN shows "We cannot deliver to …" (red, no delivery promise); a network failure shows the usual error with its Reference. Typing again clears the answer. The pilot delivers all over India. The same rule is applied when an address is saved and at checkout.
 - Variant change updates price/stock/images
 - Add to Bag: login check → checkmark animation (500ms) → text restores

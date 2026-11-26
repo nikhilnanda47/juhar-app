@@ -65,7 +65,7 @@ install). The install and build commands come from the project's `vercel.json`.
 
 ### Android app (`apps/mobile/eas.json`, profile `pilot`)
 
-Put the API's address in `EXPO_PUBLIC_API_URL` of the `pilot` profile. A build with a missing, placeholder or
+Put the API's address in `EXPO_PUBLIC_API_URL` of the `pilot` profile. The Share button builds its links from `EXPO_PUBLIC_WEB_URL` (the website's address; `https://juhar.co.in` when unset), so set it in the profile while the website lives on another address. A build with a missing, placeholder or
 non-`https` address refuses to run. See tracker item 56.
 
 ## 3. First deploy, step by step
