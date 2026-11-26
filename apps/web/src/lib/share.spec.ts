@@ -20,14 +20,14 @@ describe('productUrl', () => {
 describe('shareProduct', () => {
   const origin = 'https://juhar.co.in';
 
-  it("uses the browser's share sheet with the title and the link", async () => {
+  it("uses the browser's share sheet with the link only", async () => {
     const share = jest.fn().mockResolvedValue(undefined);
     const writeClipboard = jest.fn();
     const result = await shareProduct(saree, { origin, share, writeClipboard });
     expect(result).toEqual({ outcome: 'shared', url: 'https://juhar.co.in/shop/two-colour-saree' });
-    expect(share).toHaveBeenCalledWith({ title: 'Two Colour Saree', url: 'https://juhar.co.in/shop/two-colour-saree' });
+    expect(share).toHaveBeenCalledWith({ url: 'https://juhar.co.in/shop/two-colour-saree' });
     // no separate line of text: pasting a desktop share sheet's copy would put it next to the link
-    expect(Object.keys(share.mock.calls[0][0])).toEqual(['title', 'url']);
+    expect(Object.keys(share.mock.calls[0][0])).toEqual(['url']);
     expect(writeClipboard).not.toHaveBeenCalled();
   });
 

@@ -2,7 +2,7 @@
 // page on the website and nothing else. The website address is a build setting (EXPO_PUBLIC_WEB_URL); when it is
 // not set, the public address is used.
 //
-// Only the link goes in: a share sheet's "Copy" pastes everything it was given, so a line of text, or the link
+// Only the link goes in (no title, no text): a share sheet's "Copy" pastes everything it was given, so a line of text, or the link
 // given twice (once as the message and once as the link), ends up next to the address and an address bar cannot
 // open it. iOS takes a link on its own; Android needs it as the message.
 
@@ -44,8 +44,9 @@ export async function shareProduct(
 ): Promise<{ outcome: ShareOutcome; url: string }> {
   const url = productShareUrl(product.slug, deps.webBase);
   try {
-    // the title names the sheet (and an email's subject); it is not part of what gets pasted
-    const content = deps.platform === 'ios' ? { title: product.title, url } : { title: product.title, message: url };
+    // No title either: React Native passes it on as the message's subject, and the sheet's "Copy" then pastes
+    // "<title> <link>" together.
+    const content = deps.platform === 'ios' ? { url } : { message: url };
     const result = await deps.share(content);
     // on iOS, closing the sheet is reported as "dismissedAction"; it is not a failure
     return { outcome: result?.action === 'dismissedAction' ? 'cancelled' : 'shared', url };

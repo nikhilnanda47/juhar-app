@@ -1,7 +1,7 @@
 // Sharing a saree: on a phone, the browser's own share sheet (WhatsApp, Messages, ...); anywhere else the link is
 // copied. The link is this website's own address plus the saree's page, so it works on whichever domain the site is on.
 //
-// Only a title and the link go to the share sheet, never a separate line of text: a desktop browser's "Copy" in its
+// Only the link goes to the share sheet, no title and no separate line of text: a desktop browser's "Copy" in its
 // share sheet pastes the text and the link together, and the address bar then cannot open it.
 
 export type ShareOutcome = 'shared' | 'copied' | 'cancelled' | 'failed';
@@ -10,7 +10,7 @@ export interface ShareEnv {
   /** the website's address, like https://juhar.co.in (no path) */
   origin: string;
   /** navigator.share, when the browser has it */
-  share?: (data: { title: string; url: string }) => Promise<void>;
+  share?: (data: { url: string }) => Promise<void>;
   writeClipboard?: (text: string) => Promise<void>;
 }
 
@@ -63,7 +63,7 @@ export async function shareProduct(
 
   if (env.share) {
     try {
-      await env.share({ title: product.title, url });
+      await env.share({ url });
       return { outcome: 'shared', url };
     } catch (err) {
       // closing the share sheet is not a failure, and nothing more is done

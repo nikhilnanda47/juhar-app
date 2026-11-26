@@ -37,27 +37,28 @@ describe('productShareUrl', () => {
 describe('shareProduct', () => {
   const ok = { action: 'sharedAction' };
 
-  it("on Android the share sheet gets the title and the link as the message, and nothing else", async () => {
+  it("on Android the share sheet gets the link as the message, and nothing else", async () => {
     const share = jest.fn().mockResolvedValue(ok);
     const copy = jest.fn();
     const result = await shareProduct(saree, { share, copy, webBase: base, platform: 'android' });
     expect(result).toEqual({ outcome: 'shared', url: 'https://juhar.co.in/shop/two-colour-saree' });
-    expect(share).toHaveBeenCalledWith({ title: 'Two Colour Saree', message: 'https://juhar.co.in/shop/two-colour-saree' });
+    expect(share).toHaveBeenCalledWith({ message: 'https://juhar.co.in/shop/two-colour-saree' });
     expect(copy).not.toHaveBeenCalled();
   });
 
   it('on iOS the link goes as the link, not also as a message (it would be pasted twice)', async () => {
     const share = jest.fn().mockResolvedValue(ok);
     await shareProduct(saree, { share, copy: jest.fn(), webBase: base, platform: 'ios' });
-    expect(share).toHaveBeenCalledWith({ title: 'Two Colour Saree', url: 'https://juhar.co.in/shop/two-colour-saree' });
+    expect(share).toHaveBeenCalledWith({ url: 'https://juhar.co.in/shop/two-colour-saree' });
     expect(share.mock.calls[0][0]).not.toHaveProperty('message');
   });
 
-  it.each(['android', 'ios', 'web'])('on %s nothing but the title and the link is handed over, and the link only once', async (platform) => {
+  it.each(['android', 'ios', 'web'])('on %s nothing but the link is handed over, and the link only once', async (platform) => {
     const share = jest.fn().mockResolvedValue(ok);
     await shareProduct(saree, { share, copy: jest.fn(), webBase: base, platform });
     const content = share.mock.calls[0][0];
-    const everything = JSON.stringify({ ...content, title: undefined });
+    expect(content).not.toHaveProperty('title'); // a title is pasted in front of the link by the sheet's Copy
+    const everything = JSON.stringify(content);
     expect(everything.split('https://juhar.co.in/shop/two-colour-saree')).toHaveLength(2); // exactly one copy of the link
     expect(everything).not.toContain('on Juhar');
   });
