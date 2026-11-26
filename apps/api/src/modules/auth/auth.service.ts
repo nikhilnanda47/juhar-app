@@ -2,6 +2,7 @@ import {
   Injectable,
   UnauthorizedException,
   BadRequestException,
+  ForbiddenException,
   Inject,
   Logger,
 } from '@nestjs/common';
@@ -11,6 +12,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { OtpProvider, OTP_PROVIDER } from './providers/otp-provider.interface';
 import { maskPhone } from '../../common/logging/redact';
 import { RequestOtpDto, VerifyOtpDto } from './dto';
+import { resolveOtpProvider } from '../../config/otp-provider';
+import { parseAllowedPhones } from '../../config/otp-allowlist';
 import { AUTH } from '@juhar/shared';
 import * as crypto from 'crypto';
 
@@ -35,11 +38,25 @@ export class AuthService {
   ) {}
 
   /**
+   * The closed pilot: while the mock provider is on and MOCK_OTP_ALLOWED_PHONES lists numbers, only those
+   * numbers may sign in. With a real SMS provider, or an empty list (local development), everyone may.
+   * The list is checked at start-up, so a typo cannot reach this point.
+   */
+  private ensureLoginOpen(phone: string) {
+    if (resolveOtpProvider(this.configService.get('OTP_PROVIDER')) !== 'mock') return;
+    const allowed = parseAllowedPhones(this.configService.get('MOCK_OTP_ALLOWED_PHONES'));
+    if (allowed.length === 0 || allowed.includes(phone)) return;
+    this.logger.warn(`sign-in refused, ${maskPhone(phone)} is not on the pilot list`);
+    throw new ForbiddenException('LOGIN_NOT_OPEN');
+  }
+
+  /**
    * Request OTP for a phone number.
    * Rate limiting is handled by ThrottlerGuard at controller level.
    */
   async requestOtp(dto: RequestOtpDto) {
     const { phone } = dto;
+    this.ensureLoginOpen(phone);
 
     // Check if there's a recent unexpired OTP
     const existing = this.otpStore.get(phone);
@@ -74,6 +91,7 @@ export class AuthService {
    */
   async verifyOtp(dto: VerifyOtpDto) {
     const { phone, otp } = dto;
+    this.ensureLoginOpen(phone);
 
     const record = this.otpStore.get(phone);
 
@@ -192,6 +210,8 @@ export class AuthService {
       if (!user || user.status !== 'active') {
         throw new Error('User not found or suspended');
       }
+      // someone who signed in before the pilot was closed does not stay in through their refresh token
+      this.ensureLoginOpen(user.phone);
 
       // Check if admin
       const adminUser = await this.prisma.adminUser.findUnique({

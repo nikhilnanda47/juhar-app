@@ -6,10 +6,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { notifyCartChanged } from './cartEvents';
 import { notifyAuthChanged } from './authEvents';
+import { resolveApiBase } from './apiBase';
 
-const API_BASE = __DEV__
-  ? 'http://localhost:3000'  // Dev: local API
-  : 'https://api.juhar.in'; // Prod: placeholder
+// The server address is a setting of each build (EXPO_PUBLIC_API_URL; see apiBase.ts and eas.json).
+// Expo replaces `process.env.EXPO_PUBLIC_API_URL` when it bundles, so it has to be written exactly like this.
+const API_BASE = resolveApiBase({ isDev: __DEV__, envUrl: process.env.EXPO_PUBLIC_API_URL });
 
 const TOKEN_KEY = 'juhar_token';
 const REFRESH_KEY = 'juhar_refresh';

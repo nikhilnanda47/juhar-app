@@ -16,6 +16,9 @@ const CATALOG: Record<string, Wording> = {
     'Sorry, one of the sarees in your bag is not in stock in the quantity you asked for. Please check your bag and try again.',
   QUANTITY_EXCEEDS_LIMIT: `You can order at most ${CART.MAX_QUANTITY_PER_VARIANT} of one saree.`,
 
+  // Signing in
+  LOGIN_NOT_OPEN: 'Juhar is not open to the public yet. Sign-in is limited to the pilot team for now.',
+
   // Saved items (wishlist)
   ALREADY_IN_WISHLIST: 'This saree is already in your wishlist.',
   WISHLIST_ITEM_NOT_FOUND: 'That saree is not in your wishlist.',

@@ -112,7 +112,7 @@ Juhar is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce pl
 Open items as of 2026-11-22, grouped by urgency. The team tracker holds owners and deadlines; this list is the code-level summary.
 
 ### Security and reliability — fix before real users
-- **Mock login.** OTP login uses a mock provider that always accepts `123456`, so anyone can sign in as any phone number, including the seeded admin. The `OTP_PROVIDER` setting is read (only `mock` is supported until a real SMS provider is built), and the API **refuses to start with `NODE_ENV=production`** while it is `mock` or unset, so the mock cannot reach customers by accident. OTP codes are kept in server memory (lost on restart, not shared across instances).
+- **Mock login.** OTP login uses a mock provider that always accepts `123456`, so anyone can sign in as any phone number, including the seeded admin. The `OTP_PROVIDER` setting is read (only `mock` is supported until a real SMS provider is built), and the API **refuses to start with `NODE_ENV=production`** while it is `mock` or unset, so the mock cannot reach customers by accident. **Closed pilot:** with `OTP_PROVIDER=mock` the API does start in production when `MOCK_OTP_ALLOWED_PHONES` lists the team's numbers (`+919876543210,+919123456789`); only those numbers can request a code, verify, or refresh a session, and every other number gets "Juhar is not open to the public yet" (403 `LOGIN_NOT_OPEN`). A badly written number stops the start. With a real SMS provider the list is ignored, and clearing it is how the site opens. OTP codes are kept in server memory (lost on restart, not shared across instances).
 
 ### Orders and catalog
 - **Cash-on-delivery stock holds do not expire.** A COD order reserves its units until an admin confirms, ships or cancels it, so an order nobody acts on keeps that stock locked. The admin panel flags these: a COD order still `placed` after 24 hours gets an **Overdue** badge and its waiting time on the Orders page, an **Overdue (n)** filter, and an "n overdue" link under the dashboard's Pending count. Nothing is cancelled automatically. Unpaid UPI holds still expire after 30 minutes, but that does not cancel the order (payments are Phase 4).
@@ -510,7 +510,7 @@ cd apps/api && npx prisma studio
 
 The API, website and admin panel are covered by the root `npm install` in step 3; the mobile app needs its own (`apps/mobile`).
 
-> **Mobile app:** it runs in the browser preview at `localhost:8081`. A phone or Expo Go cannot reach `localhost` on your computer, and the API address is fixed in `apps/mobile/src/services/api.ts`, so testing on a real device needs that address changed first.
+> **Mobile app:** it runs in the browser preview at `localhost:8081`. A phone or Expo Go cannot reach `localhost` on your computer, and the API address is a setting of the build, `EXPO_PUBLIC_API_URL` (see `apps/mobile/.env.example`): unset in development means `http://localhost:3000`, and a release build (the `pilot` and `production` profiles in `apps/mobile/eas.json`) refuses to run without a real `https://` address. To try the preview against another server, start it with `EXPO_PUBLIC_API_URL=https://your-api npx expo start --web`.
 
 ### 8. Test login
 

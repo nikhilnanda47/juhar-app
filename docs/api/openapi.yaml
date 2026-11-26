@@ -41,10 +41,8 @@ info:
 servers:
   - url: http://localhost:3000
     description: Local development
-  - url: https://api.staging.juhar.in
-    description: Staging
-  - url: https://api.juhar.in
-    description: Production
+  - url: https://api.juhar.co.in
+    description: The pilot environment (the one live environment until launch; address to be confirmed when it is deployed)
 
 tags:
   - name: Auth
