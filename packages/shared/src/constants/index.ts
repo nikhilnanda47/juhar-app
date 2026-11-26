@@ -34,6 +34,7 @@ export const AUTH = {
   ACCESS_TOKEN_EXPIRY: '15m',
   REFRESH_TOKEN_EXPIRY: '7d',
   OTP_EXPIRY_SECONDS: 300, // 5 minutes
+  OTP_RESEND_SECONDS: 30, // the API refuses a new code for the same number until this long after the last one
   OTP_LENGTH: 6,
 } as const;
 

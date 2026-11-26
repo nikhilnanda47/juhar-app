@@ -22,6 +22,7 @@ import { useWishlist } from '@/lib/wishlist-context';
 import { readLocalCart, clearLocalCart } from '@/lib/cart-events';
 import { useTheme } from '@/lib/theme-context';
 import ErrorReference from '@/components/ErrorReference';
+import { resendAvailableAt, secondsLeft, resendLabel } from '@/lib/resend';
 
 type Screen = 'loading' | 'login' | 'otp' | 'profile' | 'editName';
 
@@ -35,11 +36,23 @@ export default function AccountPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [errorRef, setErrorRef] = useState(''); // the API's reference for the failed request
+  const [resendAt, setResendAt] = useState(0);   // when "Resend code" works again (ms)
+  const [now, setNow] = useState(() => Date.now());
+  const [resending, setResending] = useState(false);
+  const [resentNote, setResentNote] = useState(false);
   const [orderCount, setOrderCount] = useState(0);
   const [addressCount, setAddressCount] = useState(0);
   const { total: wishlistCount, refreshWishlist } = useWishlist();
 
   useEffect(() => { checkAuth(); refreshWishlist(); }, [refreshWishlist]);
+
+  // tick once a second while the code screen counts down to "Resend code"
+  const resendLeft = secondsLeft(resendAt, now);
+  useEffect(() => {
+    if (screen !== 'otp' || resendLeft <= 0) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [screen, resendLeft]);
 
   const checkAuth = async () => {
     const hasToken = loadToken();
@@ -63,9 +76,25 @@ export default function AccountPage() {
 
   const handleRequestOtp = async () => {
     setBusy(true); setError(''); setErrorRef('');
-    try { await requestOtp('+91' + phone); setScreen('otp'); }
+    try {
+      await requestOtp('+91' + phone);
+      const t = Date.now(); setNow(t); setResendAt(resendAvailableAt(t)); setResentNote(false);
+      setScreen('otp');
+    }
     catch (e: any) { setError(e.message || 'Failed to send OTP'); setErrorRef(referenceOf(e)); }
     finally { setBusy(false); }
+  };
+
+  // Ask for another code for the same number (after the wait). The old code stops working when the new one is sent.
+  const handleResendOtp = async () => {
+    if (resending || secondsLeft(resendAt, Date.now()) > 0) return;
+    setResending(true); setError(''); setErrorRef(''); setResentNote(false);
+    try {
+      await requestOtp('+91' + phone);
+      const t = Date.now(); setNow(t); setResendAt(resendAvailableAt(t));
+      setOtp(''); setResentNote(true);
+    } catch (e: any) { setError(e.message || 'Could not send a new code'); setErrorRef(referenceOf(e)); }
+    finally { setResending(false); }
   };
 
   const handleVerifyOtp = async () => {
@@ -222,6 +251,7 @@ export default function AccountPage() {
 
             {error && <p className="font-sans text-body-sm text-error mb-1">{error}</p>}
             <ErrorReference id={errorRef} className="mb-3" />
+            {resentNote && !error && <p role="status" className="font-sans text-body-sm text-text-secondary mb-3">New code sent.</p>}
 
             <button className="btn-primary w-full !h-12 md:!h-14 !rounded-xl !text-title-sm" onClick={handleVerifyOtp} disabled={busy || otp.length < 6}>
               {busy ? 'Verifying...' : 'Verify & Continue'}
@@ -231,8 +261,11 @@ export default function AccountPage() {
               <button className="font-sans text-body-md text-primary hover:underline" onClick={() => { setOtp(''); setError(''); setErrorRef(''); setScreen('login'); }}>
                 ← Change number
               </button>
-              <button className="font-sans text-body-sm text-text-tertiary hover:text-primary">
-                Resend OTP
+              <button
+                className="font-sans text-body-sm text-primary hover:underline disabled:text-text-tertiary disabled:no-underline disabled:cursor-not-allowed"
+                onClick={handleResendOtp} disabled={resending || resendLeft > 0}
+              >
+                {resendLabel(resendLeft, resending)}
               </button>
             </div>
           </div>

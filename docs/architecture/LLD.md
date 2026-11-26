@@ -1970,7 +1970,7 @@ apps/web/
 | Screen | Component | Route | Notes |
 |---|---|---|---|
 | Phone Input | `LoginPhoneScreen` | Profile tab (unauthenticated) | +91 prefix, validates 10-digit Indian mobile |
-| OTP Verify | `LoginOtpScreen` | After phone submit | 6-digit input, 30s resend cooldown, max 5 attempts |
+| OTP Verify | `LoginOtpScreen` | After phone submit | 6-digit input, "Resend code" link that counts down 30s (`AUTH.OTP_RESEND_SECONDS`, the same wait the API enforces) then asks for a new code, max 5 attempts |
 | Name Capture | `NameCaptureScreen` | After first OTP verify | Shown when `isNewUser=true` or `name=null`, skip option |
 
 ### 8.3 Core Shopping Flow

@@ -62,8 +62,8 @@ export class AuthService {
     const existing = this.otpStore.get(phone);
     if (existing && existing.expiresAt > new Date()) {
       const secondsLeft = Math.ceil((existing.expiresAt.getTime() - Date.now()) / 1000);
-      if (secondsLeft > AUTH.OTP_EXPIRY_SECONDS - 30) {
-        // OTP was sent less than 30 seconds ago
+      if (secondsLeft > AUTH.OTP_EXPIRY_SECONDS - AUTH.OTP_RESEND_SECONDS) {
+        // OTP was sent less than OTP_RESEND_SECONDS ago
         throw new BadRequestException({
           code: 'AUTH_001',
           message: `Please wait ${secondsLeft} seconds before requesting a new OTP`,

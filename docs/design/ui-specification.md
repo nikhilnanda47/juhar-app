@@ -761,7 +761,7 @@ Reusable refresh icon (`RefreshCw`) with spin animation on press. Used on Home, 
 │    │ 1 │ │ 2 │ │ 3 │ │ 4 │ │ 5 │ │ 6 │  ← 48×48px, 8px gap
 │    └───┘ └───┘ └───┘ └───┘ └───┘ └───┘
 │                             │
-│    Resend OTP in 0:28       │  ← 14px, #999999
+│    Resend code in 28s       │  ← 14px, #999999 (a link once the wait is over)
 │    Change number            │  ← Ghost, 14px, #8B3A4A
 │                             │
 └─────────────────────────────┘
@@ -770,7 +770,7 @@ Reusable refresh icon (`RefreshCw`) with spin animation on press. Used on Home, 
 - Auto-advance on digit entry, backspace moves back
 - Auto-submit on 6th digit (no button)
 - Error: shake animation, clear all, refocus first, "Invalid OTP" 12px `#C44A4A`
-- Resend timer: 30s countdown → "Resend OTP" tappable ghost `#8B3A4A`
+- Resend timer: 30s countdown ("Resend code in 28s", grey, not tappable) → "Resend code", a tappable ghost link `#8B3A4A`. **Implemented on the website and in the app** (`apps/web/src/lib/resend.ts`, `apps/mobile/src/services/resend.ts`): the 30 seconds start when the code was requested and match the API's own wait (`AUTH.OTP_RESEND_SECONDS`), so a tap never runs into "please wait". Tapping asks for a new code for the same number, clears the half-typed code, shows "New code sent." and starts the wait again. If the API refuses (for example "Too many attempts", 3 codes per number per 10 minutes) the reason is shown with its Reference line and the link stays available. "Change number" goes back to the phone screen.
 - Success → Home (existing) or Name Capture (new user)
 - Box border: `#EEEEEE`, focus: `#8B3A4A`
 
