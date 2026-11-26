@@ -1,10 +1,10 @@
-import sharp from 'sharp';
+import sharp, { type Sharp } from 'sharp';
 import { BadRequestException, PayloadTooLargeException } from '@nestjs/common';
 import { MEDIA } from '@juhar/shared';
 import { processImage } from './image-processor';
 
 /** A plain picture of the given size, as the given format */
-const picture = (width: number, height: number, format: 'jpeg' | 'png' | 'webp' | 'gif' = 'jpeg', extra?: (s: sharp.Sharp) => sharp.Sharp) => {
+const picture = (width: number, height: number, format: 'jpeg' | 'png' | 'webp' | 'gif' = 'jpeg', extra?: (s: Sharp) => Sharp) => {
   const base = sharp({ create: { width, height, channels: 3, background: { r: 139, g: 58, b: 74 } } });
   const shaped = extra ? extra(base) : base;
   return shaped.toFormat(format).toBuffer();

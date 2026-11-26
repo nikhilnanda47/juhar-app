@@ -1,7 +1,7 @@
 // Turns whatever the admin picked into what the shop keeps: a large copy for the product page and a small one for
 // cards and lists, both WebP. The pixels are what is checked, not the file name or the type the browser claimed.
 // Re-encoding also drops everything hidden in the original (camera model, GPS position of the loom or the home).
-import sharp from 'sharp';
+import sharp, { type Metadata } from 'sharp';
 import { BadRequestException, PayloadTooLargeException } from '@nestjs/common';
 import { MEDIA } from '@juhar/shared';
 
@@ -21,7 +21,7 @@ export interface ProcessedImage {
 export async function processImage(input: Buffer): Promise<ProcessedImage> {
   if (input.length > MEDIA.MAX_FILE_BYTES) throw new PayloadTooLargeException('PHOTO_TOO_LARGE');
 
-  let meta: sharp.Metadata;
+  let meta: Metadata;
   try {
     meta = await sharp(input, { limitInputPixels: MAX_INPUT_PIXELS }).metadata();
   } catch {
