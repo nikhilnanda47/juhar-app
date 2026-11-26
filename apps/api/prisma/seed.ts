@@ -1,8 +1,15 @@
 import { PrismaClient } from '@prisma/client';
 
+import { seedRefusal } from '../src/common/local-database-guard';
+
 const prisma = new PrismaClient();
 
 async function main() {
+  const refusal = seedRefusal(process.env, 'the sample seed');
+  if (refusal) {
+    console.error(refusal);
+    process.exit(1);
+  }
   console.log('🌱 Seeding database...');
 
   // ── Admin User (owner) ──

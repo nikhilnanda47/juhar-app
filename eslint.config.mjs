@@ -49,6 +49,12 @@ export default tseslint.config(
     rules: { '@typescript-eslint/no-require-imports': 'off' },
   },
 
+  // Plain Node command-line scripts (CommonJS): require() is how they load modules
+  {
+    files: ['**/scripts/**/*.js'],
+    rules: { '@typescript-eslint/no-require-imports': 'off' },
+  },
+
   // The mobile app loads images and fonts with require('./asset.png'), which is how React Native does it
   {
     files: ['apps/mobile/**/*.{ts,tsx}'],

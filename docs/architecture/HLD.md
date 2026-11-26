@@ -58,7 +58,7 @@
 > - **Payments:** not integrated. Only Cash on Delivery works.
 > - **Object storage / CDN:** not integrated. Products use placeholder images; there is no Media module.
 > - **Notifications / WhatsApp:** not built. WhatsApp integration is pending, and the web order page still contains a placeholder support number.
-> - **CI/CD:** GitHub Actions runs typecheck/test/build for API, web, admin and mobile (section 8). A **Lint** job runs ESLint over all four apps (`eslint.config.mjs`; section 8) and there is no automated deploy.
+> - **CI/CD:** GitHub Actions runs typecheck/test/build for API, web, admin and mobile (section 8). A **Lint** job runs ESLint over all four apps (`eslint.config.mjs`; section 8) and there is no automated deploy in the workflow: Railway and Vercel deploy `main` themselves once connected (see the [runbook](../operations/runbook-pilot.md)); the repo carries their settings (`railway.json`, `nixpacks.toml`, `vercel.json`) and `npm run rehearse:deploy` rehearses a deploy on a developer's computer.
 
 ---
 

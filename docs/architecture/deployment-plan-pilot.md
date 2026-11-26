@@ -101,7 +101,7 @@
 
 **Setup:**
 1. Create a new Vercel project, connect GitHub repo
-2. Set root directory to `apps/web`
+2. Set root directory to `apps/web` and keep "Include source files outside of the Root Directory" on (`apps/web/vercel.json` sets the install and build commands for the monorepo)
 3. Set env variable: `NEXT_PUBLIC_API_URL=https://api.juhar.co.in`
 4. Add custom domain `juhar.co.in` and `www.juhar.co.in`
 5. Every push to `main` auto-deploys
@@ -125,7 +125,7 @@
 
 **Setup:**
 1. Create a second Vercel project (same account), connect GitHub repo
-2. Set root directory to `apps/admin`
+2. Set root directory to `apps/admin` and keep "Include source files outside of the Root Directory" on (`apps/admin/vercel.json` sets the install and build commands)
 3. Set env variable: `NEXT_PUBLIC_API_URL=https://api.juhar.co.in`
 4. Add custom domain `admin.juhar.co.in`
 5. Every push to `main` auto-deploys
@@ -155,12 +155,13 @@
 - Built-in env variable management
 - Easy to scale (just increase plan)
 
-**Setup:**
-1. Connect GitHub repo to Railway
-2. Set root directory to `apps/api`
-3. Add build command: `npm run build`
-4. Add start command: `node dist/main.js`
-5. Set env variables (DATABASE_URL, JWT secrets, etc.)
+**Setup** (full step-by-step in the [runbook](../operations/runbook-pilot.md)):
+1. Connect the GitHub repo to Railway and **leave the root directory empty** (the repo root; setting it to `apps/api` would break the workspace install of `@juhar/shared`).
+2. Nothing to type for the build: `railway.json` and `nixpacks.toml` in the repo root say how to install (with the dev tools), generate the database client, build the API, **apply the migrations before each release** (`npm run db:migrate:deploy -w apps/api`, through `DIRECT_URL`), start it, and check `/health`.
+3. Set the env variables from section 5 (`DATABASE_URL` ending `?pgbouncer=true`, `DIRECT_URL`, two JWT secrets of at least 32 characters, `CORS_ORIGINS`, `TRUST_PROXY=1`, the closed pilot list).
+4. Turn on **Wait for CI**, so a deploy only goes ahead when the GitHub checks pass.
+
+> **Deploy-prep note:** `npm run rehearse:deploy` rehearses these steps on your own computer from a clean copy (install, build, migrate an empty database twice, start with live settings, health, closed login, CORS, create admin, build the website and the admin). A live API refuses to start with weak secrets or a pooler address without `pgbouncer=true`, and its Swagger page is off unless `ENABLE_API_DOCS=true`.
 
 > **Monorepo install note (2026-11-22):** The API imports `@juhar/shared`, which resolves to `packages/shared/dist/`. The repo root `package.json` has a `postinstall` script (`npm run build -w packages/shared`), so any install run from the **repository root** (`npm ci`) builds the shared package automatically and no separate build step is needed for it. If a host installs only inside `apps/api`, the workspace link and `dist/` will be missing, so keep the install at the repo root. CI also runs `npx prisma generate` in `apps/api` before typechecking and building; the production build should do the same, since no install hook generates the Prisma client. The same root-install rule applies to the Vercel projects for `apps/web` and `apps/admin`.
 
@@ -190,9 +191,10 @@
 
 **Setup:**
 1. Create project on supabase.com (select Mumbai region)
-2. Copy connection string from Settings → Database
-3. Set as `DATABASE_URL` in Railway env vars
-4. Run `npx prisma migrate deploy` from local machine
+2. Copy two connection strings from Settings → Database: the **transaction pooler** (port 6543) and the **direct** one (port 5432)
+3. Set the pooler string, with `?pgbouncer=true` on the end, as `DATABASE_URL` in Railway, and the direct string as `DIRECT_URL` (if Railway cannot reach the direct host because it is IPv6-only, use the session pooler address, port 5432). The API refuses to start with the pooler address and no `pgbouncer=true`.
+4. Migrations are applied by Railway before every release (they go through `DIRECT_URL`); there is nothing to run by hand
+5. Create the first admin from your computer: `DATABASE_URL="<direct string>" npm run db:create-admin -w apps/api -- --phone +91… --name "…"`. Do not run the sample seeds on this database: they refuse to run against a database that is not on your computer.
 
 ---
 
@@ -376,8 +378,8 @@ PAYMENT_GATEWAY=mock
 - [ ] Create MSG91 account, register DLT template
 - [ ] Create Expo EAS project (`eas init`)
 - [ ] Generate production JWT secrets
-- [ ] Run `prisma migrate deploy` against Supabase DB
-- [ ] Run seed script for initial admin user
+- [ ] Migrations run by themselves before each Railway release (`railway.json`); check the first deploy log
+- [ ] Create the first admin with `npm run db:create-admin` (not the sample seed)
 - [ ] Configure CORS origins for production domains
 
 > **CI note (2026-11-22):** GitHub Actions already typechecks and builds the API, web, admin and mobile apps on every push to `main` or `develop-*` and on pull requests into `main`. It does not deploy. The `build` gate job is a required check on `main` through the `main-protection` ruleset (which also requires a pull request with 1 approving review). See HLD section 8 for the job details. Before each release, confirm the latest CI run on the commit is green.

@@ -189,6 +189,8 @@ juhar-app/
 │   │   ├── LLD.md           # Low-Level Design (modules, DTOs, state machines)
 │   │   ├── database-design.md  # 18 tables, ER diagram, constraints
 │   │   └── deployment-plan-pilot.md  # Hosting, costs, environment variables
+│   └── operations/
+│       └── runbook-pilot.md      # Deploy, undo, change the database, troubleshoot (the one pilot environment)
 │   ├── design/
 │   │   └── ui-specification.md  # Design system, components, screens, theming
 │   └── api/
@@ -570,7 +572,10 @@ Check what changed (`git diff HEAD@{1} --stat`), then use this table. Dev server
 | `cd apps/api && npx prisma migrate deploy` | Root | Apply migrations that already exist (use this after `git pull`; no extra database permission needed) |
 | `cd apps/api && npx prisma migrate dev --name <name>` | Root | Create a new migration (needs the database user to be allowed to create databases, see the `P3014` note in step 5) |
 | `cd apps/api && npx prisma generate` | Root | Regenerate Prisma client |
-| `cd apps/api && npx ts-node prisma/seed.ts` | Root | Re-seed database |
+| `cd apps/api && npx ts-node prisma/seed.ts` | Root | Re-seed database (refuses unless the database is on this computer) |
+| `npm run db:create-admin -w apps/api -- --phone +91… --name "…"` | Root | Create or update an admin account (the way to make the first admin on a live database) |
+| `npm run db:migrate:deploy -w apps/api` | Root | What a release runs: apply migrations through `DIRECT_URL` when it is set |
+| `npm run rehearse:deploy` | Root | Dry run of the Railway and Vercel steps from a clean copy (see the runbook) |
 | `npm run db:seed:demo -- --products 60 --orders 55` | Root | Add demo sarees and orders for testing long lists (`-- --clean` removes them) |
 | `psql -U juhar -d juhar_dev` | Anywhere | Connect to database CLI |
 | `cd apps/mobile && npx expo start --web --clear` | Root | Mobile with cleared cache |
@@ -589,7 +594,7 @@ Check what changed (`git diff HEAD@{1} --stat`), then use this table. Dev server
 | Service | Port | URL | Description |
 |---------|------|-----|-------------|
 | API Backend | 3000 | http://localhost:3000 | NestJS REST API |
-| Swagger Docs | 3000 | http://localhost:3000/api/docs | Interactive API documentation |
+| Swagger Docs | 3000 | http://localhost:3000/api/docs | Interactive API documentation (off when `NODE_ENV=production`) |
 | Customer Website | 3001 | http://localhost:3001 | Next.js storefront |
 | Admin Panel | 3002 | http://localhost:3002 | Next.js admin dashboard |
 | Mobile App (Web) | 8081 | http://localhost:8081 | Expo web preview |
@@ -604,6 +609,7 @@ Check what changed (`git diff HEAD@{1} --stat`), then use this table. Dev server
 | [Database Design](docs/architecture/database-design.md) | 18 tables, ER diagram, constraints, indexes |
 | [LLD](docs/architecture/LLD.md) | Module designs, DTOs, state machines, navigation tree |
 | [Deployment Plan](docs/architecture/deployment-plan-pilot.md) | Hosting choices, costs, production environment variables |
+| [Pilot Runbook](docs/operations/runbook-pilot.md) | Where everything lives, first deploy step by step, every release, undoing a deploy, safe database changes, troubleshooting |
 | [UI Specification](docs/design/ui-specification.md) | Design system, components, screen designs, light/dark theming |
 | [OpenAPI Spec](docs/api/openapi.yaml) | 35 implemented + 14 planned REST operations with full schemas (planned ones are marked `x-status: planned`) |
 | [UI/UX Designs](https://drive.google.com/drive/folders/1VGF8a_wP-hkXg4s66_ixaiOxPvS10jpX?usp=sharing) | Mobile app screen designs |

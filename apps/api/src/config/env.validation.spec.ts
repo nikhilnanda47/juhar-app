@@ -40,7 +40,7 @@ describe('validateEnv', () => {
     });
 
     describe('closed pilot (mock provider with an allow-list)', () => {
-      const pilot = { ...base, NODE_ENV: 'production', OTP_PROVIDER: 'mock' };
+      const pilot = { ...base, JWT_SECRET: 'a'.repeat(40), JWT_REFRESH_SECRET: 'b'.repeat(40), NODE_ENV: 'production', OTP_PROVIDER: 'mock' }; // a live API also needs real secrets
 
       it('is allowed in production when the allow-list names the numbers', () => {
         expect(() => validateEnv({ ...pilot, MOCK_OTP_ALLOWED_PHONES: '+919876543210,+919123456789' })).not.toThrow();

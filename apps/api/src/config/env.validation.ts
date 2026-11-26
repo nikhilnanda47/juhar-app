@@ -1,6 +1,7 @@
 import { LOG_LEVEL_NAMES, resolveLogLevel } from './log-level';
 import { SUPPORTED_OTP_PROVIDERS, resolveOtpProvider } from './otp-provider';
 import { parseAllowedPhones } from './otp-allowlist';
+import { productionProblems } from './production-checks';
 
 const REQUIRED_ENV = ['DATABASE_URL', 'JWT_SECRET', 'JWT_REFRESH_SECRET'] as const;
 
@@ -41,6 +42,14 @@ export function validateEnv(config: Record<string, unknown>): Record<string, unk
         'including the admin. Set OTP_PROVIDER to a real SMS provider, or, for a closed pilot, list the only ' +
         'phone numbers allowed to sign in in MOCK_OTP_ALLOWED_PHONES (for example +919876543210,+919123456789).',
     );
+  }
+
+  // On a live API, weak secrets or a database address Prisma cannot use are stopped here, with the fix
+  if (config.NODE_ENV === 'production') {
+    const problems = productionProblems(config);
+    if (problems.length > 0) {
+      throw new Error(`Refusing to start in production: ${problems.join('; ')}.`);
+    }
   }
 
   return config;

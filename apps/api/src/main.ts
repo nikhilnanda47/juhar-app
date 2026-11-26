@@ -63,21 +63,25 @@ async function bootstrap() {
     exposedHeaders: ['X-Request-Id'], // lets the apps read the request ID from a reply
   });
 
-  // Swagger / OpenAPI
-  const config = new DocumentBuilder()
-    .setTitle('Juhar API')
-    .setDescription('D2C Sambalpuri fashion e-commerce API')
-    .setVersion('1.0')
-    .addBearerAuth()
-    .build();
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document);
+  // Swagger / OpenAPI: on for development, off on a live API unless ENABLE_API_DOCS=true
+  // (it lists every admin endpoint, which a public site has no need to show)
+  const docsOn = process.env.NODE_ENV !== 'production' || process.env.ENABLE_API_DOCS === 'true';
+  if (docsOn) {
+    const config = new DocumentBuilder()
+      .setTitle('Juhar API')
+      .setDescription('D2C Sambalpuri fashion e-commerce API')
+      .setVersion('1.0')
+      .addBearerAuth()
+      .build();
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api/docs', app, document);
+  }
 
   const port = process.env.PORT || 3000;
   await app.listen(port);
   const logger = new Logger('Bootstrap');
   logger.log(`🚀 Juhar API running on http://localhost:${port}`);
-  logger.log(`📄 Swagger docs at http://localhost:${port}/api/docs`);
+  if (docsOn) logger.log(`📄 Swagger docs at http://localhost:${port}/api/docs`);
 }
 
 // A failed start (bad environment, no database) is reported plainly and stops the process with a failure code
