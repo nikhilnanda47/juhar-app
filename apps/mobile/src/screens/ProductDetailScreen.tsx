@@ -127,14 +127,17 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
     ? Math.round((1 - selectedVariant.pricePaise / selectedVariant.compareAtPaise) * 100)
     : null;
 
-  // Share this saree: the phone's share sheet with its title and the link to its page on the website.
+  // Share this saree: the phone's share sheet with the link to its page on the website, and nothing else.
   // Where there is no share sheet (the browser preview), the link is copied instead.
   const onShare = async () => {
     if (!product) return;
     const { outcome, url } = await shareProduct(product, {
-      share: (content) => Share.share(content),
+      // our content is "a message, or a link, plus a title"; React Native's type insists on a message, which iOS
+      // would then add (an empty one) next to the link, so the type is adapted here instead of the content
+      share: (content) => Share.share(content as Parameters<typeof Share.share>[0]),
       copy: async (text) => { await Clipboard.setStringAsync(text); },
       webBase: resolveWebBase(process.env.EXPO_PUBLIC_WEB_URL),
+      platform: Platform.OS,
     });
     if (outcome === 'copied') showAlert('Link copied', url);
     else if (outcome === 'failed') showAlert('Could not share', `You can copy the link yourself:\n${url}`);

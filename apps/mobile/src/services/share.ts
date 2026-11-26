@@ -1,6 +1,10 @@
-// Sharing a saree from the app: the phone's own share sheet (WhatsApp, Messages, ...) with the saree's title and
-// the link to its page on the website. The website address is a build setting (EXPO_PUBLIC_WEB_URL); when it is
+// Sharing a saree from the app: the phone's own share sheet (WhatsApp, Messages, ...) with the link to the saree's
+// page on the website and nothing else. The website address is a build setting (EXPO_PUBLIC_WEB_URL); when it is
 // not set, the public address is used.
+//
+// Only the link goes in: a share sheet's "Copy" pastes everything it was given, so a line of text, or the link
+// given twice (once as the message and once as the link), ends up next to the address and an address bar cannot
+// open it. iOS takes a link on its own; Android needs it as the message.
 
 export const DEFAULT_WEB_URL = 'https://juhar.co.in';
 
@@ -27,9 +31,11 @@ export function productShareUrl(slug: string, base: string = DEFAULT_WEB_URL): s
 
 export interface ShareDeps {
   /** React Native's Share.share */
-  share: (content: { message: string; url?: string; title?: string }) => Promise<{ action: string }>;
+  share: (content: { message?: string; url?: string; title?: string }) => Promise<{ action: string }>;
   copy: (text: string) => Promise<void>;
   webBase: string;
+  /** Platform.OS: 'ios', 'android' or 'web' */
+  platform: string;
 }
 
 export async function shareProduct(
@@ -38,7 +44,9 @@ export async function shareProduct(
 ): Promise<{ outcome: ShareOutcome; url: string }> {
   const url = productShareUrl(product.slug, deps.webBase);
   try {
-    const result = await deps.share({ title: product.title, message: `${product.title} on Juhar\n${url}`, url });
+    // the title names the sheet (and an email's subject); it is not part of what gets pasted
+    const content = deps.platform === 'ios' ? { title: product.title, url } : { title: product.title, message: url };
+    const result = await deps.share(content);
     // on iOS, closing the sheet is reported as "dismissedAction"; it is not a failure
     return { outcome: result?.action === 'dismissedAction' ? 'cancelled' : 'shared', url };
   } catch {
