@@ -96,7 +96,8 @@ Do these in order. The accounts come from tracker item 50.
    (the API restarts by itself).
 7. **Try it:** open the website, sign in with a listed number and the code `123456`, place a cash-on-delivery order, then sign in to the
    admin with the admin number and walk the order from Confirm to Delivered. A number that is not on the list should be refused.
-8. **Later:** the Android build (tracker item 56) and the smoke test (item 75).
+8. **Run the smoke test** (section 4) and keep it for every release.
+9. **Later:** the Android build (tracker item 56).
 
 ## 4. Every release (the daily loop)
 
@@ -104,7 +105,20 @@ Do these in order. The accounts come from tracker item 50.
 2. Open a pull request into `main` and get it approved. Vercel adds a **preview link** to the PR for the website and the
    admin. Previews use the same live API and database, so look at them but do not run destructive tests.
 3. Merge. Railway and Vercel deploy `main` by themselves.
-4. Check `/health`, then run through the flow you changed (the smoke test script comes with item 75).
+4. **Run the smoke test** (about a minute, reads only, creates no orders):
+
+   ```bash
+   npm run smoke -- --api https://<api> --web https://<website> --admin https://<admin> \
+                    --login-phone +919876543210 --outsider-phone +919000000000
+   ```
+
+   `--login-phone` is a number on the pilot list (it signs in with the fixed code, reads the profile and, for an admin, the order list);
+   `--outsider-phone` is a number that is **not** on the list (it must be refused). Leave both out to check only the public pages.
+   It checks the API's health and database, the shipping settings, categories, the shop list, the Swagger page being off,
+   the closed login, that the website and the admin load, that each was **built with this API's address**, and that **CORS** lets each
+   talk to the API. Every line says `ok`, `warn` or `FAIL`; any FAIL makes the command exit with an error, and the cause is
+   usually in section 9. The sign-in checks ask the API for two codes, and it allows only about ten per ten minutes per address,
+   so do not run it more than a few times in a row. Then try the flow you changed by hand.
 5. Test orders use a clearly named test account and are cancelled afterwards, so they do not mix with real ones.
 
 ## 5. Undoing a deploy
@@ -174,5 +188,6 @@ It needs an empty, disposable database and takes a few minutes. Add `SKIP_FRONTE
 | `apps/api/src/config/production-checks.ts` | Stops a live API that has weak secrets or a pooler address without `pgbouncer=true` |
 | `apps/api/src/common/local-database-guard.ts` | Makes the sample seeds refuse to touch a database that is not on your computer |
 | `scripts/rehearse-deploy.sh` | The dry run in section 8 |
+| `scripts/smoke-test.js` (`npm run smoke`) | The after-deploy check in section 4 |
 | `.env.example` in `apps/api`, `apps/web`, `apps/admin`, `apps/mobile` | Every setting, explained |
 | `.nvmrc` | Node version 22 |

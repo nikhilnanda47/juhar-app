@@ -29,7 +29,8 @@
     "db:seed:demo": "npm run db:seed:demo -w apps/api --",
     "db:studio": "npm run db:studio -w apps/api",
     "lint:fix": "eslint . --fix",
-    "rehearse:deploy": "bash scripts/rehearse-deploy.sh"
+    "rehearse:deploy": "bash scripts/rehearse-deploy.sh",
+    "smoke": "node scripts/smoke-test.js"
   },
   "engines": {
     "node": ">=22.0.0",

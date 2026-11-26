@@ -576,6 +576,7 @@ Check what changed (`git diff HEAD@{1} --stat`), then use this table. Dev server
 | `npm run db:create-admin -w apps/api -- --phone +91… --name "…"` | Root | Create or update an admin account (the way to make the first admin on a live database) |
 | `npm run db:migrate:deploy -w apps/api` | Root | What a release runs: apply migrations through `DIRECT_URL` when it is set |
 | `npm run rehearse:deploy` | Root | Dry run of the Railway and Vercel steps from a clean copy (see the runbook) |
+| `npm run smoke -- --api https://… --web https://… --admin https://…` | Root | After-deploy check of a live environment: health, database, shop, closed login, pages, API address and CORS (reads only; see the runbook) |
 | `npm run db:seed:demo -- --products 60 --orders 55` | Root | Add demo sarees and orders for testing long lists (`-- --clean` removes them) |
 | `psql -U juhar -d juhar_dev` | Anywhere | Connect to database CLI |
 | `cd apps/mobile && npx expo start --web --clear` | Root | Mobile with cleared cache |

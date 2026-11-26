@@ -386,8 +386,9 @@ PAYMENT_GATEWAY=mock
 
 ### Per-Release Deployment
 
-- [ ] Push code to `main` branch
+- [ ] Push code to `main` branch (small pull requests, one reviewed merge at a time)
 - [ ] Railway auto-deploys API (verify health check)
+- [ ] After each deploy run `npm run smoke -- --api … --web … --admin …` (see the runbook, section 4)
 - [ ] Vercel auto-deploys customer website
 - [ ] Vercel auto-deploys admin panel
 - [ ] For mobile changes: `npx eas build --platform android`
