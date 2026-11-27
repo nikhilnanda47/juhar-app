@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, Dimensions, RefreshControl, TextInput, Modal,
+  ActivityIndicator, RefreshControl, TextInput, Modal,
 } from 'react-native';
 import { Search as SearchIcon, SlidersHorizontal, Heart, ChevronDown, Check, X } from 'lucide-react-native';
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
@@ -23,8 +23,6 @@ import ProductImage from '../components/ProductImage';
 import { describeLoadFailure, type LoadFailure } from '../services/loadFailure';
 import type { ScreenNavigation } from '../navigation/types';
 
-const { width } = Dimensions.get('window');
-const CARD_WIDTH = (width - spacing.margin * 2 - spacing.gutter) / 2;
 
 interface Props {
   navigation: ScreenNavigation;
@@ -34,6 +32,9 @@ export default function ExploreScreen({ navigation }: Props) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const topPad = useTopPadding(56);
+  // two cards per row, sized from the grid's real width once it is on screen (see HomeScreen's collection tiles)
+  const [gridWidth, setGridWidth] = useState(0);
+  const cardWidth = gridWidth > 0 ? Math.floor((gridWidth - spacing.margin * 2 - spacing.gutter) / 2) : 0;
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const { refreshWishlist } = useWishlist();
@@ -279,14 +280,16 @@ export default function ExploreScreen({ navigation }: Props) {
       {listLoading && <ActivityIndicator style={{ marginVertical: spacing.md }} color={colors.primary} />}
 
       {/* Product Grid */}
-      <View style={[styles.grid, listLoading && { opacity: 0.4 }]}>
-        {products.map((product, idx) => (
-          <FadeInUp key={product.id} delay={idx * 80} duration={400} distance={12}>
-            <ProductCard
-              product={product}
-              onPress={() => navigation.navigate('ProductDetail', { slug: product.slug })}
-            />
-          </FadeInUp>
+      <View style={[styles.grid, listLoading && { opacity: 0.4 }]} onLayout={(e) => setGridWidth(e.nativeEvent.layout.width)}>
+        {cardWidth > 0 && products.map((product, idx) => (
+          <View key={product.id} style={{ width: cardWidth }}>
+            <FadeInUp delay={idx * 80} duration={400} distance={12}>
+              <ProductCard
+                product={product}
+                onPress={() => navigation.navigate('ProductDetail', { slug: product.slug })}
+              />
+            </FadeInUp>
+          </View>
         ))}
       </View>
 
@@ -698,9 +701,9 @@ const createStyles = (colors: ColorPalette) => StyleSheet.create({
     gap: spacing.gutter,
   },
 
-  // Product Card
+  // Product Card (it fills its grid slot, whose width is set where the grid is drawn)
   card: {
-    width: CARD_WIDTH,
+    width: '100%',
     backgroundColor: colors.surface,
     borderRadius: borderRadius.md,
     padding: 10,

@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Dimensions,
   RefreshControl,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -20,14 +19,16 @@ import ProductImage from '../components/ProductImage';
 import { describeLoadFailure, type LoadFailure } from '../services/loadFailure';
 import type { ScreenNavigation } from '../navigation/types';
 
-const { width } = Dimensions.get('window');
-const CARD_WIDTH = (width - spacing.margin * 2 - spacing.gutter) / 2;
 
 export default function HomeScreen() {
   const navigation = useNavigation<ScreenNavigation>();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const topPad = useTopPadding(56);
+  // two collection tiles per row: sized from the grid's real width once it is on screen (a width worked out at start-up was
+  // wrong in a window of another size, and percentage widths did not draw on the phone)
+  const [gridWidth, setGridWidth] = useState(0);
+  const tileSize = gridWidth > 0 ? Math.floor((gridWidth - spacing.gutter) / 2) : 0;
   const [newArrivals, setNewArrivals] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -108,11 +109,11 @@ export default function HomeScreen() {
           <Text style={styles.sectionTitle}>Collections</Text>
           <Text style={styles.sectionCount}>{categories.length} WEAVES</Text>
         </View>
-        <View style={styles.collectionsGrid}>
-          {categories.map((cat) => (
+        <View style={styles.collectionsGrid} onLayout={(e) => setGridWidth(e.nativeEvent.layout.width)}>
+          {tileSize > 0 && categories.map((cat) => (
             <TouchableOpacity
               key={cat.id}
-              style={styles.collectionCard}
+              style={[styles.collectionCard, { width: tileSize, height: tileSize }]}
               activeOpacity={0.85}
               onPress={() => navigation.navigate('Shop', {
                 screen: 'ExploreList',
@@ -316,8 +317,6 @@ const createStyles = (colors: ColorPalette) => StyleSheet.create({
     gap: spacing.gutter,
   },
   collectionCard: {
-    width: CARD_WIDTH,
-    height: CARD_WIDTH,
     borderRadius: borderRadius.md,
     overflow: 'hidden',
     position: 'relative',

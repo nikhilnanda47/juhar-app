@@ -1,6 +1,6 @@
 import React, { useRef, useState, useMemo } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions,
+  View, Text, StyleSheet, TouchableOpacity, Animated, useWindowDimensions,
   PanResponder,
 } from 'react-native';
 import {
@@ -9,8 +9,11 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const IMAGE_HEIGHT = Math.min(380, SCREEN_WIDTH * (4 / 3));
+// Everything on the screen except the picture (top bar, headline and text, dots, button, certified line, gaps) needs about
+// this much height, so the picture gets what is left: up to 380, and no less than 200 so it stays a picture.
+const SPACE_AROUND_PICTURE = 342;
+const PICTURE_MAX = 380;
+const PICTURE_MIN = 200;
 
 const SLIDES = [
   {
@@ -44,6 +47,9 @@ export default function WelcomeScreen({ onComplete }: Props) {
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const insets = useSafeAreaInsets(); // keep the top bar below the status bar and the button above the home bar
+  const { height: windowHeight } = useWindowDimensions();
+  // a short phone (iPhone SE, small Android) gets a shorter picture instead of a button pushed off the screen
+  const pictureHeight = Math.max(PICTURE_MIN, Math.min(PICTURE_MAX, windowHeight - SPACE_AROUND_PICTURE - insets.top - Math.max(0, insets.bottom - 16)));
   const [current, setCurrent] = useState(0);
   const fadeAnims = useRef(SLIDES.map((_, i) => new Animated.Value(i === 0 ? 1 : 0))).current;
   const textOpacity = useRef(new Animated.Value(1)).current;
@@ -99,7 +105,7 @@ export default function WelcomeScreen({ onComplete }: Props) {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.imageContainer} {...panResponder.panHandlers}>
+      <View style={[styles.imageContainer, { height: pictureHeight }]} {...panResponder.panHandlers}>
         {SLIDES.map((s, i) => (
           <Animated.View
             key={i}
@@ -167,7 +173,7 @@ const createStyles = (colors: ColorPalette) => StyleSheet.create({
   skipText: { fontFamily: 'DMSans-Medium', fontSize: 14, color: colors.primary },
 
   imageContainer: {
-    width: '100%', height: IMAGE_HEIGHT, // a fixed height: with an aspect ratio too, a phone shrinks the width to fit and leaves a blank strip
+    width: '100%', // the height is set in the component (an aspect ratio together with a maximum height makes a phone shrink the width)
     borderRadius: 12, overflow: 'hidden', position: 'relative',
   },
   slideVisual: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
