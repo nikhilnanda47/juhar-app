@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AdminLayout from '../../../components/AdminLayout';
+import PendingPhotos from '../../../components/PendingPhotos';
+import { uploadInOrder } from '../../../lib/photos';
 import { api, messageOf } from '../../../services/api';
 import styles from './new.module.css';
 import { BasicInfoSection, FabricSection, emptyProductFields, splitList, type ProductFields } from './ProductFields';
@@ -42,6 +44,10 @@ export default function CreateProductPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [activeSection, setActiveSection] = useState(0);
+  const [photos, setPhotos] = useState<File[]>([]); // chosen here, uploaded right after the product is saved
+  const coverPreview = useMemo(() => (photos[0] ? URL.createObjectURL(photos[0]) : null), [photos]);
+  useEffect(() => () => { if (coverPreview) URL.revokeObjectURL(coverPreview); }, [coverPreview]);
+  const [uploadStep, setUploadStep] = useState<{ done: number; total: number } | null>(null);
 
   // Product fields (the basic information and the fabric details; the form sections are shared with the Edit page)
   const [fields, setFields] = useState<ProductFields>(emptyProductFields());
@@ -105,12 +111,20 @@ export default function CreateProductPage() {
       if (tags.trim()) body.tags = splitList(tags);
 
       const created = await api.createProduct(body);
-      // photos need the product to exist, so the next step is its page, at the Photos section
-      router.push(`/catalog/${created.id}?created=1`);
+      // a photo needs the product to exist, so they go up now, one by one in the order chosen; one refused photo must not
+      // lose the others, and the product is already saved either way
+      const failed = await uploadInOrder(
+        photos,
+        (file) => api.uploadPhoto(created.id, file),
+        (e) => messageOf(e, 'could not be uploaded.'),
+        (done, total) => setUploadStep({ done, total }),
+      );
+      router.push(`/catalog/${created.id}?created=1${failed.length > 0 ? `&photosFailed=${failed.length}` : ''}`);
     } catch (err) {
       setError(messageOf(err, 'Failed to create product'));
     } finally {
       setSaving(false);
+      setUploadStep(null);
     }
   };
 
@@ -267,6 +281,29 @@ export default function CreateProductPage() {
             </div>
           </section>
 
+          {/* Section 4: Photos (optional here; they can also be added later on the Edit page) */}
+          <section
+            className={`${styles.section} ${activeSection === 3 ? styles.sectionActive : ''}`}
+            onClick={() => setActiveSection(3)}
+          >
+            <div className={styles.sectionHeader}>
+              <div className={styles.sectionNumber}>
+                {photos.length > 0 ? (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                ) : '4'}
+              </div>
+              <div>
+                <h3 className={styles.sectionTitle}>Photos</h3>
+                <p className={styles.sectionDesc}>Optional. The first photo is the cover on the shop and in the app. They upload when you save the product.</p>
+              </div>
+            </div>
+            <div className={styles.sectionBody}>
+              <PendingPhotos files={photos} onChange={setPhotos} disabled={saving} />
+            </div>
+          </section>
+
           {error && (
             <div className={styles.errorCard}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -284,14 +321,20 @@ export default function CreateProductPage() {
           <div className={styles.previewCard}>
             <h4 className={styles.previewTitle}>Product Preview</h4>
 
+            {coverPreview ? (
+              <div className={styles.previewImagePlaceholder} style={{ padding: 0, overflow: 'hidden', border: 'none' }}>
+                <img src={coverPreview} alt="Cover photo preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              </div>
+            ) : (
             <div className={styles.previewImagePlaceholder}>
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
                 <circle cx="8.5" cy="8.5" r="1.5" />
                 <polyline points="21 15 16 10 5 21" />
               </svg>
-              <span>Photos come next</span>
+              <span>No photo chosen yet</span>
             </div>
+            )}
 
             <div className={styles.previewName}>{title || 'Product Title'}</div>
             {shortDescription && (
@@ -399,6 +442,9 @@ export default function CreateProductPage() {
                 <div className={variantsComplete ? styles.checkDone : styles.checkPending}>
                   {variantsComplete ? '✓' : '○'} Pricing & Variants
                 </div>
+                <div className={photos.length > 0 ? styles.checkDone : styles.checkPending}>
+                  {photos.length > 0 ? '✓' : '○'} Photos (optional)
+                </div>
               </div>
             </div>
           </div>
@@ -428,7 +474,7 @@ export default function CreateProductPage() {
                 {saving ? (
                   <>
                     <span className={styles.btnSpinner} />
-                    Creating...
+                    {uploadStep ? `Uploading photo ${uploadStep.done + 1} of ${uploadStep.total}...` : 'Creating...'}
                   </>
                 ) : (
                   'Create & Publish'

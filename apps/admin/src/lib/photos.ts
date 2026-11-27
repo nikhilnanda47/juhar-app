@@ -53,3 +53,26 @@ export function photoCountText(count: number): string {
   if (count === 0) return `No photos yet (up to ${MEDIA.MAX_PER_PRODUCT})`;
   return `${count} of ${MEDIA.MAX_PER_PRODUCT} photos${left === 0 ? ' (full)' : ''}`;
 }
+
+/**
+ * Sends photos one after another, in the order given (so the first stays the cover), and carries on after a failure:
+ * a saree that was just created must not lose its other photos because one of them was refused. Returns one sentence
+ * per photo that failed, and reports progress before each one.
+ */
+export async function uploadInOrder<T extends { name: string }>(
+  files: readonly T[],
+  send: (file: T) => Promise<unknown>,
+  describeError: (error: unknown) => string,
+  onProgress?: (done: number, total: number) => void,
+): Promise<string[]> {
+  const failed: string[] = [];
+  for (let i = 0; i < files.length; i++) {
+    onProgress?.(i, files.length);
+    try {
+      await send(files[i]);
+    } catch (e) {
+      failed.push(`${files[i].name}: ${describeError(e)}`);
+    }
+  }
+  return failed;
+}

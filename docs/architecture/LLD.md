@@ -567,7 +567,7 @@ The five admin endpoints live on `ProductsAdminController` (`/api/v1/admin/produ
 
 **Public replies:** product cards carry `primaryImage` (small copy of the first photo, or null); the product page carries `media[]` (`url` large, `thumbnailUrl` small, `variantId`); the bag, wishlist and the customer's and admin's orders carry `imageUrl` per item (read from the product's current photos through `thumbnailsForVariants`, not copied onto the order). The admin product replies carry `media[]` and `primaryImage`.
 
-**Clients:** web `components/ProductImage.tsx`, `lib/photos.ts` (which photo for a colour; gallery stepping), `lib/product-metadata.ts` and `app/shop/[slug]/layout.tsx` (title, line and cover photo in the HTML for link previews); app `components/ProductImage.tsx`, `services/photos.ts`; admin `components/PhotoManager.tsx`, `lib/photos.ts` (checks before sending), `services/api.ts` (`uploadPhoto` sends `FormData` without a JSON content type).
+**Clients:** web `components/ProductImage.tsx`, `lib/photos.ts` (which photo for a colour; gallery stepping), `lib/product-metadata.ts` and `app/shop/[slug]/layout.tsx` (title, line and cover photo in the HTML for link previews); app `components/ProductImage.tsx`, `services/photos.ts`; admin `components/PhotoManager.tsx` (a saved product: every change is sent at once), `components/PendingPhotos.tsx` (the Create Product page: chosen photos are held in the browser and uploaded by `uploadInOrder` after the product is saved), `lib/photos.ts` (checks before sending), `services/api.ts` (`uploadPhoto` sends `FormData` without a JSON content type).
 
 ---
 

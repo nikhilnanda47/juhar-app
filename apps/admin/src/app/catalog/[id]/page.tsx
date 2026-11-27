@@ -67,6 +67,7 @@ export default function EditProductPage() {
   const [saved, setSaved] = useState(false);
   const [adjusting, setAdjusting] = useState<StockTarget | null>(null);
   const [justCreated, setJustCreated] = useState(false); // arrived from "Create product": photos are the next step
+  const [photosFailed, setPhotosFailed] = useState(0); // photos chosen on the Create page that could not be uploaded
 
   // Read the product (again), and put the form back in line with what is saved
   const load = useCallback(async () => {
@@ -90,6 +91,7 @@ export default function EditProductPage() {
   useEffect(() => {
     if (state !== 'ready' || justCreated || new URLSearchParams(window.location.search).get('created') !== '1') return;
     setJustCreated(true);
+    setPhotosFailed(Number(new URLSearchParams(window.location.search).get('photosFailed')) || 0);
     setActiveSection(3);
     document.getElementById('photos')?.scrollIntoView({ block: 'start' });
   }, [state, justCreated]);
@@ -371,7 +373,13 @@ export default function EditProductPage() {
               </div>
             </div>
             <div className={styles.sectionBody}>
-              {justCreated && (
+              {justCreated && photosFailed > 0 && (
+                <div className={edit.savedCard} role="status">✓ Product created, but {photosFailed === 1 ? '1 photo' : `${photosFailed} photos`} could not be uploaded (too small, too large or not a picture). Add {photosFailed === 1 ? 'it' : 'them'} again here.</div>
+              )}
+              {justCreated && photosFailed === 0 && (product.media ?? []).length > 0 && (
+                <div className={edit.savedCard} role="status">✓ Product created with {(product.media ?? []).length === 1 ? '1 photo' : `${(product.media ?? []).length} photos`}. You can add more or change the order here.</div>
+              )}
+              {justCreated && photosFailed === 0 && (product.media ?? []).length === 0 && (
                 <div className={edit.savedCard} role="status">✓ Product created. Add its photos here; it shows a grey box in the shop until you do.</div>
               )}
               <PhotoManager

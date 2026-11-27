@@ -156,7 +156,8 @@
   border-radius: 50%;
   border: 0;
   background: rgba(255, 255, 255, 0.92);
-  color: var(--text-primary);
+  /* a fixed dark glyph: the circle is always white, so a theme colour (pale in dark mode) would vanish on it */
+  color: #1a1a2e;
   font-size: 0.9rem;
   line-height: 1;
   cursor: pointer;
@@ -169,7 +170,7 @@
 }
 
 .toolRemove {
-  color: var(--error);
+  color: #b3261e;
 }
 
 .fields {
