@@ -4,25 +4,22 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import TabNavigator from './src/navigation/TabNavigator';
 import SplashScreen from './src/screens/SplashScreen';
 import WelcomeScreen from './src/screens/WelcomeScreen';
 import { ThemeProvider, useTheme, colors } from './src/theme';
 import { WishlistProvider } from './src/contexts/WishlistContext';
-
-const ONBOARDING_KEY = 'juhar_onboarding_done';
+import { loadToken } from './src/services/api';
 
 function AppInner() {
   const { colors: theme, isDark } = useTheme();
   const [showSplash, setShowSplash] = useState(true);
   const [showWelcome, setShowWelcome] = useState<boolean | null>(null);
 
+  // Everyone who is not signed in sees the welcome slides each time the app opens; someone signed in goes straight to Home.
   useEffect(() => {
     if (!showSplash && showWelcome === null) {
-      AsyncStorage.getItem(ONBOARDING_KEY).then((val) => {
-        setShowWelcome(val !== 'true');
-      });
+      loadToken().then((signedIn) => setShowWelcome(!signedIn));
     }
   }, [showSplash, showWelcome]);
 
@@ -40,10 +37,7 @@ function AppInner() {
 
   if (showWelcome) {
     return (
-      <WelcomeScreen onComplete={() => {
-        AsyncStorage.setItem(ONBOARDING_KEY, 'true');
-        setShowWelcome(false);
-      }} />
+      <WelcomeScreen onComplete={() => setShowWelcome(false)} />
     );
   }
 

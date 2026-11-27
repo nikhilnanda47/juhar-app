@@ -23,7 +23,7 @@ Juhar is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce pl
 | # | Feature | Status |
 |---|---------|--------|
 | 1 | Splash screen with branded animation | ✅ |
-| 2 | Welcome onboarding (3-slide carousel, first launch only) | ✅ |
+| 2 | Welcome onboarding (3-slide carousel, shown at every launch to anyone not signed in) | ✅ |
 | 3 | Home screen — hero, collections grid, new arrivals from API | ✅ |
 | 4 | Explore catalog — category chips, 2-column product grid | ✅ |
 | 5 | Filter products by category | ✅ |

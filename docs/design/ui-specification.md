@@ -571,7 +571,7 @@ Reusable refresh icon (`RefreshCw`) with spin animation on press. Used on Home, 
 
 ### 13.1 Splash (Screen 1)
 
-**Purpose:** Brand moment while app loads. Auto-transitions to Home (returning user) or Welcome (first launch).
+**Purpose:** Brand moment while app loads. Auto-transitions to Home (someone signed in) or Welcome (anyone not signed in, every launch).
 
 ```
 ┌─────────────────────────────┐
@@ -600,7 +600,7 @@ Reusable refresh icon (`RefreshCw`) with spin animation on press. Used on Home, 
 
 ### 13.2 Welcome / Onboarding (Screen 2)
 
-**Purpose:** First-time users only. 3 swipeable pages. Skip always visible.
+**Purpose:** Everyone who is not signed in sees it each time the app opens (signed-in users go straight to Home). 3 swipeable pages. Skip always visible.
 
 ```
 ┌─────────────────────────────┐

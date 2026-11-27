@@ -2042,7 +2042,7 @@ TabNavigator (5 tabs)
 | Force Update | API response header `X-Min-App-Version` > current app version |
 | Maintenance | API returns HTTP 503 with `maintenance: true` |
 
-> **Implementation status (2026-11-22):** Only Splash and Welcome exist. The first-launch flag is stored under the AsyncStorage key `juhar_onboarding_done` (set to `'true'`), not `@juhar/onboarded`. No Internet, Force Update and Maintenance are not implemented.
+> **Implementation status (2026-11-22):** Only Splash and Welcome exist. Whether to show Welcome is decided at every launch from the sign-in state (`loadToken()` in `App.tsx`): anyone who is not signed in sees the three welcome slides each time the app opens (Skip or Start Shopping goes to Home as a guest); someone signed in goes straight to Home. There is no first-launch flag any more (the old `juhar_onboarding_done` key is no longer read). No Internet, Force Update and Maintenance are not implemented.
 
 ### 8.8 Theme System (Light / Dark)
 
