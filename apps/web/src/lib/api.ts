@@ -151,6 +151,8 @@ export function formatPaise(paise: number): string {
 export interface Category {
   id: string; slug: string; name: string; description: string | null;
   sortOrder: number; active: boolean;
+  /** the picture of the collection tile: a photo of its newest saree, or null while it has none */
+  coverImage?: { url: string; alt: string | null } | null;
 }
 
 export interface ProductVariant {

@@ -54,6 +54,9 @@ export default function HomeScreen() {
   };
 
   // Nothing could be loaded (offline, or the server is down): say so, with a way to try again, instead of an empty page
+  // the banner shows the newest saree that has a photo (a dedicated banner picture can replace this later)
+  const heroPhoto = newArrivals.find((p) => p.primaryImage)?.primaryImage;
+
   if (failure && newArrivals.length === 0 && categories.length === 0) {
     return <LoadFailed failure={failure} onRetry={fetchData} />;
   }
@@ -85,7 +88,9 @@ export default function HomeScreen() {
         <ScalePress onPress={() => navigation.navigate('Shop')} scale={0.98}>
           <View style={styles.heroWrap}>
             <View style={styles.hero}>
-              <View style={styles.heroPlaceholder} />
+              <View style={styles.heroPlaceholder}>
+                <ProductImage uri={heroPhoto?.url} alt={heroPhoto?.alt || 'Sambalpuri Baandha Silk'} />
+              </View>
               {/* Gradient overlay with text */}
               <View style={styles.heroOverlay}>
                 <Text style={styles.heroLabel}>HANDWOVEN ARCHIVE</Text>
@@ -114,7 +119,9 @@ export default function HomeScreen() {
                 params: { categorySlug: cat.slug },
               })}
             >
-              <View style={styles.collectionImage} />
+              <View style={styles.collectionImage}>
+                <ProductImage uri={cat.coverImage?.url} alt={cat.coverImage?.alt || cat.name} />
+              </View>
               <View style={styles.collectionGradient}>
                 <Text style={styles.collectionName}>{cat.name}</Text>
               </View>

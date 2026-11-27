@@ -309,7 +309,7 @@ class CreateCategoryDto {
 
 | Method | Path | Auth | Notes |
 |---|---|---|---|
-| GET | /api/v1/categories | Public | Active categories, sorted by `sort_order` |
+| GET | /api/v1/categories | Public | Active categories, sorted by `sort_order`, each with `coverImage` (its own `imageUrl`, else the small photo of its newest published saree that has one, else `null`) for the home page tiles |
 | POST | /api/v1/admin/categories | Admin (catalog_editor+) | Create category |
 | PATCH | /api/v1/admin/categories/:id | Admin | Update category |
 

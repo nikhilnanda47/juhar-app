@@ -857,6 +857,7 @@ Reusable refresh icon (`RefreshCw`) with spin animation on press. Used on Home, 
 └─────────────────────────────┘
 ```
 
+- **Pictures (website and app):** the hero shows the photo of the newest saree that has one, with the "Handwoven archive / Sambalpuri Baandha Silk" text over a dark gradient. Each collection tile shows the photo of its category's newest published saree (`coverImage` on `GET /categories`; a category's own `imageUrl` wins when set). While there is no photo the box keeps its soft placeholder colour. A dedicated banner picture can replace the hero later.
 - Pull-to-refresh with branded spinner
 - Shimmer skeleton on first load
 - Sections separated by 32px whitespace
