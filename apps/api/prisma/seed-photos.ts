@@ -10,6 +10,7 @@
 // Each picture says SAMPLE PICTURE and its description starts with "Sample picture", so they cannot be mistaken for the
 // real thing and `--remove` can find them. Real photos are never touched. Like the other sample seeds, this refuses to
 // run against a database that is not on this computer, and it keeps the files in this computer's photo folder only.
+import '../src/common/load-env'; // read apps/api/.env first (ts-node does not)
 import { PrismaClient } from '@prisma/client';
 import { seedRefusal } from '../src/common/local-database-guard';
 import { resolveMediaConfig } from '../src/config/media-config';

@@ -442,6 +442,8 @@ npx ts-node prisma/seed.ts    # Seeds 4 categories, 8 products, 11 variants, 1 a
 cd ../..
 ```
 
+The seed scripts (`seed`, `seed-demo`, `seed-photos`, `db:create-admin`) read `DATABASE_URL` from `apps/api/.env` (step 4), so you do not need to export anything. A variable already set in your shell wins over the file, which is how you point one of them at another database. If a seed says "Refusing to run ... DATABASE_URL points at an address I cannot read", the file is missing or has no `DATABASE_URL`: do step 4 again.
+
 **Optional: more demo data for testing.** The normal seed has only 8 products, which is too few to see "Load more", sorting, the Low Stock count or the Overdue flag. On a local or test database you can add more:
 
 ```bash

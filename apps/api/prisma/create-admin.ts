@@ -1,6 +1,7 @@
 // Creates (or updates) an admin account: their login and their staff record, linked. Safe to run again: it never touches other data.
 //   npm run db:create-admin -w apps/api -- --phone +919876543210 --name "Owner Name" [--role owner] [--email a@b.com]
 // For a live database, point DATABASE_URL at the DIRECT connection (port 5432) when you run it from your computer.
+import '../src/common/load-env'; // read apps/api/.env first (ts-node does not)
 import { PrismaClient } from '@prisma/client';
 import { CREATE_ADMIN_USAGE, createOrUpdateAdmin, parseCreateAdminArgs } from '../src/common/admin-bootstrap';
 
