@@ -525,6 +525,8 @@ cd apps/api && npx prisma studio
 
 The API, website and admin panel are covered by the root `npm install` in step 3; the mobile app needs its own (`apps/mobile`).
 
+> **Expo Go on a phone:** put the phone on the same Wi-Fi as the computer, find the computer's address (`ipconfig getifaddr en0` on a Mac) and start the app with `cd apps/mobile && EXPO_PUBLIC_API_URL=http://<that address>:3000 npx expo start --clear`, then scan the QR code with the phone's camera. Check first that `http://<that address>:3000/health` opens in the phone's browser. Keep the native libraries (`expo-*`, `@react-native-async-storage/async-storage`, `react-native-*`) at the versions Expo lists for the SDK (`apps/mobile/node_modules/expo/bundledNativeModules.json`), because Expo Go contains only those: a newer major version fails there with "Native module is null". AsyncStorage is pinned to `2.2.0` for that reason.
+
 > **Mobile app:** it runs in the browser preview at `localhost:8081`. A phone or Expo Go cannot reach `localhost` on your computer, and the API address is a setting of the build, `EXPO_PUBLIC_API_URL` (see `apps/mobile/.env.example`): unset in development means `http://localhost:3000`, and a release build (the `pilot` and `production` profiles in `apps/mobile/eas.json`) refuses to run without a real `https://` address. To try the preview against another server, start it with `EXPO_PUBLIC_API_URL=https://your-api npx expo start --web`.
 
 ### 8. Test login
