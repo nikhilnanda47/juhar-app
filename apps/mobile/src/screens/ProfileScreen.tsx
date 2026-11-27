@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
-  ActivityIndicator, ScrollView, Alert, Platform, RefreshControl, Switch, Keyboard, TouchableWithoutFeedback,
+  ActivityIndicator, ScrollView, Alert, Platform, RefreshControl, Switch, Keyboard,
 } from 'react-native';
 import {
   User, MapPin, Heart, Package, HelpCircle, MessageCircle,
@@ -26,6 +26,7 @@ import { useWishlist } from '../contexts/WishlistContext';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import ErrorReference from '../components/ErrorReference';
 import LoadFailed from '../components/LoadFailed';
+import DismissKeyboard from '../components/DismissKeyboard';
 import KeyboardDoneBar, { DONE_BAR_ID } from '../components/KeyboardDoneBar';
 import { describeLoadFailure, isNetworkError, type LoadFailure } from '../services/loadFailure';
 import { FadeInUp } from '../components/AnimatedUI';
@@ -209,7 +210,7 @@ export default function ProfileScreen() {
   // ── Not Logged In ──
   if (screen === 'login') {
     return (
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      <DismissKeyboard>
       <View style={styles.authContainer}>
         <View style={[styles.authHeader, { paddingTop: topPad }]}>
           <Text style={styles.authPageTitle}>Account</Text>
@@ -258,14 +259,14 @@ export default function ProfileScreen() {
         </View>
         <KeyboardDoneBar />
       </View>
-      </TouchableWithoutFeedback>
+      </DismissKeyboard>
     );
   }
 
   // ── OTP Verify ──
   if (screen === 'otp') {
     return (
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      <DismissKeyboard>
       <View style={styles.authContainer}>
         <View style={[styles.authHeader, { justifyContent: 'flex-start', gap: 12, paddingTop: topPad }]}>
           <TouchableOpacity
@@ -329,7 +330,7 @@ export default function ProfileScreen() {
         </View>
         <KeyboardDoneBar />
       </View>
-      </TouchableWithoutFeedback>
+      </DismissKeyboard>
     );
   }
 
