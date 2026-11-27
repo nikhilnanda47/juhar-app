@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Dimensions,
   RefreshControl,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -20,8 +19,6 @@ import ProductImage from '../components/ProductImage';
 import { describeLoadFailure, type LoadFailure } from '../services/loadFailure';
 import type { ScreenNavigation } from '../navigation/types';
 
-const { width } = Dimensions.get('window');
-const CARD_WIDTH = (width - spacing.margin * 2 - spacing.gutter) / 2;
 
 export default function HomeScreen() {
   const navigation = useNavigation<ScreenNavigation>();
@@ -310,14 +307,17 @@ const createStyles = (colors: ColorPalette) => StyleSheet.create({
   },
 
   // ── Collections Grid ──
+  // two tiles per row whatever the screen: percentages follow the real width (a width worked out once at start-up did not,
+  // and in a browser window of another size the tiles no longer fitted two to a row)
   collectionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.gutter,
+    justifyContent: 'space-between',
+    rowGap: spacing.gutter,
   },
   collectionCard: {
-    width: CARD_WIDTH,
-    height: CARD_WIDTH,
+    width: '48%',
+    aspectRatio: 1,
     borderRadius: borderRadius.md,
     overflow: 'hidden',
     position: 'relative',

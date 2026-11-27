@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, Dimensions, RefreshControl, TextInput, Modal,
+  ActivityIndicator, RefreshControl, TextInput, Modal,
 } from 'react-native';
 import { Search as SearchIcon, SlidersHorizontal, Heart, ChevronDown, Check, X } from 'lucide-react-native';
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
@@ -23,8 +23,6 @@ import ProductImage from '../components/ProductImage';
 import { describeLoadFailure, type LoadFailure } from '../services/loadFailure';
 import type { ScreenNavigation } from '../navigation/types';
 
-const { width } = Dimensions.get('window');
-const CARD_WIDTH = (width - spacing.margin * 2 - spacing.gutter) / 2;
 
 interface Props {
   navigation: ScreenNavigation;
@@ -281,12 +279,14 @@ export default function ExploreScreen({ navigation }: Props) {
       {/* Product Grid */}
       <View style={[styles.grid, listLoading && { opacity: 0.4 }]}>
         {products.map((product, idx) => (
-          <FadeInUp key={product.id} delay={idx * 80} duration={400} distance={12}>
-            <ProductCard
-              product={product}
-              onPress={() => navigation.navigate('ProductDetail', { slug: product.slug })}
-            />
-          </FadeInUp>
+          <View key={product.id} style={styles.cardSlot}>
+            <FadeInUp delay={idx * 80} duration={400} distance={12}>
+              <ProductCard
+                product={product}
+                onPress={() => navigation.navigate('ProductDetail', { slug: product.slug })}
+              />
+            </FadeInUp>
+          </View>
         ))}
       </View>
 
@@ -691,16 +691,19 @@ const createStyles = (colors: ColorPalette) => StyleSheet.create({
   shownText: { fontFamily: 'DMSans-Regular', fontSize: 12, color: colors.textTertiary },
 
   // Grid
+  // two cards per row whatever the screen width (percentages follow the real width; see HomeScreen's collection tiles)
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    justifyContent: 'space-between',
     paddingHorizontal: spacing.margin,
-    gap: spacing.gutter,
+    rowGap: spacing.gutter,
   },
 
-  // Product Card
+  // Product Card (the slot is the grid item: its width is a share of the grid, and the card fills it)
+  cardSlot: { width: '48%' },
   card: {
-    width: CARD_WIDTH,
+    width: '100%',
     backgroundColor: colors.surface,
     borderRadius: borderRadius.md,
     padding: 10,
