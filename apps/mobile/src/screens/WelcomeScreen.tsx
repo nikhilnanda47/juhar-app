@@ -6,6 +6,7 @@ import {
 import {
   ArrowRight, ShoppingBag, ShieldCheck, Award, Truck, Handshake,
 } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -42,6 +43,7 @@ interface Props {
 export default function WelcomeScreen({ onComplete }: Props) {
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const insets = useSafeAreaInsets(); // keep the top bar below the status bar and the button above the home bar
   const [current, setCurrent] = useState(0);
   const fadeAnims = useRef(SLIDES.map((_, i) => new Animated.Value(i === 0 ? 1 : 0))).current;
   const textOpacity = useRef(new Animated.Value(1)).current;
@@ -85,7 +87,7 @@ export default function WelcomeScreen({ onComplete }: Props) {
   const slide = SLIDES[current];
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.topBar}>
         <View style={styles.brandRow}>
           <Award size={18} color={colors.primary} strokeWidth={1.5} />
@@ -132,7 +134,7 @@ export default function WelcomeScreen({ onComplete }: Props) {
         ))}
       </View>
 
-      <View style={styles.ctaWrap}>
+      <View style={[styles.ctaWrap, { paddingBottom: Math.max(16, insets.bottom) }]}>
         <TouchableOpacity style={styles.ctaBtn} onPress={handleNext} activeOpacity={0.85}>
           <Text style={styles.ctaText}>{isLast ? 'Start Shopping' : 'Next'}</Text>
           {isLast
@@ -165,7 +167,7 @@ const createStyles = (colors: ColorPalette) => StyleSheet.create({
   skipText: { fontFamily: 'DMSans-Medium', fontSize: 14, color: colors.primary },
 
   imageContainer: {
-    width: '100%', aspectRatio: 3 / 4, maxHeight: IMAGE_HEIGHT,
+    width: '100%', height: IMAGE_HEIGHT, // a fixed height: with an aspect ratio too, a phone shrinks the width to fit and leaves a blank strip
     borderRadius: 12, overflow: 'hidden', position: 'relative',
   },
   slideVisual: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
