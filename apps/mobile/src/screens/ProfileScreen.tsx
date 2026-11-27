@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
-  ActivityIndicator, ScrollView, Alert, Platform, RefreshControl, Switch,
+  ActivityIndicator, ScrollView, Alert, Platform, RefreshControl, Switch, Keyboard, TouchableWithoutFeedback,
 } from 'react-native';
 import {
   User, MapPin, Heart, Package, HelpCircle, MessageCircle,
-  LogOut, ChevronRight, FileText, Settings, Sun, Moon,
+  LogOut, ChevronRight, FileText, Settings, Sun, Moon, ArrowLeft,
 } from 'lucide-react-native';
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
 import { useTopPadding } from '../utils/safeArea';
@@ -26,6 +26,7 @@ import { useWishlist } from '../contexts/WishlistContext';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import ErrorReference from '../components/ErrorReference';
 import LoadFailed from '../components/LoadFailed';
+import KeyboardDoneBar, { DONE_BAR_ID } from '../components/KeyboardDoneBar';
 import { describeLoadFailure, isNetworkError, type LoadFailure } from '../services/loadFailure';
 import { FadeInUp } from '../components/AnimatedUI';
 import RefreshButton from '../components/RefreshButton';
@@ -208,6 +209,7 @@ export default function ProfileScreen() {
   // ── Not Logged In ──
   if (screen === 'login') {
     return (
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
       <View style={styles.authContainer}>
         <View style={[styles.authHeader, { paddingTop: topPad }]}>
           <Text style={styles.authPageTitle}>Account</Text>
@@ -238,7 +240,7 @@ export default function ProfileScreen() {
                 placeholderTextColor={colors.textTertiary}
                 keyboardType="number-pad"
                 maxLength={10}
-                autoFocus
+                inputAccessoryViewID={DONE_BAR_ID}
               />
             </View>
           </View>
@@ -254,15 +256,29 @@ export default function ProfileScreen() {
             <Text style={styles.primaryBtnText}>{busy ? 'Sending...' : 'Send OTP'}</Text>
           </TouchableOpacity>
         </View>
+        <KeyboardDoneBar />
       </View>
+      </TouchableWithoutFeedback>
     );
   }
 
   // ── OTP Verify ──
   if (screen === 'otp') {
     return (
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
       <View style={styles.authContainer}>
-        <Text style={styles.authPageTitle}>Account</Text>
+        <View style={[styles.authHeader, { justifyContent: 'flex-start', gap: 12, paddingTop: topPad }]}>
+          <TouchableOpacity
+            style={styles.themeToggleBtn}
+            onPress={() => { Keyboard.dismiss(); setOtp(''); setError(''); setErrorRef(''); setScreen('login'); }}
+            accessibilityRole="button"
+            accessibilityLabel="Back, change number"
+            activeOpacity={0.7}
+          >
+            <ArrowLeft size={20} color={colors.textSecondary} strokeWidth={1.5} />
+          </TouchableOpacity>
+          <Text style={styles.authPageTitle}>Account</Text>
+        </View>
         <View style={styles.authContent}>
           <Text style={styles.authTitle}>Verify your number</Text>
           <Text style={styles.authSubtext}>
@@ -280,6 +296,7 @@ export default function ProfileScreen() {
               placeholderTextColor={colors.textTertiary}
               keyboardType="number-pad"
               maxLength={6}
+              inputAccessoryViewID={DONE_BAR_ID}
               autoFocus
             />
           </View>
@@ -310,7 +327,9 @@ export default function ProfileScreen() {
             <Text style={styles.ghostLink}>Change number</Text>
           </TouchableOpacity>
         </View>
+        <KeyboardDoneBar />
       </View>
+      </TouchableWithoutFeedback>
     );
   }
 
