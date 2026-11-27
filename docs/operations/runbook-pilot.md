@@ -40,6 +40,7 @@ Never paste secrets into chat, issues or the repo. They go only into the dashboa
 | `CORS_ORIGINS` | `https://<website address>,https://<admin address>` | Exact addresses, `https`, no trailing slash. Replaces the built-in local list. |
 | `TRUST_PROXY` | `1` | So the rate limits see each caller's real address. |
 | `NIXPACKS_NODE_VERSION` | `22` | Makes sure Railway builds with Node 22. |
+| `PORT` | `3000` | Needed for the public domain's "port your app is listening on" prompt (see below the table). |
 | `LOG_LEVEL` | optional, `log` | |
 | `ENABLE_API_DOCS` | leave unset | The Swagger page is off on a live API. |
 | `R2_ACCOUNT_ID` | Cloudflare dashboard > R2 > Account ID | Product photos (section 3, step 3). **Set all five or none**: a half-filled set stops the API from starting. |
@@ -56,7 +57,7 @@ Make a secret:
 node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 ```
 
-`PORT` is set by Railway itself.
+`PORT`: Railway sets one itself, but when you generate the public domain it asks "Enter the port your app is listening on" and does not tell you the number. The simple way: add the variable `PORT=3000` and type `3000` there. The API reads `PORT` (3000 when unset) and logs "Juhar API running on http://localhost:3000" at start.
 
 ### Website and admin (Vercel > project > Settings > Environment Variables)
 
