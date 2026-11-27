@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme, type ColorPalette } from '../theme';
+import { useTopPadding } from '../utils/safeArea';
 import { spacing, borderRadius } from '../theme';
 import { getProducts, getCategories, formatPaise, type Product, type Category } from '../services/api';
 import { FadeInUp, ScalePress } from '../components/AnimatedUI';
@@ -26,6 +27,7 @@ export default function HomeScreen() {
   const navigation = useNavigation<ScreenNavigation>();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const topPad = useTopPadding(56);
   const [newArrivals, setNewArrivals] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -66,7 +68,7 @@ export default function HomeScreen() {
     >
       {/* Brand Sub-header */}
       <FadeInUp delay={0} duration={600}>
-        <View style={styles.subHeader}>
+        <View style={[styles.subHeader, { paddingTop: topPad }]}>
           <View style={styles.brandRow}>
             <Text style={styles.brandName}>Juhar</Text>
             <Text style={styles.odiaScript}>ଜୁହାର୍</Text>

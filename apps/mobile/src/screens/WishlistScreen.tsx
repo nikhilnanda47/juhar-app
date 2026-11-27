@@ -5,6 +5,7 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { Heart, Trash2, ShoppingBag, ChevronLeft } from 'lucide-react-native';
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
+import { useTopPadding } from '../utils/safeArea';
 import { addToCart, getCart, formatPaise, isLoggedIn, referenceOf, messageOf } from '../services/api';
 import { onCartChanged } from '../services/cartEvents';
 import { useWishlist } from '../contexts/WishlistContext';
@@ -18,6 +19,7 @@ interface Props {
 
 export default function WishlistScreen({ navigation }: Props) {
   const { colors } = useTheme();
+  const topPad = useTopPadding(56);
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { loaded, items, toggleVariant, total, refreshWishlist } = useWishlist();
   const [addingId, setAddingId] = useState<string | null>(null);
@@ -71,7 +73,7 @@ export default function WishlistScreen({ navigation }: Props) {
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: topPad }]}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <ChevronLeft size={22} color={colors.textPrimary} strokeWidth={2} />
         </TouchableOpacity>

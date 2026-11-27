@@ -8,6 +8,8 @@ import {
   LogOut, ChevronRight, FileText, Settings, Sun, Moon,
 } from 'lucide-react-native';
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
+import { useTopPadding } from '../utils/safeArea';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   loadToken,
   requestOtp,
@@ -38,6 +40,8 @@ export default function ProfileScreen() {
   const navigation = useNavigation<ScreenNavigation>();
   const { colors, isDark, toggleTheme } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const topPad = useTopPadding(56);
+  const safeTop = useSafeAreaInsets().top;
 
   const [screen, setScreen] = useState<Screen>('loading');
   const [phone, setPhone] = useState('');
@@ -205,7 +209,7 @@ export default function ProfileScreen() {
   if (screen === 'login') {
     return (
       <View style={styles.authContainer}>
-        <View style={styles.authHeader}>
+        <View style={[styles.authHeader, { paddingTop: topPad }]}>
           <Text style={styles.authPageTitle}>Account</Text>
           <TouchableOpacity style={styles.themeToggleBtn} onPress={toggleTheme} activeOpacity={0.7}>
             {isDark ? (
@@ -357,7 +361,7 @@ export default function ProfileScreen() {
   return (
     <ScrollView
       style={styles.scrollContainer}
-      contentContainerStyle={styles.scrollContent}
+      contentContainerStyle={[styles.scrollContent, { paddingTop: safeTop }]}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={async () => {
           setRefreshing(true);
@@ -415,7 +419,7 @@ export default function ProfileScreen() {
             <Heart size={22} color={colors.textPrimary} strokeWidth={1.5} />
           </View>
           <Text style={styles.tileLabel}>Wishlist</Text>
-          <Text style={styles.tileSub}>{savedCount} items</Text>
+          <Text style={styles.tileSub}>{savedCount === 1 ? '1 item' : `${savedCount} items`}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.tile} activeOpacity={0.7} onPress={() => navigation.navigate('Addresses')}>
           <View style={styles.tileIconWrap}>
@@ -456,6 +460,7 @@ export default function ProfileScreen() {
             <Text style={styles.menuLabel}>{isDark ? 'Dark Mode' : 'Light Mode'}</Text>
           </View>
           <Switch
+            style={{ alignSelf: 'center' }}
             value={isDark}
             onValueChange={toggleTheme}
             trackColor={{ false: colors.surfaceMuted, true: colors.primary }}
