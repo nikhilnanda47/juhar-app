@@ -213,7 +213,18 @@ export default function ProfileScreen() {
       <DismissKeyboard>
       <View style={styles.authContainer}>
         <View style={[styles.authHeader, { paddingTop: topPad }]}>
-          <Text style={styles.authPageTitle}>Account</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <TouchableOpacity
+              style={styles.themeToggleBtn}
+              onPress={() => { Keyboard.dismiss(); navigation.navigate('Home'); }}
+              accessibilityRole="button"
+              accessibilityLabel="Back to Home"
+              activeOpacity={0.7}
+            >
+              <ArrowLeft size={20} color={colors.textSecondary} strokeWidth={1.5} />
+            </TouchableOpacity>
+            <Text style={styles.authPageTitle}>Account</Text>
+          </View>
           <TouchableOpacity style={styles.themeToggleBtn} onPress={toggleTheme} activeOpacity={0.7}>
             {isDark ? (
               <Sun size={20} color={colors.textSecondary} strokeWidth={1.5} />
