@@ -1,20 +1,38 @@
 import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { MediaService } from '../media/media.service';
 import { CreateCategoryDto, UpdateCategoryDto } from './dto';
 import { generateSlug } from '@juhar/shared';
 
 @Injectable()
 export class CategoriesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly media: MediaService,
+  ) {}
 
   /**
    * List active categories sorted by sortOrder (public).
    */
   async findAllActive() {
-    return this.prisma.category.findMany({
+    const categories = await this.prisma.category.findMany({
       where: { active: true },
       orderBy: { sortOrder: 'asc' },
     });
+    // each category's picture for the home page: its own imageUrl when one is set, else the first photo of its newest
+    // published saree that has one (so real photos appear without anyone choosing a cover); null when there is none
+    return Promise.all(categories.map(async (category) => ({ ...category, coverImage: await this.coverImage(category) })));
+  }
+
+  private async coverImage(category: { id: string; name: string; imageUrl: string | null }) {
+    if (category.imageUrl) return { url: category.imageUrl, alt: category.name };
+    const photo = await this.prisma.productMedia.findFirst({
+      where: { type: 'image', product: { categoryId: category.id, publishStatus: 'published' } },
+      orderBy: [{ product: { createdAt: 'desc' } }, { sortOrder: 'asc' }],
+      select: { objectKey: true, thumbnailKey: true, altText: true },
+    });
+    const card = this.media.card(photo);
+    return card && { url: card.url, alt: category.name }; // the tile already says the name, so that is its description too
   }
 
   /**

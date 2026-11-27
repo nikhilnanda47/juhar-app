@@ -571,7 +571,7 @@ Reusable refresh icon (`RefreshCw`) with spin animation on press. Used on Home, 
 
 ### 13.1 Splash (Screen 1)
 
-**Purpose:** Brand moment while app loads. Auto-transitions to Home (returning user) or Welcome (first launch).
+**Purpose:** Brand moment while app loads. Auto-transitions to Home (someone signed in) or Welcome (anyone not signed in, every launch).
 
 ```
 ┌─────────────────────────────┐
@@ -600,7 +600,7 @@ Reusable refresh icon (`RefreshCw`) with spin animation on press. Used on Home, 
 
 ### 13.2 Welcome / Onboarding (Screen 2)
 
-**Purpose:** First-time users only. 3 swipeable pages. Skip always visible.
+**Purpose:** Everyone who is not signed in sees it each time the app opens (signed-in users go straight to Home). 3 swipeable pages. Skip always visible.
 
 ```
 ┌─────────────────────────────┐
@@ -857,6 +857,7 @@ Reusable refresh icon (`RefreshCw`) with spin animation on press. Used on Home, 
 └─────────────────────────────┘
 ```
 
+- **Pictures (website and app):** the hero shows the photo of the newest saree that has one, with the "Handwoven archive / Sambalpuri Baandha Silk" text over a dark gradient. Each collection tile shows the photo of its category's newest published saree (`coverImage` on `GET /categories`; a category's own `imageUrl` wins when set). While there is no photo the box keeps its soft placeholder colour. A dedicated banner picture can replace the hero later.
 - Pull-to-refresh with branded spinner
 - Shimmer skeleton on first load
 - Sections separated by 32px whitespace

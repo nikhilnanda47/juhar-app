@@ -428,6 +428,18 @@ components:
         imageUrl:
           type: string
           nullable: true
+        coverImage:
+          type: object
+          nullable: true
+          description: |
+            The picture of the category's tile on the home page (public list only). The category's own `imageUrl` when one is set;
+            otherwise the small copy of the first photo of its newest published saree that has a photo. `null` while none has a photo.
+          properties:
+            url:
+              type: string
+            alt:
+              type: string
+              nullable: true
         sortOrder:
           type: integer
         active:

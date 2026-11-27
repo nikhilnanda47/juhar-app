@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { Search as SearchIcon, SlidersHorizontal, Heart, ChevronDown, Check, X } from 'lucide-react-native';
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
+import { useTopPadding } from '../utils/safeArea';
 import {
   getCategories, getProducts, getProductFilters, formatPaise,
   type Category, type Product, type ProductFilterOptions, messageOf} from '../services/api';
@@ -32,6 +33,7 @@ interface Props {
 export default function ExploreScreen({ navigation }: Props) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const topPad = useTopPadding(56);
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const { refreshWishlist } = useWishlist();
@@ -172,7 +174,7 @@ export default function ExploreScreen({ navigation }: Props) {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
     >
       {/* Title Row */}
-      <View style={styles.titleRow}>
+      <View style={[styles.titleRow, { paddingTop: topPad }]}>
         <Text style={styles.pageTitle}>Shop</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Text style={styles.originLabel}>HANDCRAFTED IN ODISHA</Text>

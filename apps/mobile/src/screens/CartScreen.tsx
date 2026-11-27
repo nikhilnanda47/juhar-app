@@ -10,6 +10,7 @@ import {
   ChevronLeft, Truck, ArrowRight, Leaf,
 } from 'lucide-react-native';
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
+import { useTopPadding } from '../utils/safeArea';
 import RefreshButton from '../components/RefreshButton';
 import LoadFailed from '../components/LoadFailed';
 import ProductImage from '../components/ProductImage';
@@ -36,6 +37,7 @@ export default function CartScreen() {
   const navigation = useNavigation<ScreenNavigation>();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const topPad = useTopPadding(48);
   const [cart, setCart] = useState<CartResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [failure, setFailure] = useState<LoadFailure | null>(null); // why the bag could not be loaded
@@ -143,7 +145,7 @@ export default function CartScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadCart(); }} tintColor={colors.primary} />}
       >
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: topPad }]}>
           <View style={styles.headerLeft}>
             <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
               <ChevronLeft size={20} color={colors.textPrimary} strokeWidth={2} />

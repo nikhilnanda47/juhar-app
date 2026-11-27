@@ -14,6 +14,9 @@ export default function HomePage() {
     getCategories().then((c) => setCategories(c.filter((cat) => cat.active !== false))).catch(() => {});
   }, []);
 
+  // the banner shows the newest saree that has a photo (a dedicated banner picture can replace this later)
+  const heroPhoto = newArrivals.find((p) => p.primaryImage)?.primaryImage;
+
   return (
     <div className="page-container">
       {/* Sub-header — mobile only */}
@@ -28,6 +31,7 @@ export default function HomePage() {
       {/* Hero Banner */}
       <Link href="/shop" className="block ">
         <div className="relative w-full aspect-video lg:aspect-[21/9] rounded-xl overflow-hidden bg-surface-container-low">
+          <ProductImage src={heroPhoto?.url} alt={heroPhoto?.alt || 'Sambalpuri Baandha Silk'} eager />
           <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
           <div className="absolute bottom-4 left-4 lg:bottom-8 lg:left-8">
             <span className="label-upper text-white/80 block mb-1">HANDWOVEN ARCHIVE</span>
@@ -51,6 +55,7 @@ export default function HomePage() {
               href={`/shop?category=${cat.slug}`}
               className="relative aspect-[4/5] rounded-xl overflow-hidden bg-surface-container-low group"
             >
+              <ProductImage src={cat.coverImage?.url} alt={cat.coverImage?.alt || cat.name} />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
               <div className="absolute bottom-3 left-3">
                 <span className="font-sans text-title-sm text-white">{cat.name}</span>

@@ -10,6 +10,7 @@ import {
   Package, RefreshCw, Banknote, ShoppingBag, Zap,
 } from 'lucide-react-native';
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
+import { useTopPadding } from '../utils/safeArea';
 import { FadeInUp } from '../components/AnimatedUI';
 import { addToLocalCart } from '../services/localCart';
 import {
@@ -48,6 +49,7 @@ type ScrollViewHandle = React.ComponentProps<typeof ScrollView> extends { ref?: 
 export default function ProductDetailScreen({ route, navigation }: Props) {
   const { slug } = route.params;
   const { colors } = useTheme();
+  const topPad = useTopPadding(48);
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [product, setProduct] = useState<Product | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -252,7 +254,7 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
         }
       >
         {/* Top Action Bar */}
-        <View style={styles.topBar}>
+        <View style={[styles.topBar, { paddingTop: topPad }]}>
           <TouchableOpacity style={styles.circleBtn} onPress={() => navigation.goBack()}>
             <ChevronLeft size={20} color={colors.textPrimary} strokeWidth={2} />
           </TouchableOpacity>

@@ -6,6 +6,7 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { Package, User, ArrowRight } from 'lucide-react-native';
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
+import { useTopPadding } from '../utils/safeArea';
 import RefreshButton from '../components/RefreshButton';
 import LoadFailed from '../components/LoadFailed';
 import ProductImage from '../components/ProductImage';
@@ -27,6 +28,7 @@ interface Props { navigation: ScreenNavigation; }
 
 export default function OrdersScreen({ navigation }: Props) {
   const { colors } = useTheme();
+  const topPad = useTopPadding(56);
   const styles = useMemo(() => createStyles(colors), [colors]);
   const statusStyles = useMemo(() => getStatusStyles(colors), [colors]);
   const [orders, setOrders] = useState<OrderSummary[]>([]);
@@ -122,7 +124,7 @@ export default function OrdersScreen({ navigation }: Props) {
       contentContainerStyle={styles.scrollContent}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); checkAndLoad(); }} tintColor={colors.primary} />}
     >
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: topPad }]}>
         <Text style={styles.pageTitle}>My Orders</Text>
         <RefreshButton onRefresh={() => { setRefreshing(true); checkAndLoad(); }} />
       </View>

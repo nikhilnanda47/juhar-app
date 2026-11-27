@@ -27,6 +27,7 @@
     "db:generate": "npm run db:generate -w apps/api",
     "db:seed": "npm run db:seed -w apps/api",
     "db:seed:demo": "npm run db:seed:demo -w apps/api --",
+    "db:seed:photos": "npm run db:seed:photos -w apps/api --",
     "db:studio": "npm run db:studio -w apps/api",
     "lint:fix": "eslint . --fix",
     "rehearse:deploy": "bash scripts/rehearse-deploy.sh",

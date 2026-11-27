@@ -23,7 +23,7 @@ Juhar is an own-brand, direct-to-consumer (D2C) Sambalpuri fashion e-commerce pl
 | # | Feature | Status |
 |---|---------|--------|
 | 1 | Splash screen with branded animation | ✅ |
-| 2 | Welcome onboarding (3-slide carousel, first launch only) | ✅ |
+| 2 | Welcome onboarding (3-slide carousel, shown at every launch to anyone not signed in) | ✅ |
 | 3 | Home screen — hero, collections grid, new arrivals from API | ✅ |
 | 4 | Explore catalog — category chips, 2-column product grid | ✅ |
 | 5 | Filter products by category | ✅ |
@@ -442,6 +442,8 @@ npx ts-node prisma/seed.ts    # Seeds 4 categories, 8 products, 11 variants, 1 a
 cd ../..
 ```
 
+The seed scripts (`seed`, `seed-demo`, `seed-photos`, `db:create-admin`) read `DATABASE_URL` from `apps/api/.env` (step 4), so you do not need to export anything. A variable already set in your shell wins over the file, which is how you point one of them at another database. If a seed says "Refusing to run ... DATABASE_URL points at an address I cannot read", the file is missing or has no `DATABASE_URL`: do step 4 again.
+
 **Optional: more demo data for testing.** The normal seed has only 8 products, which is too few to see "Load more", sorting, the Low Stock count or the Overdue flag. On a local or test database you can add more:
 
 ```bash
@@ -452,6 +454,16 @@ npm run db:seed:demo -- --clean                # remove everything this script a
 ```
 
 It is safe to run again (it skips what exists) and it refuses to run with `NODE_ENV=production`. The sarees mix every case on purpose: about 1 in 6 is a draft and 1 in 20 archived, stock cycles through none, 1 to 3 (low stock), ordinary and plenty, some variants are retired, and prices run from about ₹1,200 to ₹18,000 so some carts pass the free-shipping amount. The demo orders have 1 to 3 items in every status (some placed more than a day ago, so they show as overdue; a few are from today). To see those orders as the customer, log in with phone `9000000099` and OTP `123456`. The orders are plain records: stock is not deducted for them.
+
+**Optional: sample pictures until there are real photos.** The demo sarees have no photos, so the shop shows grey placeholders. This command draws Sambalpuri-style fabric pictures (colour taken from each saree's colour name; a full view per colour, then border, ikat, pallu and weave close-ups) and adds them through the real photo pipeline, so everything (resizing, thumbnails, audit rows, admin, shop, app) behaves exactly as with real photos. Every picture carries a small "SAMPLE PICTURE" label so nobody mistakes it for a product photo.
+
+```bash
+npm run db:seed:photos                         # sample pictures for every saree that has no photo yet
+npm run db:seed:photos -- --prefix demo- --limit 10   # only sarees whose slug starts with "demo-", at most 10
+npm run db:seed:photos -- --remove             # delete the sample pictures (real photos are never touched)
+```
+
+It takes about 1 to 2 seconds per saree (about a minute for 48 sarees, about 40 MB in `apps/api/uploads`, which git ignores), skips sarees that already have any photo, and is safe to run again. It is for local development only: it refuses a database that is not on this computer, `NODE_ENV=production`, and a setup with Cloudflare R2 configured. Run `--remove` before `db:seed:demo -- --clean` so the picture files go too.
 
 > **If `prisma migrate deploy` fails with a message starting "Cannot add the CHECK constraints":** some rows already in your database break a rule (for example stock reserved beyond what is on hand). The message lists each problem and the `SELECT` that finds the rows; nothing was changed. Fix or delete those rows, then run `npx prisma migrate resolve --rolled-back 20261122150000_check_constraints` (Prisma refuses to continue after a failed migration until you do) and `npx prisma migrate deploy` again. If you do not need the data, `npx prisma migrate reset` rebuilds the local database from scratch (it deletes everything, so then run the seed again).
 
@@ -512,6 +524,8 @@ cd apps/api && npx prisma studio
 ```
 
 The API, website and admin panel are covered by the root `npm install` in step 3; the mobile app needs its own (`apps/mobile`).
+
+> **Expo Go on a phone:** put the phone on the same Wi-Fi as the computer, find the computer's address (`ipconfig getifaddr en0` on a Mac) and start the app with `cd apps/mobile && EXPO_PUBLIC_API_URL=http://<that address>:3000 npx expo start --clear`, then scan the QR code with the phone's camera. Check first that `http://<that address>:3000/health` opens in the phone's browser. **Photos:** the API builds picture addresses from `MEDIA_PUBLIC_URL`, which defaults to `http://localhost:3000/media`. A phone cannot open that, so the pictures stay blank. Add `MEDIA_PUBLIC_URL=http://<that address>:3000/media` to `apps/api/.env` and restart the API (the pictures are not changed; only their addresses are). Keep the native libraries (`expo-*`, `@react-native-async-storage/async-storage`, `react-native-*`) at the versions Expo lists for the SDK (`apps/mobile/node_modules/expo/bundledNativeModules.json`), because Expo Go contains only those: a newer major version fails there with "Native module is null". AsyncStorage is pinned to `2.2.0` for that reason.
 
 > **Mobile app:** it runs in the browser preview at `localhost:8081`. A phone or Expo Go cannot reach `localhost` on your computer, and the API address is a setting of the build, `EXPO_PUBLIC_API_URL` (see `apps/mobile/.env.example`): unset in development means `http://localhost:3000`, and a release build (the `pilot` and `production` profiles in `apps/mobile/eas.json`) refuses to run without a real `https://` address. To try the preview against another server, start it with `EXPO_PUBLIC_API_URL=https://your-api npx expo start --web`.
 
@@ -579,6 +593,7 @@ Check what changed (`git diff HEAD@{1} --stat`), then use this table. Dev server
 | `npm run rehearse:deploy` | Root | Dry run of the Railway and Vercel steps from a clean copy (see the runbook) |
 | `npm run smoke -- --api https://… --web https://… --admin https://…` | Root | After-deploy check of a live environment: health, database, shop, closed login, pages, API address and CORS (reads only; see the runbook) |
 | `npm run db:seed:demo -- --products 60 --orders 55` | Root | Add demo sarees and orders for testing long lists (`-- --clean` removes them) |
+| `npm run db:seed:photos` | Root | Draw and attach "SAMPLE PICTURE" images to sarees without photos (local only; `-- --remove` deletes them) |
 | `psql -U juhar -d juhar_dev` | Anywhere | Connect to database CLI |
 | `cd apps/mobile && npx expo start --web --clear` | Root | Mobile with cleared cache |
 | `npm run build -w packages/shared` | Root | Rebuild the shared package after editing it |

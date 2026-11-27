@@ -1,13 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
-  ActivityIndicator, ScrollView, Alert, Platform, RefreshControl, Switch,
+  ActivityIndicator, ScrollView, Alert, Platform, RefreshControl, Switch, Keyboard,
 } from 'react-native';
 import {
   User, MapPin, Heart, Package, HelpCircle, MessageCircle,
-  LogOut, ChevronRight, FileText, Settings, Sun, Moon,
+  LogOut, ChevronRight, FileText, Settings, Sun, Moon, ArrowLeft,
 } from 'lucide-react-native';
 import { useTheme, type ColorPalette, spacing, borderRadius } from '../theme';
+import { useTopPadding } from '../utils/safeArea';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   loadToken,
   requestOtp,
@@ -24,6 +26,8 @@ import { useWishlist } from '../contexts/WishlistContext';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import ErrorReference from '../components/ErrorReference';
 import LoadFailed from '../components/LoadFailed';
+import DismissKeyboard from '../components/DismissKeyboard';
+import KeyboardDoneBar, { DONE_BAR_ID } from '../components/KeyboardDoneBar';
 import { describeLoadFailure, isNetworkError, type LoadFailure } from '../services/loadFailure';
 import { FadeInUp } from '../components/AnimatedUI';
 import RefreshButton from '../components/RefreshButton';
@@ -38,6 +42,8 @@ export default function ProfileScreen() {
   const navigation = useNavigation<ScreenNavigation>();
   const { colors, isDark, toggleTheme } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const topPad = useTopPadding(56);
+  const safeTop = useSafeAreaInsets().top;
 
   const [screen, setScreen] = useState<Screen>('loading');
   const [phone, setPhone] = useState('');
@@ -204,9 +210,21 @@ export default function ProfileScreen() {
   // ── Not Logged In ──
   if (screen === 'login') {
     return (
+      <DismissKeyboard>
       <View style={styles.authContainer}>
-        <View style={styles.authHeader}>
-          <Text style={styles.authPageTitle}>Account</Text>
+        <View style={[styles.authHeader, { paddingTop: topPad }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <TouchableOpacity
+              style={styles.themeToggleBtn}
+              onPress={() => { Keyboard.dismiss(); navigation.navigate('Home'); }}
+              accessibilityRole="button"
+              accessibilityLabel="Back to Home"
+              activeOpacity={0.7}
+            >
+              <ArrowLeft size={20} color={colors.textSecondary} strokeWidth={1.5} />
+            </TouchableOpacity>
+            <Text style={styles.authPageTitle}>Account</Text>
+          </View>
           <TouchableOpacity style={styles.themeToggleBtn} onPress={toggleTheme} activeOpacity={0.7}>
             {isDark ? (
               <Sun size={20} color={colors.textSecondary} strokeWidth={1.5} />
@@ -234,7 +252,7 @@ export default function ProfileScreen() {
                 placeholderTextColor={colors.textTertiary}
                 keyboardType="number-pad"
                 maxLength={10}
-                autoFocus
+                inputAccessoryViewID={DONE_BAR_ID}
               />
             </View>
           </View>
@@ -250,15 +268,29 @@ export default function ProfileScreen() {
             <Text style={styles.primaryBtnText}>{busy ? 'Sending...' : 'Send OTP'}</Text>
           </TouchableOpacity>
         </View>
+        <KeyboardDoneBar />
       </View>
+      </DismissKeyboard>
     );
   }
 
   // ── OTP Verify ──
   if (screen === 'otp') {
     return (
+      <DismissKeyboard>
       <View style={styles.authContainer}>
-        <Text style={styles.authPageTitle}>Account</Text>
+        <View style={[styles.authHeader, { justifyContent: 'flex-start', gap: 12, paddingTop: topPad }]}>
+          <TouchableOpacity
+            style={styles.themeToggleBtn}
+            onPress={() => { Keyboard.dismiss(); setOtp(''); setError(''); setErrorRef(''); setScreen('login'); }}
+            accessibilityRole="button"
+            accessibilityLabel="Back, change number"
+            activeOpacity={0.7}
+          >
+            <ArrowLeft size={20} color={colors.textSecondary} strokeWidth={1.5} />
+          </TouchableOpacity>
+          <Text style={styles.authPageTitle}>Account</Text>
+        </View>
         <View style={styles.authContent}>
           <Text style={styles.authTitle}>Verify your number</Text>
           <Text style={styles.authSubtext}>
@@ -276,6 +308,7 @@ export default function ProfileScreen() {
               placeholderTextColor={colors.textTertiary}
               keyboardType="number-pad"
               maxLength={6}
+              inputAccessoryViewID={DONE_BAR_ID}
               autoFocus
             />
           </View>
@@ -306,7 +339,9 @@ export default function ProfileScreen() {
             <Text style={styles.ghostLink}>Change number</Text>
           </TouchableOpacity>
         </View>
+        <KeyboardDoneBar />
       </View>
+      </DismissKeyboard>
     );
   }
 
@@ -357,7 +392,7 @@ export default function ProfileScreen() {
   return (
     <ScrollView
       style={styles.scrollContainer}
-      contentContainerStyle={styles.scrollContent}
+      contentContainerStyle={[styles.scrollContent, { paddingTop: safeTop }]}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={async () => {
           setRefreshing(true);
@@ -415,7 +450,7 @@ export default function ProfileScreen() {
             <Heart size={22} color={colors.textPrimary} strokeWidth={1.5} />
           </View>
           <Text style={styles.tileLabel}>Wishlist</Text>
-          <Text style={styles.tileSub}>{savedCount} items</Text>
+          <Text style={styles.tileSub}>{savedCount === 1 ? '1 item' : `${savedCount} items`}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.tile} activeOpacity={0.7} onPress={() => navigation.navigate('Addresses')}>
           <View style={styles.tileIconWrap}>
@@ -456,6 +491,7 @@ export default function ProfileScreen() {
             <Text style={styles.menuLabel}>{isDark ? 'Dark Mode' : 'Light Mode'}</Text>
           </View>
           <Switch
+            style={{ alignSelf: 'center' }}
             value={isDark}
             onValueChange={toggleTheme}
             trackColor={{ false: colors.surfaceMuted, true: colors.primary }}

@@ -309,7 +309,7 @@ class CreateCategoryDto {
 
 | Method | Path | Auth | Notes |
 |---|---|---|---|
-| GET | /api/v1/categories | Public | Active categories, sorted by `sort_order` |
+| GET | /api/v1/categories | Public | Active categories, sorted by `sort_order`, each with `coverImage` (its own `imageUrl`, else the small photo of its newest published saree that has one, else `null`) for the home page tiles |
 | POST | /api/v1/admin/categories | Admin (catalog_editor+) | Create category |
 | PATCH | /api/v1/admin/categories/:id | Admin | Update category |
 
@@ -522,6 +522,8 @@ class VariantResponse {
 **Purpose:** Product photos: upload through the API, check, shrink, store (Cloudflare R2 live, a local folder in development), and turn keys into public addresses.
 
 > **Implementation status (item 51):** built and tested (unit, HTTP-level, real Postgres, and in real browsers). **Design change from the original plan:** photos are uploaded THROUGH the API (multipart, up to 10 MB) instead of straight to storage with signed URLs. The API can then look at the real file, which a signed URL cannot, and the limits cannot be bypassed. The cost is that the bytes pass through the API once, which is fine for an admin adding a few photos a day. Videos are not supported yet (`product_media.type` is always `image`).
+
+> **Sample pictures (development only):** `npm run db:seed:photos` (`prisma/seed-photos.ts`, code in `common/sample-photos/`) draws placeholder fabric images with sharp (SVG to JPEG, 1200x1600, labelled "SAMPLE PICTURE") and calls `MediaService.add` for sarees without photos, so the whole pipeline is exercised. Sample rows are recognised by an alt text starting "Sample picture", which is how `--remove` finds them and leaves real photos alone. It refuses non-local databases, production and R2.
 
 ```
 modules/media/
@@ -2040,7 +2042,7 @@ TabNavigator (5 tabs)
 | Force Update | API response header `X-Min-App-Version` > current app version |
 | Maintenance | API returns HTTP 503 with `maintenance: true` |
 
-> **Implementation status (2026-11-22):** Only Splash and Welcome exist. The first-launch flag is stored under the AsyncStorage key `juhar_onboarding_done` (set to `'true'`), not `@juhar/onboarded`. No Internet, Force Update and Maintenance are not implemented.
+> **Implementation status (2026-11-22):** Only Splash and Welcome exist. Whether to show Welcome is decided at every launch from the sign-in state (`loadToken()` in `App.tsx`): anyone who is not signed in sees the three welcome slides each time the app opens (Skip or Start Shopping goes to Home as a guest); someone signed in goes straight to Home. There is no first-launch flag any more (the old `juhar_onboarding_done` key is no longer read). No Internet, Force Update and Maintenance are not implemented.
 
 ### 8.8 Theme System (Light / Dark)
 

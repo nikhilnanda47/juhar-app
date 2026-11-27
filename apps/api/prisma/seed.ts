@@ -1,3 +1,4 @@
+import '../src/common/load-env'; // read apps/api/.env first (ts-node does not)
 import { PrismaClient } from '@prisma/client';
 
 import { seedRefusal } from '../src/common/local-database-guard';

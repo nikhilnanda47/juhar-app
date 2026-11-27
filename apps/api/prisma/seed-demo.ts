@@ -10,6 +10,7 @@
 // Safe to run again: it skips what already exists, and it only ever touches rows whose slug,
 // SKU or order number starts with "demo-" / "DEMO-". The normal seed (prisma/seed.ts) is not
 // changed or required; this script creates the categories it needs if they are missing.
+import '../src/common/load-env'; // read apps/api/.env first (ts-node does not)
 import { PrismaClient } from '@prisma/client';
 import { calculateShippingPaise } from '@juhar/shared';
 import { seedRefusal } from '../src/common/local-database-guard';
@@ -304,6 +305,7 @@ async function main() {
     prisma.productVariant.count(),
   ]);
   console.log(`✅ Done. The database now has ${p} products (${d} drafts) and ${v} variants.`);
+  console.log('   No photos yet? `npm run db:seed:photos` adds clearly labelled sample pictures (development only).');
 }
 
 main()
