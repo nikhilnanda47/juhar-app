@@ -1,5 +1,5 @@
 import { MEDIA } from '@juhar/shared';
-import { checkPickedFiles, movePhoto, photoCountText } from './photos';
+import { checkPickedFiles, movePhoto, photoCountText, uploadInOrder } from './photos';
 
 const file = (name: string, type = 'image/jpeg', size = 2_000_000) => ({ name, type, size });
 
@@ -72,5 +72,33 @@ describe('photoCountText', () => {
     expect(photoCountText(0)).toBe('No photos yet (up to 10)');
     expect(photoCountText(3)).toBe('3 of 10 photos');
     expect(photoCountText(10)).toBe('10 of 10 photos (full)');
+  });
+});
+
+describe('uploadInOrder', () => {
+  const file = (name: string) => ({ name });
+
+  it('sends every photo, in the order given, and reports progress before each', async () => {
+    const sent: string[] = [];
+    const progress: [number, number][] = [];
+    const failed = await uploadInOrder([file('a.jpg'), file('b.jpg'), file('c.jpg')], async (f) => { sent.push(f.name); }, () => 'x', (d, t) => progress.push([d, t]));
+    expect(failed).toEqual([]);
+    expect(sent).toEqual(['a.jpg', 'b.jpg', 'c.jpg']);
+    expect(progress).toEqual([[0, 3], [1, 3], [2, 3]]);
+  });
+
+  it('carries on after a photo is refused and names each one that failed', async () => {
+    const sent: string[] = [];
+    const failed = await uploadInOrder(
+      [file('a.jpg'), file('bad.jpg'), file('c.jpg')],
+      async (f) => { if (f.name === 'bad.jpg') throw new Error('too small'); sent.push(f.name); },
+      (e) => (e as Error).message,
+    );
+    expect(sent).toEqual(['a.jpg', 'c.jpg']);
+    expect(failed).toEqual(['bad.jpg: too small']);
+  });
+
+  it('does nothing for no photos', async () => {
+    expect(await uploadInOrder([], async () => { throw new Error('never'); }, () => 'x')).toEqual([]);
   });
 });
