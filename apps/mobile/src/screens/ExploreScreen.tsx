@@ -32,6 +32,9 @@ export default function ExploreScreen({ navigation }: Props) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const topPad = useTopPadding(56);
+  // two cards per row, sized from the grid's real width once it is on screen (see HomeScreen's collection tiles)
+  const [gridWidth, setGridWidth] = useState(0);
+  const cardWidth = gridWidth > 0 ? Math.floor((gridWidth - spacing.margin * 2 - spacing.gutter) / 2) : 0;
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const { refreshWishlist } = useWishlist();
@@ -277,9 +280,9 @@ export default function ExploreScreen({ navigation }: Props) {
       {listLoading && <ActivityIndicator style={{ marginVertical: spacing.md }} color={colors.primary} />}
 
       {/* Product Grid */}
-      <View style={[styles.grid, listLoading && { opacity: 0.4 }]}>
-        {products.map((product, idx) => (
-          <View key={product.id} style={styles.cardSlot}>
+      <View style={[styles.grid, listLoading && { opacity: 0.4 }]} onLayout={(e) => setGridWidth(e.nativeEvent.layout.width)}>
+        {cardWidth > 0 && products.map((product, idx) => (
+          <View key={product.id} style={{ width: cardWidth }}>
             <FadeInUp delay={idx * 80} duration={400} distance={12}>
               <ProductCard
                 product={product}
@@ -691,17 +694,14 @@ const createStyles = (colors: ColorPalette) => StyleSheet.create({
   shownText: { fontFamily: 'DMSans-Regular', fontSize: 12, color: colors.textTertiary },
 
   // Grid
-  // two cards per row whatever the screen width (percentages follow the real width; see HomeScreen's collection tiles)
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
     paddingHorizontal: spacing.margin,
-    rowGap: spacing.gutter,
+    gap: spacing.gutter,
   },
 
-  // Product Card (the slot is the grid item: its width is a share of the grid, and the card fills it)
-  cardSlot: { width: '48%' },
+  // Product Card (it fills its grid slot, whose width is set where the grid is drawn)
   card: {
     width: '100%',
     backgroundColor: colors.surface,

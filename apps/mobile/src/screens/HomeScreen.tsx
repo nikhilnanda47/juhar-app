@@ -25,6 +25,10 @@ export default function HomeScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const topPad = useTopPadding(56);
+  // two collection tiles per row: sized from the grid's real width once it is on screen (a width worked out at start-up was
+  // wrong in a window of another size, and percentage widths did not draw on the phone)
+  const [gridWidth, setGridWidth] = useState(0);
+  const tileSize = gridWidth > 0 ? Math.floor((gridWidth - spacing.gutter) / 2) : 0;
   const [newArrivals, setNewArrivals] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -105,11 +109,11 @@ export default function HomeScreen() {
           <Text style={styles.sectionTitle}>Collections</Text>
           <Text style={styles.sectionCount}>{categories.length} WEAVES</Text>
         </View>
-        <View style={styles.collectionsGrid}>
-          {categories.map((cat) => (
+        <View style={styles.collectionsGrid} onLayout={(e) => setGridWidth(e.nativeEvent.layout.width)}>
+          {tileSize > 0 && categories.map((cat) => (
             <TouchableOpacity
               key={cat.id}
-              style={styles.collectionCard}
+              style={[styles.collectionCard, { width: tileSize, height: tileSize }]}
               activeOpacity={0.85}
               onPress={() => navigation.navigate('Shop', {
                 screen: 'ExploreList',
@@ -307,17 +311,12 @@ const createStyles = (colors: ColorPalette) => StyleSheet.create({
   },
 
   // ── Collections Grid ──
-  // two tiles per row whatever the screen: percentages follow the real width (a width worked out once at start-up did not,
-  // and in a browser window of another size the tiles no longer fitted two to a row)
   collectionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    rowGap: spacing.gutter,
+    gap: spacing.gutter,
   },
   collectionCard: {
-    width: '48%',
-    aspectRatio: 1,
     borderRadius: borderRadius.md,
     overflow: 'hidden',
     position: 'relative',
