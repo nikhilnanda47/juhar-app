@@ -56,7 +56,7 @@ Make a secret:
 node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 ```
 
-`PORT` is set by Railway itself.
+`PORT`: leave it unset. Railway sets one itself (it was 8080 on our first deploy) and the API logs it at start ("Juhar API running on http://localhost:8080"). When you generate the public domain, Railway asks "Enter the port your app is listening on": type that number, 8080. If the website says "Application failed to respond", the domain's port does not match the logged one: change it under Settings > Networking.
 
 ### Website and admin (Vercel > project > Settings > Environment Variables)
 
